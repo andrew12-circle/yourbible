@@ -119,7 +119,6 @@ import {
   hubReaderInline,
   readReaderHubFullscreen,
   readerOverlayPosition,
-  readerPageTurnTopOffsetClass,
   readerSceneTopOffsetClass,
   writeReaderHubFullscreen,
 } from "@/lib/bible/readerHubLayout";
@@ -166,6 +165,7 @@ import { useReaderPageMeasurement } from "@/hooks/useReaderPageMeasurement";
 import { useReaderChapterMedia } from "@/hooks/useReaderChapterMedia";
 import { ReaderShell } from "@/pages/reader/ReaderShell";
 import { ReaderSpreadStudyPane } from "@/pages/reader/ReaderSpreadStudyPane";
+import { ReaderPageTurnHotZones } from "@/pages/reader/ReaderPageTurnHotZones";
 import { readerPageSideFromRect } from "@/lib/bible/verseSelection";
 import { buildDocumentBlocks } from "@/lib/bible/documentModel";
 import { passageToCanonicalChapter } from "@/lib/bible/canonical/passageToCanonical";
@@ -1858,38 +1858,14 @@ export default function ReaderPage() {
 
       {/* Page-turn hot zones — narrow strips at the screen edge */}
       {!scrollMode && (
-        <>
-      <button
-        onClick={() => goPage(-1)}
-        aria-label="Previous page"
-        className={cn(
-          overlayPos,
-          readerPageTurnTopOffsetClass(compactChrome, hubInline),
-          "left-0 w-8 z-[5] opacity-0",
-          showReaderDock
-            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-            : compactChrome
-              ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-              : "bottom-safe-16",
-          inkMode && "pointer-events-none",
-        )}
-      />
-      <button
-        onClick={() => goPage(1)}
-        aria-label="Next page"
-        className={cn(
-          overlayPos,
-          readerPageTurnTopOffsetClass(compactChrome, hubInline),
-          "right-0 w-8 z-[5] opacity-0",
-          showReaderDock
-            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-            : compactChrome
-              ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-              : "bottom-safe-16",
-          inkMode && "pointer-events-none",
-        )}
-      />
-        </>
+        <ReaderPageTurnHotZones
+          overlayPos={overlayPos}
+          compactChrome={compactChrome}
+          hubInline={hubInline}
+          showReaderDock={showReaderDock}
+          inkMode={inkMode}
+          onTurn={goPage}
+        />
       )}
 
       {/* Headless paginator — measures and reports splits (page mode only) */}
