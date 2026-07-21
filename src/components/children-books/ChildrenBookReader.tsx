@@ -53,7 +53,11 @@ function ChildrenBookMobilePageBar({
   onForward: () => void;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex justify-center px-4">
+    <div
+      role="navigation"
+      aria-label="Story page controls"
+      className="pointer-events-none absolute inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex justify-center px-4"
+    >
       <div
         className={cn(
           "pointer-events-auto flex h-11 w-full max-w-[18rem] items-center justify-between gap-2",
