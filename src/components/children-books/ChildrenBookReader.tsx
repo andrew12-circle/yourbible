@@ -35,7 +35,63 @@ type ChildrenBookReaderProps = {
 
 type TurnDirection = "forward" | "back";
 
-const CHILDREN_BOOK_MOBILE_RIGHT_PEEK = 0.12;
+const CHILDREN_BOOK_MOBILE_RIGHT_PEEK = 0.07;
+
+function ChildrenBookMobilePageBar({
+  label,
+  backLabel,
+  canGoBack,
+  canGoForward,
+  onBack,
+  onForward,
+}: {
+  label: string;
+  backLabel: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  onBack: () => void;
+  onForward: () => void;
+}) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex justify-center px-4">
+      <div
+        className={cn(
+          "pointer-events-auto flex h-11 w-full max-w-[18rem] items-center justify-between gap-2",
+          "rounded-full border border-leather/15 bg-paper/95 px-2 shadow-lg shadow-black/15 backdrop-blur-md",
+          "text-[10px] font-display uppercase tracking-[0.22em] text-leather/55",
+        )}
+      >
+        <button
+          type="button"
+          onClick={onBack}
+          disabled={!canGoBack}
+          aria-label={backLabel}
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+            canGoBack ? "text-leather/70 hover:bg-leather/10" : "text-leather/20",
+          )}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+        </button>
+
+        <span className="min-w-0 flex-1 truncate text-center">{label}</span>
+
+        <button
+          type="button"
+          onClick={onForward}
+          disabled={!canGoForward}
+          aria-label="Next page"
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+            canGoForward ? "text-leather/70 hover:bg-leather/10" : "text-leather/20",
+          )}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function StoryPageFace({
   book,
@@ -109,6 +165,10 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
   const canGoForward = singlePage
     ? !showCover && pageIndex < book.pages.length
     : !showCover && pageIndex < spreadCount;
+  const mobileCanGoBack = !showCover;
+  const mobilePageLabel = singlePage
+    ? `Page ${Math.min(pageIndex + 1, book.pages.length + 1)} of ${book.pages.length + 1}`
+    : `Spread ${Math.min(pageIndex + 1, spreadCount + 1)} of ${spreadCount + 1}`;
 
   const progress = showCover
     ? 0
@@ -345,6 +405,7 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
                 "absolute inset-y-0 left-0 z-20 flex w-[min(18%,5rem)] items-center justify-start pl-2",
                 "text-leather/40 opacity-0 transition disabled:pointer-events-none",
                 "hover:text-leather/70 group-hover/reader:opacity-100 focus-visible:opacity-100",
+                compactChrome && "hidden",
                 pageIndex === 0 && "opacity-0 group-hover/reader:opacity-100 focus-visible:opacity-100",
                 !canGoBack && pageIndex > 0 && "opacity-0",
               )}
@@ -361,11 +422,23 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
                 "absolute inset-y-0 right-0 z-20 flex w-[min(18%,5rem)] items-center justify-end pr-2",
                 "text-leather/40 opacity-0 transition disabled:pointer-events-none",
                 "hover:text-leather/70 group-hover/reader:opacity-100 focus-visible:opacity-100",
+                compactChrome && "hidden",
                 !canGoForward && "opacity-0",
               )}
             >
               <ChevronRight className="h-7 w-7 drop-shadow-sm" aria-hidden />
             </button>
+
+            {compactChrome && (
+              <ChildrenBookMobilePageBar
+                label={mobilePageLabel}
+                backLabel={pageIndex === 0 ? "Back to cover" : "Previous page"}
+                canGoBack={mobileCanGoBack}
+                canGoForward={canGoForward}
+                onBack={() => turnPage("back")}
+                onForward={() => turnPage("forward")}
+              />
+            )}
           </>
         )}
       </main>
