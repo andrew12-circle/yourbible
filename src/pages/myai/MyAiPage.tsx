@@ -28,6 +28,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import MyAiComposer from "@/components/myai/MyAiComposer";
 import MyAiChatSidebar from "@/components/myai/MyAiChatSidebar";
+import MyAiProjectMemoryDialog from "@/components/myai/MyAiProjectMemoryDialog";
 import MyAiWelcomeHero from "@/components/myai/MyAiWelcomeHero";
 import MyAiWelcomeExplainer from "@/components/myai/MyAiWelcomeExplainer";
 import { createAssistantTtsSession } from "@/lib/ai/assistantTts";
@@ -77,6 +78,7 @@ import {
   isMyAiProjectsTableMissing,
   listMyAiProjects,
   moveChatToProject as persistChatProject,
+  updateMyAiProjectMemory,
 } from "@/lib/myai/chatProjects";
 
 /** Canonical framework-grounded AI chat. Journal inline/legacy chat journals use the same `my-ai-chat` backend. */
@@ -347,6 +349,8 @@ export default function MyAiPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stateOpen, setStateOpen] = useState(false);
   const [indexOpen, setIndexOpen] = useState(false);
+  const [editingProjectMemoryId, setEditingProjectMemoryId] = useState<string | null>(null);
+  const [savingProjectMemory, setSavingProjectMemory] = useState(false);
   const [savingJournal, setSavingJournal] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -600,6 +604,26 @@ export default function MyAiPage() {
     }
   };
 
+  const editProjectMemory = (projectId: string) => {
+    setMobileSheetOpen(false);
+    setEditingProjectMemoryId(projectId);
+  };
+
+  const saveProjectMemory = async (memory: string) => {
+    if (!user || !editingProjectMemoryId) return;
+    setSavingProjectMemory(true);
+    try {
+      const row = await updateMyAiProjectMemory(supabase, user.id, editingProjectMemoryId, memory);
+      setProjects((prev) => prev.map((p) => (p.id === row.id ? row : p)));
+      setEditingProjectMemoryId(null);
+      toast({ title: "Project memory saved", description: "Future chats in this project will use it." });
+    } catch (e) {
+      toast({ title: "Could not save project memory", description: String(e), variant: "destructive" });
+    } finally {
+      setSavingProjectMemory(false);
+    }
+  };
+
   const saveAsJournalEntry = async () => {
     if (!routeChatId || savingJournal) return;
     const hasDialogue = messages.some((m) => m.role === "user" || m.role === "assistant");
@@ -629,6 +653,7 @@ export default function MyAiPage() {
       editingMessageId && !editingMessageId.startsWith("pending-") ? editingMessageId : null;
     const optimisticId = `pending-${Date.now()}`;
     const assistantTempId = `${optimisticId}-assistant`;
+    const targetProjectId = activeProjectFilter;
 
     if (editId) {
       const idx = messages.findIndex((m) => m.id === editId);
@@ -660,6 +685,7 @@ export default function MyAiPage() {
         signal: abortRef.current.signal,
         body: {
           chat_id: routeChatId ?? null,
+          project_id: routeChatId ? undefined : targetProjectId,
           message: text,
           edit_user_message_id: editId,
           ...scopeFlags,
@@ -673,7 +699,6 @@ export default function MyAiPage() {
       const chatTitle = done.title?.trim() || chatTitleFromFirstMessage(text);
       const chatId = done.chat_id;
       const now = new Date().toISOString();
-      const targetProjectId = activeProjectFilter;
 
       if (targetProjectId) {
         await persistChatProject(supabase, user.id, chatId, targetProjectId);
@@ -802,8 +827,11 @@ export default function MyAiPage() {
     onDeleteChat: (id: string, e?: MouseEvent) => void deleteChat(id, e),
     onMoveChatToProject: (chatId: string, projectId: string | null) => void moveChatToProject(chatId, projectId),
     onSelectProjectFilter: setActiveProjectFilter,
+    onEditProjectMemory: editProjectMemory,
     onDeleteProject: (projectId: string) => void deleteProject(projectId),
   };
+
+  const editingProjectMemory = projects.find((p) => p.id === editingProjectMemoryId) ?? null;
 
   const desktopSidebar = (
     <MyAiChatSidebar
@@ -828,6 +856,15 @@ export default function MyAiPage() {
       style={mobileKeyboardPageStyle}
     >
       <CognitiveStateDialog open={stateOpen} onOpenChange={setStateOpen} userId={user.id} />
+      <MyAiProjectMemoryDialog
+        open={Boolean(editingProjectMemoryId)}
+        project={editingProjectMemory}
+        saving={savingProjectMemory}
+        onOpenChange={(open) => {
+          if (!open) setEditingProjectMemoryId(null);
+        }}
+        onSave={(memory) => void saveProjectMemory(memory)}
+      />
       <LibraryIndexDialog open={indexOpen} onOpenChange={setIndexOpen} />
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
