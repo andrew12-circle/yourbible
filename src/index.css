@@ -133,6 +133,12 @@
 
     --primary: 38 58% 52%;
     --primary-foreground: 24 14% 8%;
+    --leather: 38 58% 52%;
+    --leather-deep: 38 46% 36%;
+    --leather-light: 42 68% 62%;
+    --navy: 222 24% 14%;
+    --navy-deep: 222 28% 9%;
+    --navy-light: 222 18% 22%;
 
     --secondary: 24 12% 16%;
     --secondary-foreground: 38 28% 86%;
@@ -146,12 +152,24 @@
     --border: 24 12% 18%;
     --input: 24 12% 18%;
     --ring: 38 58% 52%;
+
+    --sidebar-background: 222 24% 10%;
+    --sidebar-foreground: 210 24% 92%;
+    --sidebar-primary: 211 100% 62%;
+    --sidebar-primary-foreground: 222 24% 8%;
+    --sidebar-accent: 222 18% 16%;
+    --sidebar-accent-foreground: 210 24% 92%;
+    --sidebar-border: 220 14% 22%;
+    --sidebar-ring: 211 100% 62%;
+    --success: 142 66% 48%;
+    --success-foreground: 222 24% 8%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
   html, body, #root { height: 100%; }
+  html.dark { color-scheme: dark; }
   body {
     @apply bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
@@ -2034,53 +2052,53 @@
 /* ============================================================
    App theme — clean Apple/iOS aesthetic for everything OUTSIDE
    the Bible reader (auth, home, journal, framework, settings…).
-   White surfaces, system-blue accent, vivid app-icon palette.
+   Dark surfaces, system-blue accent, vivid app-icon palette.
    The leather/paper Bible aesthetic is preserved by NOT applying
    this class on /read routes.
    ============================================================ */
 .app-theme {
-  --background: 0 0% 100%;
-  --foreground: 222 16% 8%;
+  --background: 222 24% 8%;
+  --foreground: 210 24% 96%;
 
-  --card: 0 0% 100%;
-  --card-foreground: 222 16% 8%;
+  --card: 222 22% 11%;
+  --card-foreground: 210 24% 96%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 16% 8%;
+  --popover: 222 24% 9%;
+  --popover-foreground: 210 24% 96%;
 
   /* iOS system blue */
-  --primary: 211 100% 50%;
-  --primary-foreground: 0 0% 100%;
+  --primary: 211 100% 62%;
+  --primary-foreground: 222 24% 8%;
 
-  --secondary: 210 16% 96%;
-  --secondary-foreground: 222 16% 12%;
+  --secondary: 222 18% 16%;
+  --secondary-foreground: 210 24% 94%;
 
-  --muted: 210 16% 96%;
-  --muted-foreground: 220 9% 46%;
+  --muted: 222 18% 15%;
+  --muted-foreground: 215 12% 68%;
 
-  --accent: 211 100% 50%;
-  --accent-foreground: 0 0% 100%;
+  --accent: 211 100% 62%;
+  --accent-foreground: 222 24% 8%;
 
-  --destructive: 0 84% 56%;
+  --destructive: 0 72% 58%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 220 13% 92%;
-  --input: 220 13% 92%;
-  --ring: 211 100% 50%;
+  --border: 220 14% 24%;
+  --input: 220 14% 24%;
+  --ring: 211 100% 62%;
 
   --radius: 0.875rem;
 
-  --sidebar-background: 0 0% 100%;
-  --sidebar-foreground: 215 25% 20%;
-  --sidebar-primary: 215 25% 15%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 215 15% 95%;
-  --sidebar-accent-foreground: 215 25% 15%;
-  --sidebar-border: 220 13% 91%;
-  --sidebar-ring: 215 25% 15%;
+  --sidebar-background: 222 24% 10%;
+  --sidebar-foreground: 210 24% 92%;
+  --sidebar-primary: 211 100% 62%;
+  --sidebar-primary-foreground: 222 24% 8%;
+  --sidebar-accent: 222 18% 16%;
+  --sidebar-accent-foreground: 210 24% 92%;
+  --sidebar-border: 220 14% 22%;
+  --sidebar-ring: 211 100% 62%;
 
-  --success: 142 71% 35%;
-  --success-foreground: 0 0% 100%;
+  --success: 142 66% 48%;
+  --success-foreground: 222 24% 8%;
 
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
@@ -2151,9 +2169,14 @@
 
 /* Hub shell fabric backdrop (ported from quick-close-hub) */
 .bg-fabric {
-  background-image: url("/images/fabric-light-herringbone.png");
-  background-repeat: repeat;
-  background-size: 512px 512px;
+  background-color: hsl(222 24% 8%);
+  background-image:
+    radial-gradient(circle at 18% 12%, hsl(211 100% 24% / 0.22), transparent 34%),
+    radial-gradient(circle at 82% 18%, hsl(260 72% 28% / 0.16), transparent 34%),
+    repeating-linear-gradient(45deg, hsl(0 0% 100% / 0.025) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, hsl(0 0% 100% / 0.018) 0 1px, transparent 1px 6px);
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
+  background-size: auto, auto, 18px 18px, 18px 18px;
   background-position: top left;
   background-attachment: fixed;
 }
@@ -2175,10 +2198,10 @@
   background-color: hsl(var(--muted) / 0.4);
 }
 
-/* Cream body peeks below the hub when height math drifts — solid fallback only.
+/* Dark body peeks below the hub when height math drifts — solid fallback only.
    The single fixed fabric layer is painted by .hub-shell::before (see below); we
    deliberately avoid `background-attachment: fixed` here to prevent Chromium's
-   fixed-background repaint glitch that leaves stale tan seams until a reflow. */
+   fixed-background repaint glitch that leaves stale seams until a reflow. */
 html:has(.hub-shell),
 body:has(.hub-shell),
 #root:has(.hub-shell) {
@@ -2204,10 +2227,14 @@ body:has(.hub-shell),
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-color: hsl(var(--muted) / 0.4);
-  background-image: url("/images/fabric-light-herringbone.png");
-  background-repeat: repeat;
-  background-size: 512px 512px;
+  background-color: hsl(222 24% 8%);
+  background-image:
+    radial-gradient(circle at 18% 12%, hsl(211 100% 24% / 0.22), transparent 34%),
+    radial-gradient(circle at 82% 18%, hsl(260 72% 28% / 0.16), transparent 34%),
+    repeating-linear-gradient(45deg, hsl(0 0% 100% / 0.025) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(-45deg, hsl(0 0% 100% / 0.018) 0 1px, transparent 1px 6px);
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
+  background-size: auto, auto, 18px 18px, 18px 18px;
   background-position: top left;
   transform: translateZ(0);
   will-change: transform;
@@ -2379,15 +2406,15 @@ body:has(.hub-shell),
   border-radius: 0 !important;
 }
 
-/* Soft pastel mesh wallpaper — feels like an iOS lock-screen blur */
+/* Dark mesh wallpaper — feels like an iOS lock-screen blur */
 .app-mesh {
-  background-color: hsl(0 0% 100%);
+  background-color: hsl(222 24% 8%);
   background-image:
-    radial-gradient(at 12% 8%, hsl(212 100% 86% / 0.7) 0px, transparent 45%),
-    radial-gradient(at 88% 14%, hsl(330 100% 88% / 0.6) 0px, transparent 45%),
-    radial-gradient(at 76% 92%, hsl(160 80% 84% / 0.55) 0px, transparent 45%),
-    radial-gradient(at 18% 88%, hsl(48 100% 84% / 0.6) 0px, transparent 45%),
-    radial-gradient(at 50% 50%, hsl(265 90% 92% / 0.4) 0px, transparent 55%);
+    radial-gradient(at 12% 8%, hsl(212 100% 30% / 0.42) 0px, transparent 45%),
+    radial-gradient(at 88% 14%, hsl(330 88% 34% / 0.32) 0px, transparent 45%),
+    radial-gradient(at 76% 92%, hsl(160 80% 28% / 0.24) 0px, transparent 45%),
+    radial-gradient(at 18% 88%, hsl(48 100% 34% / 0.22) 0px, transparent 45%),
+    radial-gradient(at 50% 50%, hsl(265 90% 36% / 0.32) 0px, transparent 55%);
 }
 
 /* iOS Home Screen wallpaper — rich saturated blurred blobs like iOS 17/18 */
@@ -2755,6 +2782,32 @@ body:has([data-mini-phone-drawer]) [data-sidebar-peek] {
 
 .app-theme .bg-paper,
 .app-theme [class*="bg-paper/"] { background-color: hsl(var(--card)) !important; }
+
+.app-theme .bg-white,
+.app-theme .bg-zinc-50,
+.app-theme .bg-zinc-100,
+.app-theme .bg-slate-50,
+.app-theme [class~="bg-white/95"],
+.app-theme [class~="bg-white/90"],
+.app-theme [class~="bg-white/85"],
+.app-theme [class~="bg-white/80"],
+.app-theme [class~="bg-white/70"],
+.app-theme [class~="bg-white/60"],
+.app-theme [class~="bg-zinc-100/80"] {
+  background-color: hsl(var(--card)) !important;
+}
+
+.app-theme [class~="border-white/70"],
+.app-theme [class~="border-white/60"],
+.app-theme [class~="border-white/50"],
+.app-theme [class~="border-zinc-300"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+.app-theme .text-black,
+.app-theme .text-zinc-900 {
+  color: hsl(var(--foreground)) !important;
+}
 
 .app-theme .border-paper-edge,
 .app-theme .border-gold,

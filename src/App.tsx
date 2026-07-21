@@ -17,6 +17,7 @@ import { LifeWeekReviewProvider } from "@/contexts/LifeWeekReviewContext";
 import { JournalVideoLaunchProvider } from "@/contexts/JournalVideoLaunchContext";
 import { LifeWeekReviewGate } from "@/components/life/LifeWeekReviewGate";
 import { JournalVideoUploadRetry } from "@/components/journal/JournalVideoUploadRetry";
+import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
@@ -112,21 +113,22 @@ const PrayerTimelinePage = lazy(() => import("./pages/prayer/PrayerTimelinePage"
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AppErrorBoundary>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <PwaUpdatePrompt />
-        <BrowserRouter>
-          <PwaResumeManager />
-          <AppOfflineBanner />
-          <AuthProvider>
-            <GlobalMediaPlayerProvider>
-            <LifeWeekReviewProvider>
-            <JournalVideoLaunchProvider>
-            <ThemeSwitcher />
-            <Suspense fallback={<AppRouteFallback />}>
-              <Routes>
+    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
+      <AppErrorBoundary>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <PwaUpdatePrompt />
+          <BrowserRouter>
+            <PwaResumeManager />
+            <AppOfflineBanner />
+            <AuthProvider>
+              <GlobalMediaPlayerProvider>
+              <LifeWeekReviewProvider>
+              <JournalVideoLaunchProvider>
+              <ThemeSwitcher />
+              <Suspense fallback={<AppRouteFallback />}>
+                <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/auth/reset" element={<AuthResetPage />} />
@@ -239,25 +241,26 @@ const App = () => (
                   <Route path="/framework/questions-for-god/:id" element={<QuestionForGodDetailPage />} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
-              </Routes>
-            </Suspense>
-            <Suspense fallback={null}>
-              <HomeIndicator />
-              <GlobalJournalLauncher />
-              <GlobalMediaPlayerHost />
-              <GlobalJournalQuickCapture />
-              <GlobalArtifactVideoPip />
-              <GlobalArtifactDocumentPip />
-              <LifeWeekReviewGate />
-              <JournalVideoUploadRetry />
-            </Suspense>
-            </JournalVideoLaunchProvider>
-            </LifeWeekReviewProvider>
-            </GlobalMediaPlayerProvider>
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AppErrorBoundary>
+                </Routes>
+              </Suspense>
+              <Suspense fallback={null}>
+                <HomeIndicator />
+                <GlobalJournalLauncher />
+                <GlobalMediaPlayerHost />
+                <GlobalJournalQuickCapture />
+                <GlobalArtifactVideoPip />
+                <GlobalArtifactDocumentPip />
+                <LifeWeekReviewGate />
+                <JournalVideoUploadRetry />
+              </Suspense>
+              </JournalVideoLaunchProvider>
+              </LifeWeekReviewProvider>
+              </GlobalMediaPlayerProvider>
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AppErrorBoundary>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
@@ -269,7 +272,7 @@ function AppOfflineBanner() {
   return <OfflineBanner />;
 }
 
-/** Apply Apple-style white theme to <body> on every route except the Bible reader. */
+/** Apply the product app theme to <body> on every route except the Bible reader. */
 function ThemeSwitcher() {
   const { pathname } = useLocation();
   useEffect(() => {
