@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -129,15 +129,15 @@ describe("ChildrenBookReader", () => {
     vi.useRealTimers();
   });
 
-  it("uses compact page controls and a smaller mobile right-page peek", async () => {
+  it("uses compact page controls and a smaller mobile right-page peek", () => {
     render(<ChildrenBookReader book={testBook} showHubShell={false} onBackToLibrary={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open cover" }));
-    vi.advanceTimersByTime(320);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("book-scene")).toHaveAttribute("data-right-page-peek", "0.07");
+    act(() => {
+      vi.advanceTimersByTime(320);
     });
+
+    expect(screen.getByTestId("book-scene")).toHaveAttribute("data-right-page-peek", "0.07");
 
     const controls = screen.getByRole("navigation", { name: "Story page controls" });
     expect(within(controls).getByText("Page 1 of 3")).toBeInTheDocument();
@@ -149,13 +149,15 @@ describe("ChildrenBookReader", () => {
     expect(screen.getByText("Page Two")).toBeInTheDocument();
   });
 
-  it("returns to the cover from the first page on mobile", async () => {
+  it("returns to the cover from the first page on mobile", () => {
     render(<ChildrenBookReader book={testBook} showHubShell={false} onBackToLibrary={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Open cover" }));
-    vi.advanceTimersByTime(320);
+    act(() => {
+      vi.advanceTimersByTime(320);
+    });
 
-    const controls = await screen.findByRole("navigation", { name: "Story page controls" });
+    const controls = screen.getByRole("navigation", { name: "Story page controls" });
     fireEvent.click(within(controls).getByRole("button", { name: "Back to cover" }));
 
     expect(screen.getByRole("button", { name: "Open cover" })).toBeInTheDocument();
