@@ -276,9 +276,9 @@ export default function AuthPage() {
         ) : null}
 
         <p className="text-center text-[11px] text-muted-foreground mt-6">
-          <Link to="/privacy" className="hover:text-primary">Privacy</Link>
+          <Link to="/privacy" className="text-muted-foreground hover:text-primary">Privacy</Link>
           {" · "}
-          <Link to="/terms" className="hover:text-primary">Terms</Link>
+          <Link to="/terms" className="text-muted-foreground hover:text-primary">Terms</Link>
         </p>
       </motion.div>
     </div>

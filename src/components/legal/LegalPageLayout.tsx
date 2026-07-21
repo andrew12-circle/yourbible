@@ -25,8 +25,12 @@ export function LegalPageLayout({
           {children}
         </article>
         <footer className="mt-12 pt-6 border-t text-xs text-muted-foreground flex gap-4">
-          <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
-          <Link to="/terms" className="hover:text-foreground">Terms</Link>
+          <Link to="/privacy" className="text-muted-foreground hover:text-foreground">
+            Privacy
+          </Link>
+          <Link to="/terms" className="text-muted-foreground hover:text-foreground">
+            Terms
+          </Link>
         </footer>
       </div>
     </div>
@@ -37,13 +41,13 @@ export function SettingsLegalFooter() {
   return (
     <div className="pt-6 mt-6 border-t text-xs text-muted-foreground space-y-2">
       <p>
-        <Link to="/privacy" className="hover:text-foreground underline-offset-2 hover:underline">Privacy Policy</Link>
+        <Link to="/privacy" className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">Privacy Policy</Link>
         {" · "}
-        <Link to="/terms" className="hover:text-foreground underline-offset-2 hover:underline">Terms of Service</Link>
+        <Link to="/terms" className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">Terms of Service</Link>
       </p>
       <p className="text-[11px] leading-relaxed">
         {APP_NAME} is in private beta. Questions? Email{" "}
-        <a href="mailto:support@beliefarchitecture.app" className="hover:text-foreground underline-offset-2 hover:underline">
+        <a href="mailto:support@beliefarchitecture.app" className="text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
           support@beliefarchitecture.app
         </a>
       </p>
