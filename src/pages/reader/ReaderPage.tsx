@@ -134,7 +134,7 @@ import {
   type ReaderDisplayMode,
   readerDisplayModeLabel,
 } from "@/lib/bible/readerDisplayMode";
-import { readReaderDarkMode, writeReaderDarkMode } from "@/lib/bible/readerDarkMode";
+import { useReaderDarkMode } from "@/hooks/useReaderDarkMode";
 import {
   readReaderColumnLayout,
   readerColumnLayoutLabel,
@@ -401,7 +401,7 @@ export default function ReaderPage() {
     () => ({ desktopSpread: readerSpread, compactChrome, tabletPortrait }),
     [readerSpread, compactChrome, tabletPortrait],
   );
-  const [readerDark, setReaderDark] = useState(readReaderDarkMode);
+  const { readerDark, toggleReaderDark } = useReaderDarkMode();
   const [columnLayout, setColumnLayout] = useState<ReaderColumnLayout>(() => readReaderColumnLayout());
 
   useEffect(() => {
@@ -439,14 +439,6 @@ export default function ReaderPage() {
       const next: ReaderDisplayMode = prev === "scroll" ? "pages" : "scroll";
       writeReaderDisplayMode(next);
       toast({ title: `${readerDisplayModeLabel(next)} reading` });
-      return next;
-    });
-  }, []);
-
-  const toggleReaderDark = useCallback(() => {
-    setReaderDark((prev) => {
-      const next = !prev;
-      writeReaderDarkMode(next);
       return next;
     });
   }, []);

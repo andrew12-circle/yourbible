@@ -50,7 +50,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   {
     id: "appearance",
     label: "Appearance",
-    description: "Cover, highlights, fonts, and tone",
+    description: "Day/night mode, cover, highlights, fonts",
     icon: Palette,
     accent: "text-violet-500",
   },

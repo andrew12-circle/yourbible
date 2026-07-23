@@ -17,7 +17,7 @@ import { LifeWeekReviewProvider } from "@/contexts/LifeWeekReviewContext";
 import { JournalVideoLaunchProvider } from "@/contexts/JournalVideoLaunchContext";
 import { LifeWeekReviewGate } from "@/components/life/LifeWeekReviewGate";
 import { JournalVideoUploadRetry } from "@/components/journal/JournalVideoUploadRetry";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import ArtifactDetailErrorBoundary from "./components/framework/ArtifactDetailErrorBoundary";
@@ -113,7 +113,7 @@ const PrayerTimelinePage = lazy(() => import("./pages/prayer/PrayerTimelinePage"
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <AppErrorBoundary>
         <TooltipProvider>
           <Toaster />
@@ -272,7 +272,7 @@ function AppOfflineBanner() {
   return <OfflineBanner />;
 }
 
-/** Apply the product app theme to <body> on every route except the Bible reader. */
+/** Apply Apple-style app chrome to <body> on every route except the Bible reader / children's books. */
 function ThemeSwitcher() {
   const { pathname } = useLocation();
   useEffect(() => {

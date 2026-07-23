@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ImagePlus, Languages, LogOut, SlidersHorizontal, User } from "lucide-react";
+import { ImagePlus, Languages, LogOut, Monitor, Moon, SlidersHorizontal, Sun, User } from "lucide-react";
+import { useTheme } from "next-themes";
 import AiWritingAssistToggle from "@/components/writing/AiWritingAssistToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ import { SettingsOfflineBible } from "@/components/settings/SettingsOfflineBible
 import { readBibleLanguage, LS_BIBLE_LANGUAGE_KEY } from "@/hooks/useBibles";
 import { EOTC_BIBLE_ID, readCanon, writeCanon, type CanonId } from "@/lib/bible/canon";
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { useReaderDarkMode } from "@/hooks/useReaderDarkMode";
+import type { ReaderDarkPreference } from "@/lib/bible/readerDarkMode";
 
 type SettingsState = ReturnType<typeof useSettingsPage>;
 
@@ -275,10 +278,80 @@ export function SettingsReaderSection({ state }: { state: SettingsState }) {
 
 export function SettingsAppearanceSection({ state }: { state: SettingsState }) {
   const { profile, save } = state;
+  const { theme, setTheme } = useTheme();
+  const { preference: readerPagePref, setReaderDarkPreference } = useReaderDarkMode();
   if (!profile) return null;
+
+  const colorModes = [
+    { id: "system" as const, label: "Auto", hint: "Match phone / iPad / computer", icon: Monitor },
+    { id: "light" as const, label: "Day", hint: "Always light", icon: Sun },
+    { id: "dark" as const, label: "Night", hint: "Always dark", icon: Moon },
+  ];
+
+  const biblePageModes: { id: ReaderDarkPreference; label: string; hint: string; icon: typeof Monitor }[] = [
+    { id: "system", label: "Auto", hint: "Match device", icon: Monitor },
+    { id: "light", label: "Day", hint: "Cream pages", icon: Sun },
+    { id: "dark", label: "Night", hint: "Dark pages", icon: Moon },
+  ];
 
   return (
     <div className="space-y-6">
+      <div className="space-y-2">
+        <Label>Color mode</Label>
+        <p className="text-xs text-muted-foreground">
+          Default is Auto — the app follows your device light or dark setting.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {colorModes.map((opt) => {
+            const Icon = opt.icon;
+            const selected = (theme ?? "system") === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setTheme(opt.id)}
+                className={cn(
+                  "rounded-xl border p-4 text-left transition-all hover:bg-muted/30",
+                  selected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border bg-card",
+                )}
+              >
+                <Icon className="h-4 w-4 text-muted-foreground mb-2" aria-hidden />
+                <div className="font-medium text-sm">{opt.label}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{opt.hint}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Bible pages</Label>
+        <p className="text-xs text-muted-foreground">
+          Separate from the rest of the app. You can also tap the sun / moon icon in the reader toolbar.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {biblePageModes.map((opt) => {
+            const Icon = opt.icon;
+            const selected = readerPagePref === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setReaderDarkPreference(opt.id)}
+                className={cn(
+                  "rounded-xl border p-4 text-left transition-all hover:bg-muted/30",
+                  selected ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-border bg-card",
+                )}
+              >
+                <Icon className="h-4 w-4 text-muted-foreground mb-2" aria-hidden />
+                <div className="font-medium text-sm">{opt.label}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{opt.hint}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label>Book cover</Label>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

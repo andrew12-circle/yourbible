@@ -116,7 +116,7 @@
     --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* Dark / night-reading mode */
+  /* Dark / night-reading mode (html.dark or nested .dark) */
   .dark {
     --background: 24 14% 8%;
     --foreground: 38 28% 86%;
@@ -163,6 +163,8 @@
     --sidebar-ring: 211 100% 62%;
     --success: 142 66% 48%;
     --success-foreground: 222 24% 8%;
+
+    color-scheme: dark;
   }
 }
 
@@ -2052,11 +2054,61 @@
 /* ============================================================
    App theme — clean Apple/iOS aesthetic for everything OUTSIDE
    the Bible reader (auth, home, journal, framework, settings…).
-   Dark surfaces, system-blue accent, vivid app-icon palette.
+   Light by default; .dark .app-theme switches to night chrome.
    The leather/paper Bible aesthetic is preserved by NOT applying
    this class on /read routes.
    ============================================================ */
 .app-theme {
+  --background: 0 0% 100%;
+  --foreground: 222 16% 8%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 222 16% 8%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 16% 8%;
+
+  /* iOS system blue */
+  --primary: 211 100% 50%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 16% 96%;
+  --secondary-foreground: 222 16% 12%;
+
+  --muted: 210 16% 96%;
+  --muted-foreground: 220 9% 46%;
+
+  --accent: 211 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84% 56%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 220 13% 92%;
+  --input: 220 13% 92%;
+  --ring: 211 100% 50%;
+
+  --radius: 0.875rem;
+
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 215 25% 20%;
+  --sidebar-primary: 215 25% 15%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 215 15% 95%;
+  --sidebar-accent-foreground: 215 25% 15%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 215 25% 15%;
+
+  --success: 142 71% 35%;
+  --success-foreground: 0 0% 100%;
+
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+}
+
+/* App chrome night mode — follows html.dark from next-themes / system preference */
+.dark .app-theme {
   --background: 222 24% 8%;
   --foreground: 210 24% 96%;
 
@@ -2066,7 +2118,6 @@
   --popover: 222 24% 9%;
   --popover-foreground: 210 24% 96%;
 
-  /* iOS system blue */
   --primary: 211 100% 62%;
   --primary-foreground: 222 24% 8%;
 
@@ -2086,8 +2137,6 @@
   --input: 220 14% 24%;
   --ring: 211 100% 62%;
 
-  --radius: 0.875rem;
-
   --sidebar-background: 222 24% 10%;
   --sidebar-foreground: 210 24% 92%;
   --sidebar-primary: 211 100% 62%;
@@ -2100,9 +2149,7 @@
   --success: 142 66% 48%;
   --success-foreground: 222 24% 8%;
 
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  color-scheme: dark;
 }
 .app-theme h1, .app-theme h2, .app-theme h3, .app-theme h4 {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
