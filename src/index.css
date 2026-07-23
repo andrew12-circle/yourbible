@@ -2216,6 +2216,14 @@
 
 /* Hub shell fabric backdrop (ported from quick-close-hub) */
 .bg-fabric {
+  background-image: url("/images/fabric-light-herringbone.png");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  background-position: top left;
+  background-attachment: fixed;
+}
+
+.dark .bg-fabric {
   background-color: hsl(222 24% 8%);
   background-image:
     radial-gradient(circle at 18% 12%, hsl(211 100% 24% / 0.22), transparent 34%),
@@ -2224,7 +2232,6 @@
     repeating-linear-gradient(-45deg, hsl(0 0% 100% / 0.018) 0 1px, transparent 1px 6px);
   background-repeat: no-repeat, no-repeat, repeat, repeat;
   background-size: auto, auto, 18px 18px, 18px 18px;
-  background-position: top left;
   background-attachment: fixed;
 }
 
@@ -2245,10 +2252,10 @@
   background-color: hsl(var(--muted) / 0.4);
 }
 
-/* Dark body peeks below the hub when height math drifts — solid fallback only.
+/* Cream / muted body peeks below the hub when height math drifts — solid fallback only.
    The single fixed fabric layer is painted by .hub-shell::before (see below); we
    deliberately avoid `background-attachment: fixed` here to prevent Chromium's
-   fixed-background repaint glitch that leaves stale seams until a reflow. */
+   fixed-background repaint glitch that leaves stale tan seams until a reflow. */
 html:has(.hub-shell),
 body:has(.hub-shell),
 #root:has(.hub-shell) {
@@ -2274,6 +2281,16 @@ body:has(.hub-shell),
   inset: 0;
   z-index: -1;
   pointer-events: none;
+  background-color: hsl(var(--muted) / 0.4);
+  background-image: url("/images/fabric-light-herringbone.png");
+  background-repeat: repeat;
+  background-size: 512px 512px;
+  background-position: top left;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.dark .hub-shell::before {
   background-color: hsl(222 24% 8%);
   background-image:
     radial-gradient(circle at 18% 12%, hsl(211 100% 24% / 0.22), transparent 34%),
@@ -2282,9 +2299,6 @@ body:has(.hub-shell),
     repeating-linear-gradient(-45deg, hsl(0 0% 100% / 0.018) 0 1px, transparent 1px 6px);
   background-repeat: no-repeat, no-repeat, repeat, repeat;
   background-size: auto, auto, 18px 18px, 18px 18px;
-  background-position: top left;
-  transform: translateZ(0);
-  will-change: transform;
 }
 
 @supports (-webkit-touch-callout: none) {
