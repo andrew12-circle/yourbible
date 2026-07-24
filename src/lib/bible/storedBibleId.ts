@@ -1,3 +1,5 @@
+import { API_BIBLE_CSB_ID } from "@/lib/bible/bibleEditions";
+
 export const LS_BIBLE_KEY = "yb.bibleId";
 export const LS_BIBLE_ABBR_KEY = "yb.bibleAbbr";
 
@@ -15,6 +17,10 @@ export function getStoredBibleAbbr(): string | null {
   } catch {
     return null;
   }
+}
+
+export function getStoredBibleIdOrDefault(): string {
+  return getStoredBibleId() ?? API_BIBLE_CSB_ID;
 }
 
 export function persistBibleSelection(id: string, abbreviation?: string): void {

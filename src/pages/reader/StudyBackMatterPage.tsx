@@ -13,7 +13,7 @@ import {
   coverStyle as buildCoverStyle,
 } from "@/lib/bible/readerAppearance";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
-import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId, getStoredBibleIdOrDefault, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import {
   STUDY_MAPS,
   studyBackMatterSection,
@@ -42,14 +42,14 @@ export default function StudyBackMatterPage() {
   const effectiveSpread = readerSpread && !compactChrome;
 
   const { data: bibles = [] } = useBibles();
-  const [bibleId, setBibleId] = useState(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
+  const [bibleId, setBibleId] = useState(() => getStoredBibleIdOrDefault());
 
   useEffect(() => {
     if (bibles.length === 0) return;
-    const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
+    const next = pickDefaultBibleId(bibles, bibleId || getStoredBibleId());
     if (next && next !== bibleId) {
       setBibleId(next);
-      localStorage.setItem(LS_BIBLE_KEY, next);
+      persistBibleSelection(next, bibles.find((b) => b.id === next)?.abbreviation);
     }
   }, [bibles, bibleId]);
 
@@ -134,7 +134,7 @@ export default function StudyBackMatterPage() {
         bibles={bibles}
         onChangeBible={(id) => {
           setBibleId(id);
-          localStorage.setItem(LS_BIBLE_KEY, id);
+          persistBibleSelection(id, bibles.find((b) => b.id === id)?.abbreviation);
         }}
         onBookmark={() => navigate("/read/contents")}
         currentBook={defaultBook}

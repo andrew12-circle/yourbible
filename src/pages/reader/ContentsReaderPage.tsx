@@ -22,7 +22,7 @@ import {
   coverStyle as buildCoverStyle,
 } from "@/lib/bible/readerAppearance";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
-import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId, getStoredBibleIdOrDefault, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { BOOKS } from "@/data/books";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { cn } from "@/lib/utils";
@@ -49,15 +49,15 @@ export default function ContentsReaderPage() {
   const hubInline = hubReaderInline(showHubShell, hubFullscreen);
 
   const { data: bibles = [] } = useBibles();
-  const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
+  const [bibleId, setBibleId] = useState<string>(() => getStoredBibleIdOrDefault());
   const [fontScale, setFontScale] = useState(() => readStoredReaderFontScale());
 
   useEffect(() => {
     if (bibles.length === 0) return;
-    const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
+    const next = pickDefaultBibleId(bibles, bibleId || getStoredBibleId());
     if (next && next !== bibleId) {
       setBibleId(next);
-      localStorage.setItem(LS_BIBLE_KEY, next);
+      persistBibleSelection(next, bibles.find((b) => b.id === next)?.abbreviation);
     }
   }, [bibles, bibleId]);
 
@@ -160,7 +160,7 @@ export default function ContentsReaderPage() {
         bibles={bibles}
         onChangeBible={(id) => {
           setBibleId(id);
-          localStorage.setItem(LS_BIBLE_KEY, id);
+          persistBibleSelection(id, bibles.find((b) => b.id === id)?.abbreviation);
         }}
         onBookmark={() => navigate("/read/Jhn/1")}
         currentBook={defaultBook}
