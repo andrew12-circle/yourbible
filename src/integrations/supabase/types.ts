@@ -2584,6 +2584,92 @@ export type Database = {
         }
         Relationships: []
       }
+      vision_boards: {
+        Row: {
+          background_key: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          background_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          background_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vision_board_items: {
+        Row: {
+          board_id: string
+          created_at: string
+          height: number
+          id: string
+          note_color: string | null
+          rotation: number
+          storage_path: string | null
+          text: string | null
+          type: string
+          updated_at: string
+          user_id: string
+          width: number
+          x: number
+          y: number
+          z_index: number
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          height?: number
+          id?: string
+          note_color?: string | null
+          rotation?: number
+          storage_path?: string | null
+          text?: string | null
+          type: string
+          updated_at?: string
+          user_id: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          height?: number
+          id?: string
+          note_color?: string | null
+          rotation?: number
+          storage_path?: string | null
+          text?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vision_board_items_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "vision_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       youtube_channel_subscriptions: {
         Row: {
           auto_import: boolean

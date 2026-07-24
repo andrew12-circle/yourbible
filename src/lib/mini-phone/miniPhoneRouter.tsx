@@ -58,6 +58,7 @@ const LifeWeekReviewLogPage = lazy(() => import("@/pages/life/LifeWeekReviewLogP
 const LifePrioritiesPage = lazy(() => import("@/pages/life/LifePrioritiesPage"));
 const HabitsPage = lazy(() => import("@/pages/life/HabitsPage"));
 const TodosPage = lazy(() => import("@/pages/life/TodosPage"));
+const VisionBoardPage = lazy(() => import("@/pages/life/VisionBoardPage"));
 const ReadingPlansPage = lazy(() => import("@/pages/bible/ReadingPlansPage"));
 const LifeGuidePage = lazy(() => import("@/pages/bible/LifeGuidePage"));
 const CodeLabPage = lazy(() => import("@/pages/bible/CodeLabPage"));
@@ -106,6 +107,7 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/life/priorities", element: <LifePrioritiesPage /> },
   { path: "/life/habits", element: <HabitsPage /> },
   { path: "/life/todos", element: <TodosPage /> },
+  { path: "/life/vision-board", element: <VisionBoardPage /> },
   { path: "/todos", element: <Navigate to="/life/todos" replace /> },
   { path: "/prayer", element: <PrayerHubPage /> },
   { path: "/prayer/requests", element: <PrayerRequestsListPage /> },
