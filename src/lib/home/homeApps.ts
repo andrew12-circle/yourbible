@@ -2,7 +2,7 @@ import {
   BookOpen, BookMarked, ListTodo, CheckSquare, MessageCircleHeart,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users, CircleHelp,
-  Sunrise, Grid3X3, HandHeart,
+  Sunrise, Grid3X3, HandHeart, Images,
   type LucideIcon,
 } from "lucide-react";
 import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
@@ -103,6 +103,13 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     { label: "Digest", to: "/framework/digest", icon: Mail, color: IOS_APP_BG.digest },
     { label: "Tasks", to: "/life/todos", icon: ListTodo, color: IOS_APP_BG.tasks },
     { label: "Habits", to: "/life/habits", icon: CheckSquare, color: IOS_APP_BG.habits },
+    {
+      label: "Vision board",
+      to: "/life/vision-board",
+      icon: Images,
+      color: IOS_APP_BG.visionBoard,
+      ariaLabel: "Vision board — pin photos and sticky notes",
+    },
     { label: "Sleep", to: "/sleep", icon: Moon, color: IOS_APP_BG.sleep },
     { label: "YouTube", onOpen: openYouTubeAppOrWeb, icon: Youtube, color: IOS_APP_BG.youtube, ariaLabel: "Open YouTube" },
     {

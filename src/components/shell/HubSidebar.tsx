@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen, Sun, Sunrise, NotebookPen, StickyNote, Brain, Sprout, Network, FileStack, Share2, Sparkles,
-  GraduationCap, Mail, ListTodo, CheckSquare, Moon,
+  GraduationCap, Mail, ListTodo, CheckSquare, Moon, Images,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
   Grid3X3, BookMarked, ChevronRight, HandHeart,
 } from "lucide-react";
@@ -45,6 +45,7 @@ const iconColorMap: Record<string, string> = {
   Digest: "text-slate-500",
   Tasks: "text-teal-500",
   Habits: "text-green-500",
+  "Vision board": "text-amber-700",
   Sleep: "text-indigo-400",
   "Lumen AI": "text-amber-600",
   Partner: "text-red-400",
@@ -90,6 +91,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
       { title: LUMEN_NAME, icon: LumenIcon, to: "/my-ai" },
       { title: "Tasks", icon: ListTodo, to: "/life/todos" },
       { title: "Habits", icon: CheckSquare, to: "/life/habits" },
+      { title: "Vision board", icon: Images, to: "/life/vision-board" },
       { title: "Sleep", icon: Moon, to: "/sleep" },
       { title: "Daily", icon: Sun, to: "/framework/daily" },
     ],

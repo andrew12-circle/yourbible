@@ -3051,3 +3051,72 @@ body:has([data-mini-phone-drawer]) [data-sidebar-peek] {
   animation: chat-compile-shimmer-sweep 2.4s ease-in-out infinite;
   animation-delay: var(--compile-think-delay, 1.6s);
 }
+
+/* ---- Vision board surfaces ---- */
+.vision-board-surface {
+  position: relative;
+  overflow: hidden;
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.18),
+    0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.vision-board-surface--cork {
+  background-color: #c4a574;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(90, 60, 30, 0.18) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 55%, rgba(60, 40, 20, 0.15) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 40% 80%, rgba(120, 80, 40, 0.12) 0 1px, transparent 2px),
+    linear-gradient(135deg, #d4b896 0%, #b8956a 40%, #c9a878 70%, #a67c52 100%);
+  background-size: 48px 48px, 36px 36px, 64px 64px, 100% 100%;
+}
+
+.vision-board-surface--wood {
+  background-color: #8b6914;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(60, 35, 10, 0.08) 0 2px,
+      transparent 2px 14px
+    ),
+    linear-gradient(180deg, #c4a35a 0%, #9a7430 45%, #7a5820 100%);
+}
+
+.vision-board-surface--linen {
+  background-color: #e8e0d0;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(120, 100, 70, 0.06) 0 1px,
+      transparent 1px 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(120, 100, 70, 0.06) 0 1px,
+      transparent 1px 4px
+    ),
+    linear-gradient(160deg, #f3ebe0 0%, #ddd2c0 100%);
+}
+
+.vision-board-surface--felt {
+  background-color: #2a3d2e;
+  background-image:
+    radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.03) 0 1px, transparent 2px),
+    radial-gradient(circle at 80% 20%, rgba(0, 0, 0, 0.12) 0 1.5px, transparent 2px),
+    linear-gradient(145deg, #3a5240 0%, #243528 55%, #1a281c 100%);
+  background-size: 28px 28px, 40px 40px, 100% 100%;
+}
+
+.vision-board-note {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  box-shadow:
+    1px 2px 4px rgba(0, 0, 0, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+}
+
+.vision-board-photo {
+  box-shadow:
+    2px 4px 10px rgba(0, 0, 0, 0.35),
+    0 0 0 6px #faf7f0;
+  background: #faf7f0;
+}
