@@ -7,7 +7,6 @@ import {
   Check,
   ChevronDown,
   Globe,
-  Loader2,
   Plus,
   Save,
   Sparkles,
@@ -78,6 +77,9 @@ type Props = {
   onResearchScope?: (scope: MyAiResearchScope) => void;
   onStop?: () => void;
   sending: boolean;
+  /** Follow-ups waiting while a reply streams. */
+  queuedCount?: number;
+  onClearQueue?: () => void;
   editingMessageId?: string | null;
   onCancelEdit?: () => void;
   userId: string;
@@ -116,6 +118,8 @@ export default function MyAiComposer({
   onResearchScope,
   onStop,
   sending,
+  queuedCount = 0,
+  onClearQueue,
   editingMessageId,
   onCancelEdit,
   userId,
@@ -155,8 +159,11 @@ export default function MyAiComposer({
   const [dictationListening, setDictationListening] = useState(false);
 
   const displayInput = composeLiveDictationDisplay(input, dictInterim);
-  const canSend = Boolean(displayInput.trim()) && !sending;
-  const showStop = sending && Boolean(onStop);
+  const hasText = Boolean(displayInput.trim());
+  /** Allow send while streaming — parent queues the turn. */
+  const canSend = hasText;
+  const showStop = sending && Boolean(onStop) && !hasText;
+  const showQueueSend = sending && hasText;
 
   useAutoGrowTextarea(taRef, displayInput, { maxLines: 6, minLines: 1 });
 
@@ -209,6 +216,21 @@ export default function MyAiComposer({
             {onCancelEdit ? (
               <button type="button" className="underline-offset-2 hover:underline" onClick={onCancelEdit}>
                 Cancel
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {queuedCount > 0 ? (
+          <div className="mb-1 flex items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
+            <span>
+              {queuedCount === 1
+                ? "1 message queued — sends when Lumen finishes"
+                : `${queuedCount} messages queued — send when Lumen finishes`}
+            </span>
+            {onClearQueue ? (
+              <button type="button" className="underline-offset-2 hover:underline" onClick={onClearQueue}>
+                Clear
               </button>
             ) : null}
           </div>
@@ -273,11 +295,10 @@ export default function MyAiComposer({
             }}
             rows={1}
             spellCheck
-            disabled={sending}
             aria-live={dictationListening ? "polite" : undefined}
             placeholder={
               sending
-                ? "Thinking…"
+                ? "Type next message…"
                 : dictationListening
                   ? "Listening…"
                   : editingMessageId
@@ -313,7 +334,6 @@ export default function MyAiComposer({
                     ? RESEARCH_SCOPE_ITEMS.map(({ scope, icon: Icon }) => (
                         <DropdownMenuItem
                           key={scope}
-                          disabled={sending}
                           title={MY_AI_RESEARCH_SCOPE_HINTS[scope]}
                           onClick={() => onResearchScope(scope)}
                         >
@@ -344,7 +364,6 @@ export default function MyAiComposer({
                   {suggestedPrompts.map((prompt) => (
                     <DropdownMenuItem
                       key={prompt}
-                      disabled={sending}
                       onClick={() => applyPrompt(prompt)}
                       className="whitespace-normal text-xs leading-snug"
                     >
@@ -477,6 +496,20 @@ export default function MyAiComposer({
                 </Button>
               ) : null}
 
+              {sending && onStop && hasText ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-9 w-9 shrink-0 rounded-full text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+                  onClick={onStop}
+                  aria-label="Stop generating"
+                  title="Stop generating"
+                >
+                  <Square className="h-3.5 w-3.5 fill-current" />
+                </Button>
+              ) : null}
+
               <Button
                 type="button"
                 size="icon"
@@ -491,14 +524,21 @@ export default function MyAiComposer({
                 )}
                 disabled={!showStop && !canSend}
                 onClick={showStop ? onStop : handleSend}
-                aria-label={showStop ? "Stop generating" : "Send message"}
+                aria-label={
+                  showStop
+                    ? "Stop generating"
+                    : showQueueSend
+                      ? "Queue message"
+                      : "Send message"
+                }
+                title={
+                  showQueueSend ? "Queue — sends when Lumen finishes" : undefined
+                }
                 aria-hidden={dictationListening}
                 tabIndex={dictationListening ? -1 : undefined}
               >
                 {showStop ? (
                   <Square className="h-3.5 w-3.5 fill-current" />
-                ) : sending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <ArrowUp className="h-4 w-4" strokeWidth={2.25} />
                 )}
@@ -514,11 +554,10 @@ export default function MyAiComposer({
               <button
                 key={prompt}
                 type="button"
-                disabled={sending}
                 onClick={() => onWelcomeQuickPrompt(prompt)}
                 className={cn(
                   "rounded-full border border-border/80 bg-background px-3.5 py-2 text-[13px] font-normal text-foreground",
-                  "transition-colors hover:bg-muted/60 disabled:opacity-50",
+                  "transition-colors hover:bg-muted/60",
                 )}
               >
                 {prompt}
