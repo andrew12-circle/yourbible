@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PassageVerse } from "@/lib/bible/api";
 import {
   buildReaderStream,
+  sliceReaderPage,
   sliceReaderSpreadPane,
   streamPageCount,
 } from "@/lib/bible/readerStream";
@@ -104,6 +105,13 @@ describe("BookPaginator spread mode", () => {
           const rightFirst = right.verseGroups[0]!.verses[0]!.number;
           expect(rightFirst).toBeGreaterThan(leftLast);
         }
+        const renderedVerseNumbers = Array.from(
+          { length: streamPageCount(splits!, stream.length) },
+          (_, pageIndex) => sliceReaderPage(stream, splits!, pageIndex),
+        )
+          .flatMap((page) => page?.verseGroups ?? [])
+          .flatMap((group) => group.verses.map((verse) => verse.number));
+        expect(renderedVerseNumbers).toEqual(Array.from({ length: 33 }, (_, i) => i + 1));
       },
       { timeout: 3000 },
     );
