@@ -96,7 +96,7 @@ import {
   pageCountFromSplits,
   pageVerseSlice,
 } from "@/lib/bible/pageSplits";
-import { readerChapterPageNumber } from "@/lib/bible/bibleContents";
+import { continuousReaderPageNumber, readReaderPageStartNumber, withReaderPageStartNumber } from "@/lib/bible/readerPageNumbers";
 import { getNextChapterRef, getPrevChapterRef } from "@/lib/bible/chapterNav";
 import { buildAdjacentStreamChapters, passageToStreamChapter, streamChapterCompositionKey } from "@/lib/bible/readerStreamChapters";
 import {
@@ -738,6 +738,7 @@ export default function ReaderPage() {
     isSpreadDoubleColumnSplitsReady(displayStreamSplits, readerStream.length);
   const paginatorFooterHeight = READER_COLUMN_FOOTER_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
+  const routeChapterStartNumber = readReaderPageStartNumber(location.state, book.abbr, chapter);
 
   const redSegments = useMemo<Map<number, JesusSegment[]>>(
     () =>
@@ -1012,7 +1013,7 @@ export default function ReaderPage() {
         const prev = getPrevChapterRef(book.abbr, chapter);
         if (prev) {
           setPendingSpreadEnd(true);
-          navigate(`/read/${prev.book.abbr}/${prev.chapter}`);
+          navigate(`/read/${prev.book.abbr}/${prev.chapter}`, { state: withReaderPageStartNumber(location.state, readerStream, navStreamSplits, book.abbr, chapter, routeChapterStartNumber, prev.book.abbr, prev.chapter) });
         }
         return;
       }
@@ -1021,7 +1022,7 @@ export default function ReaderPage() {
       }
       if (next >= totalStreamPages) {
         const nxt = getNextChapterRef(book.abbr, chapter);
-        if (nxt) navigate(`/read/${nxt.book.abbr}/${nxt.chapter}`);
+        if (nxt) navigate(`/read/${nxt.book.abbr}/${nxt.chapter}`, { state: withReaderPageStartNumber(location.state, readerStream, navStreamSplits, book.abbr, chapter, routeChapterStartNumber, nxt.book.abbr, nxt.chapter) });
         return;
       }
       startTransition(() => setSpreadPageIdx(next));
@@ -1395,7 +1396,7 @@ export default function ReaderPage() {
     const measuresRestPage =
       isOpeningRightPage ||
       (isCurrentLeftPage && !measuresFirstPage);
-    const globalPage = readerChapterPageNumber(pageBookAbbr, pageChapter) + paginatorPageIndex;
+    const globalPage = continuousReaderPageNumber(readerStream, navStreamSplits, book.abbr, chapter, paginatorPageIndex, routeChapterStartNumber);
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
     const pageLoading = loadingPassage && verses.length === 0;
     const ready = scrollMode || pageContentReady;
