@@ -5,7 +5,7 @@ import { BookScene } from "@/components/bible/BookScene";
 import { ArtworkGallery } from "@/components/bible/ArtworkGallery";
 import { StudyConcordanceSearch } from "@/components/bible/StudyConcordanceSearch";
 import { TopBar } from "@/components/bible/TopBar";
-import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
+import { useBibles, pickDefaultBibleId, readerBibleOptions } from "@/hooks/useBibles";
 import { useReaderSpread, useReaderCompactChrome } from "@/hooks/use-reader-layout";
 import {
   leatherCoverClass,
@@ -13,7 +13,9 @@ import {
   coverStyle as buildCoverStyle,
 } from "@/lib/bible/readerAppearance";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
-import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId, persistBibleSelection } from "@/lib/bible/storedBibleId";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
+import { studyMapAssetUrl } from "@/lib/bible/biblePlateAssets";
 import {
   STUDY_MAPS,
   studyBackMatterSection,
@@ -22,6 +24,11 @@ import {
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import { BOOKS } from "@/data/books";
+import {
+  clampReaderFontScale,
+  readStoredReaderFontScale,
+  writeStoredReaderFontScale,
+} from "@/lib/bible/readerFontScale";
 
 const VALID_SECTIONS = new Set<string>([
   "preface",
@@ -42,16 +49,21 @@ export default function StudyBackMatterPage() {
   const effectiveSpread = readerSpread && !compactChrome;
 
   const { data: bibles = [] } = useBibles();
-  const [bibleId, setBibleId] = useState(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
+  const readerBibles = useMemo(() => readerBibleOptions(bibles), [bibles]);
+  const [bibleId, setBibleId] = useState(() => {
+    const stored = getStoredBibleId();
+    return isBundledBibleId(stored) ? stored : "";
+  });
+  const [fontScale, setFontScale] = useState(readStoredReaderFontScale);
 
   useEffect(() => {
-    if (bibles.length === 0) return;
-    const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
+    if (readerBibles.length === 0) return;
+    const next = pickDefaultBibleId(readerBibles, bibleId || getStoredBibleId());
     if (next && next !== bibleId) {
       setBibleId(next);
-      localStorage.setItem(LS_BIBLE_KEY, next);
+      persistBibleSelection(next, readerBibles.find((bible) => bible.id === next)?.abbreviation);
     }
-  }, [bibles, bibleId]);
+  }, [readerBibles, bibleId]);
 
   const studySection = section && VALID_SECTIONS.has(section)
     ? studyBackMatterSection(section as StudyBackMatterSectionId)
@@ -107,10 +119,26 @@ export default function StudyBackMatterPage() {
           <div className="study-maps-grid mt-6">
             {STUDY_MAPS.map((map) => (
               <figure key={map.id} className="study-map-figure">
-                <img src={map.imageUrl} alt={map.alt} className="study-map-image" loading="lazy" />
+                <img src={studyMapAssetUrl(map)} alt={map.alt} className="study-map-image" loading="lazy" />
                 <figcaption className="study-map-caption">
                   <strong>{map.title}</strong>
                   <span>{map.caption}</span>
+                  {map.sourceUrl ? (
+                    <a
+                      href={map.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="underline underline-offset-2 w-fit"
+                    >
+                      Source
+                    </a>
+                  ) : null}
+                  {map.artist || map.license ? (
+                    <span>
+                      © {map.artist ?? "Wikimedia Commons"}
+                      {map.license ? ` · ${map.license}` : ""}
+                    </span>
+                  ) : null}
                 </figcaption>
               </figure>
             ))}
@@ -131,16 +159,22 @@ export default function StudyBackMatterPage() {
         focusMode={false}
         onToggleFocus={() => {}}
         bibleId={bibleId}
-        bibles={bibles}
+        bibles={readerBibles}
         onChangeBible={(id) => {
           setBibleId(id);
-          localStorage.setItem(LS_BIBLE_KEY, id);
+          persistBibleSelection(id, readerBibles.find((bible) => bible.id === id)?.abbreviation);
         }}
         onBookmark={() => navigate("/read/contents")}
         currentBook={defaultBook}
         currentChapter={1}
         currentVerseCount={1}
         onJumpTo={(b, c) => navigate(`/read/${b.abbr}/${c}`)}
+        fontScale={fontScale}
+        onFontScaleChange={(next) => {
+          const clamped = clampReaderFontScale(next);
+          setFontScale(clamped);
+          writeStoredReaderFontScale(clamped);
+        }}
         singlePage={compactChrome}
       />
       <div className="flex min-h-0 flex-1 flex-col inset-x-0 bottom-0">

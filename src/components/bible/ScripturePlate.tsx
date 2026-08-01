@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { BiblePlate } from "@/lib/bible/biblePlates";
+import { biblePlateAssetUrl } from "@/lib/bible/biblePlateAssets";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -30,7 +31,7 @@ export function ScripturePlate({ plate, compact = false }: Props) {
           </div>
         ) : (
           <img
-            src={plate.imageUrl}
+            src={biblePlateAssetUrl(plate)}
             alt={plate.alt}
             className="scripture-plate-image"
             loading="lazy"

@@ -20,6 +20,7 @@ import {
   type ReaderChapterPassage,
   type ReaderStreamUnit,
 } from "@/lib/bible/readerStream";
+import { biblePlateAssetUrl } from "@/lib/bible/biblePlateAssets";
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
@@ -124,7 +125,7 @@ export function buildStreamSliceMeasureHtml(
     if (unit.kind === "plate") {
       flushBatch();
       parts.push(
-        `<figure class="scripture-plate scripture-plate-measure"><img class="scripture-plate-image" src="${escapeAttr(unit.plate.imageUrl)}" alt="" /><figcaption class="scripture-plate-caption">${escapeHtml(unit.plate.title)} ${escapeHtml(unit.plate.referenceLabel)}</figcaption></figure>`,
+        `<figure class="scripture-plate scripture-plate-measure"><img class="scripture-plate-image" src="${escapeAttr(biblePlateAssetUrl(unit.plate))}" alt="" /><figcaption class="scripture-plate-caption">${escapeHtml(unit.plate.title)} ${escapeHtml(unit.plate.referenceLabel)}</figcaption></figure>`,
       );
       continue;
     }

@@ -20,6 +20,12 @@ export interface StudyMapEntry {
   title: string;
   caption: string;
   imageUrl: string;
+  /** Canonical Commons source page retained after the local image download. */
+  sourceUrl?: string;
+  /** Required attribution for CC-licensed maps. */
+  artist?: string;
+  /** License label exactly as reported by the source page. */
+  license?: string;
   alt: string;
 }
 
@@ -29,7 +35,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "Abraham's Journey",
     caption: "Patriarchal routes in Canaan and Egypt (approximate).",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0f/Abraham_journey_map.svg/960px-Abraham_journey_map.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Abraham%27s_Journey_%28en%29.svg/960px-Abraham%27s_Journey_%28en%29.svg.png",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Abraham%27s_Journey_(en).svg",
+    artist: "Sémhur (topographic base); DEGA MD (derivative)",
+    license: "CC BY-SA 4.0",
     alt: "Map of Abraham's journeys in the Near East",
   },
   {
@@ -37,7 +46,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "The Exodus from Egypt",
     caption: "General route of the Exodus toward Sinai (historic reconstructions vary).",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Exodus_Route.svg/960px-Exodus_Route.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/5/5b/Exodus_Map.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Exodus_Map.jpg",
+    artist: "ThaThinker (via Wikimedia Atlas/Electionworld)",
+    license: "CC BY 2.5",
     alt: "Map of the Exodus route from Egypt",
   },
   {
@@ -45,7 +57,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "United and Divided Kingdom",
     caption: "Israel and Judah after Solomon (approximate boundaries).",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Kingdoms_of_Israel_and_Judah_map_830.svg/960px-Kingdoms_of_Israel_and_Judah_map_830.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Kingdoms_of_Israel_and_Judah_map_830.svg/960px-Kingdoms_of_Israel_and_Judah_map_830.svg.png",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Kingdoms_of_Israel_and_Judah_map_830.svg",
+    artist: "FinnWikiNo and Richardprins",
+    license: "CC BY-SA 3.0",
     alt: "Map of the kingdoms of Israel and Judah",
   },
   {
@@ -53,7 +68,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "Paul's Missionary Journeys",
     caption: "Overview of Paul's major journeys in Acts (approximate routes).",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Paul%27s_missionary_journeys-en.svg/960px-Paul%27s_missionary_journeys-en.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/Apostle_Paul%27s_journeys.svg/960px-Apostle_Paul%27s_journeys.svg.png",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Apostle_Paul%27s_journeys.svg",
+    artist: "Geraki",
+    license: "CC BY-SA 4.0",
     alt: "Map of Paul's missionary journeys",
   },
   {
@@ -61,7 +79,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "Jerusalem in New Testament Times",
     caption: "Jerusalem at the time of Jesus (schematic plan).",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Jerusalem_at_the_time_of_Jesus.svg/960px-Jerusalem_at_the_time_of_Jesus.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Jerusalem_at_Jesus_time_EL.png/960px-Jerusalem_at_Jesus_time_EL.png",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Jerusalem_at_Jesus_time_EL.png",
+    artist: "Pvasiliadis",
+    license: "CC BY-SA 3.0",
     alt: "Plan of Jerusalem in New Testament times",
   },
   {
@@ -69,7 +90,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "The Tabernacle Layout",
     caption: "Schematic plan of the wilderness tabernacle (approximate).",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Tabernacle_Schematic.svg/960px-Tabernacle_Schematic.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Tabernacle_Schematic.jpg/960px-Tabernacle_Schematic.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Tabernacle_Schematic.jpg",
+    artist: "Gabriel Fink",
+    license: "CC BY-SA 3.0",
     alt: "Diagram of the tabernacle courtyard and holy places",
   },
   {
@@ -77,7 +101,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "Solomon's Temple",
     caption: "Artistic reconstruction of the first temple in Jerusalem.",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Temple_of_Solomon.jpg/960px-Temple_of_Solomon.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Temple_of_Solomon_model.jpg/960px-Temple_of_Solomon_model.jpg",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Temple_of_Solomon_model.jpg",
+    artist: "SalemOptix",
+    license: "CC BY-SA 4.0",
     alt: "Artistic rendering of Solomon's temple",
   },
   {
@@ -85,7 +112,10 @@ export const STUDY_MAPS: StudyMapEntry[] = [
     title: "Canaan at the Time of Joshua",
     caption: "Twelve tribes and surrounding nations (approximate).",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/12_Tribes_of_Israel_Map.svg/960px-12_Tribes_of_Israel_Map.svg.png",
+      "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/12_Tribes_of_Israel_Map.svg/960px-12_Tribes_of_Israel_Map.svg.png",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:12_Tribes_of_Israel_Map.svg",
+    artist: "Kordas, יוסי, Janz, and Richardprins",
+    license: "CC BY-SA 3.0",
     alt: "Map of the twelve tribes of Israel",
   },
 ];

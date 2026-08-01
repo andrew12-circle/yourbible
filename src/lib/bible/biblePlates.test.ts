@@ -8,6 +8,9 @@ import {
   platesBeforeVerse,
   platesForChapter,
 } from "./biblePlates";
+import { BIBLE_PLATES } from "@/data/biblePlates";
+import { biblePlateAssetUrl, studyMapAssetUrl } from "./biblePlateAssets";
+import { STUDY_MAPS } from "./studyBackMatter";
 
 describe("biblePlates", () => {
   it("returns chapter plates sorted by beforeVerse", () => {
@@ -49,5 +52,18 @@ describe("biblePlates", () => {
 
   it("links maps for genesis patriarchs", () => {
     expect(mapsForChapter("Gen", 22).map((m) => m.id)).toContain("abraham");
+  });
+
+  it("routes plate and map rendering to local WebP assets", () => {
+    expect(
+      BIBLE_PLATES.every((plate) => biblePlateAssetUrl(plate).startsWith("/bible-plates/")),
+    ).toBe(true);
+    expect(studyMapAssetUrl({ id: "exodus" })).toBe("/bible-plates/maps/exodus.webp");
+    expect(STUDY_MAPS.every((map) => Boolean(map.sourceUrl))).toBe(true);
+  });
+
+  it("routes the Mark tempest plate to the reader's Mark abbreviation", () => {
+    expect(platesForChapter("Mrk", 4).some((plate) => plate.id === "dore-156-mrk-4")).toBe(true);
+    expect(platesForChapter("Mar", 4)).toHaveLength(0);
   });
 });

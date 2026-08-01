@@ -10,6 +10,7 @@ import {
   totalChapterCount,
   type OfflineDownloadProgress,
 } from "@/lib/bible/bibleOfflineDownload";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { SettingsCard } from "@/components/settings/SettingsSectionPanel";
 
 type Props = {
@@ -50,6 +51,7 @@ export function SettingsOfflineBible({ bibleId }: Props) {
   };
 
   const offlineId = readOfflineBibleId();
+  const bundledEdition = isBundledBibleId(bibleId);
   const pct = progress?.status === "running" ? Math.round((progress.done / total) * 100) : 0;
 
   return (
@@ -62,9 +64,11 @@ export function SettingsOfflineBible({ bibleId }: Props) {
           <div className="min-w-0 flex-1 space-y-1">
             <Label>Offline Bible</Label>
             <p className="text-xs text-muted-foreground">
-              Download all {total} chapters for reading without internet.
+              {bundledEdition
+                ? `All ${total} CSB chapters are included with the app for offline reading.`
+                : `Download all ${total} chapters for reading without internet.`}
               {cached > 0 ? ` ${cached} chapters cached.` : ""}
-              {offlineId === bibleId && cached > 0 ? " Ready for offline use." : ""}
+              {(bundledEdition || (offlineId === bibleId && cached > 0)) ? " Ready for offline use." : ""}
             </p>
           </div>
         </div>
@@ -81,22 +85,24 @@ export function SettingsOfflineBible({ bibleId }: Props) {
             </p>
           </div>
         ) : null}
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-full"
-          disabled={!bibleId || progress?.status === "running"}
-          onClick={() => void startDownload()}
-        >
-          {progress?.status === "running" ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Downloading…
-            </>
-          ) : (
-            "Download for offline"
-          )}
-        </Button>
+        {!bundledEdition ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            disabled={!bibleId || progress?.status === "running"}
+            onClick={() => void startDownload()}
+          >
+            {progress?.status === "running" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Downloading…
+              </>
+            ) : (
+              "Download for offline"
+            )}
+          </Button>
+        ) : null}
       </div>
     </SettingsCard>
   );

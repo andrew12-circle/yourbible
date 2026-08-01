@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/collapsible";
 import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
 import { fetchPassage, listBibles, type Passage } from "@/lib/bible/api";
-import { getStoredBibleId, LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { guessBookAbbr, guessChapter, readerPath } from "@/lib/bible/reference";
 import { versesForRef } from "@/lib/prayer/verseTextForRef";
 import { cn } from "@/lib/utils";
@@ -47,13 +47,9 @@ export function PrayerScriptureReviewCard({
       let id = bibleId;
       if (!id) {
         const list = await listBibles();
-        id = list[0]?.id ?? "";
+        id = pickDefaultBibleId(list, getStoredBibleId());
         if (id) {
-          try {
-            localStorage.setItem(LS_BIBLE_KEY, id);
-          } catch {
-            /* ignore */
-          }
+          persistBibleSelection(id, list.find((bible) => bible.id === id)?.abbreviation);
         }
       }
       if (!id) throw new Error("Choose a translation in the Bible reader first.");

@@ -1,16 +1,15 @@
 import type { Passage, PassageVerse } from "@/lib/bible/api";
 import { sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { API_BIBLE_CSB_ID } from "@/lib/bible/bibleEditions";
-import { CSB_TEXT_REVISION, PASSAGE_PARSER_REVISION, isCsbEdition } from "@/lib/bible/textRevision";
+import { CSB_TEXT_REVISION, PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import type { CanonicalChapterRecord, CanonicalVerse, ChapterLayout, ChapterStudyMeta } from "./types";
 import { bookOrderForAbbr, chapterCacheKey, makeVerseId } from "./verseId";
 
 export const CANONICAL_CSB_BIBLE_ID = API_BIBLE_CSB_ID;
 export const CANONICAL_CSB_ABBR = "CSB";
 
-export function isCanonicalCsbBible(bibleId: string, abbreviation?: string): boolean {
-  if (bibleId === CANONICAL_CSB_BIBLE_ID) return true;
-  return isCsbEdition(abbreviation ?? "", "");
+export function isCanonicalCsbBible(bibleId: string): boolean {
+  return bibleId === CANONICAL_CSB_BIBLE_ID;
 }
 
 export function passageToCanonicalChapter(

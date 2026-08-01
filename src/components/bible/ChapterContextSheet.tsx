@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { STUDY_MAPS } from "@/lib/bible/studyBackMatter";
+import { studyMapAssetUrl } from "@/lib/bible/biblePlateAssets";
 
 type Props = {
   open: boolean;
@@ -61,7 +62,7 @@ export function ChapterContextSheet({ open, onOpenChange, context, bookName }: P
                   {maps.map((map) => (
                     <figure key={map.id} className="rounded-lg overflow-hidden border border-border/50">
                       <img
-                        src={map.imageUrl}
+                        src={studyMapAssetUrl(map)}
                         alt={map.alt}
                         className="w-full h-auto"
                         loading="lazy"
@@ -71,6 +72,25 @@ export function ChapterContextSheet({ open, onOpenChange, context, bookName }: P
                         <span className="font-medium text-foreground">{map.title}</span>
                         {" — "}
                         {map.caption}
+                        {map.sourceUrl ? (
+                          <>
+                            {" "}
+                            <a
+                              href={map.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline underline-offset-2"
+                            >
+                              Source
+                            </a>
+                          </>
+                        ) : null}
+                        {map.artist || map.license ? (
+                          <span className="block mt-1">
+                            © {map.artist ?? "Wikimedia Commons"}
+                            {map.license ? ` · ${map.license}` : ""}
+                          </span>
+                        ) : null}
                       </figcaption>
                     </figure>
                   ))}

@@ -22,7 +22,7 @@ const BOOK_ORDER = [
   "Job", "Psa", "Pro", "Ecc", "Sng", "Isa", "Jer", "Lam", "Ezk",
   "Dan", "Hos", "Jol", "Amo", "Oba", "Jon", "Mic", "Nam", "Hab",
   "Zep", "Hag", "Zec", "Mal",
-  "Mat", "Mar", "Mrk", "Luk", "Jhn", "Act", "Rom", "Rev",
+  "Mat", "Mrk", "Luk", "Jhn", "Act", "Rom", "Rev",
 ];
 const BOOK_LABEL = {
   Gen: "Genesis", Exo: "Exodus", Num: "Numbers", Jos: "Joshua", Jdg: "Judges",
@@ -31,7 +31,7 @@ const BOOK_LABEL = {
   Est: "Ezra / Nehemiah / Esther", Job: "Job", Isa: "Prophets", Jer: "Prophets",
   Ezk: "Prophets", Dan: "Prophets", Jon: "Prophets", Psa: "Psalms",
   Luk: "New Testament — Life of Christ", Mat: "New Testament — Life of Christ",
-  Mar: "New Testament — Life of Christ", Jhn: "New Testament — Life of Christ",
+  Mrk: "New Testament — Life of Christ", Jhn: "New Testament — Life of Christ",
   Act: "Acts", Rev: "Revelation",
 };
 

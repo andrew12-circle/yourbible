@@ -1,4 +1,5 @@
 import type { BibleEntry } from "@/lib/bible/api";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { isStudyBibleEdition, type ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 
 /** One-line source attribution for the reader page chrome. */
@@ -8,6 +9,7 @@ export function formatReaderSourceLine(
 ): string | null {
   if (!bible?.abbreviation) return null;
   const label = bible.name?.trim() ? `${bible.name} (${bible.abbreviation})` : bible.abbreviation;
+  if (isBundledBibleId(bible.id)) return `${label} · Full text bundled for offline reading`;
   if (!isStudyBibleEdition(bible.abbreviation)) {
     return `${label} · Scripture via API.Bible`;
   }

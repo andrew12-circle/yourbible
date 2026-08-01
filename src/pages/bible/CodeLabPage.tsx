@@ -25,7 +25,8 @@ export default function CodeLabPage() {
 
   useEffect(() => {
     if (!bibleId && bibles.length) {
-      setBibleId(pickDefaultBibleId(bibles, getStoredBibleId()) ?? bibles[0]!.id);
+      const next = pickDefaultBibleId(bibles, getStoredBibleId());
+      if (next) setBibleId(next);
     }
   }, [bibles, bibleId]);
 

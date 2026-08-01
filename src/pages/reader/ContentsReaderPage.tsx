@@ -6,13 +6,12 @@ import { BookScene } from "@/components/bible/BookScene";
 import { BibleContentsPage } from "@/components/bible/BibleContentsPage";
 import { TopBar } from "@/components/bible/TopBar";
 import { ReaderFloatingTabBar } from "@/components/bible/ReaderFloatingTabBar";
-import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
+import { useBibles, pickDefaultBibleId, readerBibleOptions } from "@/hooks/useBibles";
 import { useReaderSpread, useReaderCompactChrome } from "@/hooks/use-reader-layout";
 import {
   hubReaderInline,
   readReaderHubFullscreen,
   readerOverlayPosition,
-  readerPageTurnTopOffsetClass,
   readerSceneTopOffsetClass,
   writeReaderHubFullscreen,
 } from "@/lib/bible/readerHubLayout";
@@ -22,7 +21,8 @@ import {
   coverStyle as buildCoverStyle,
 } from "@/lib/bible/readerAppearance";
 import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
-import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId, persistBibleSelection } from "@/lib/bible/storedBibleId";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { BOOKS } from "@/data/books";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { cn } from "@/lib/utils";
@@ -49,17 +49,21 @@ export default function ContentsReaderPage() {
   const hubInline = hubReaderInline(showHubShell, hubFullscreen);
 
   const { data: bibles = [] } = useBibles();
-  const [bibleId, setBibleId] = useState<string>(() => localStorage.getItem(LS_BIBLE_KEY) ?? "");
+  const readerBibles = useMemo(() => readerBibleOptions(bibles), [bibles]);
+  const [bibleId, setBibleId] = useState<string>(() => {
+    const stored = getStoredBibleId();
+    return isBundledBibleId(stored) ? stored : "";
+  });
   const [fontScale, setFontScale] = useState(() => readStoredReaderFontScale());
 
   useEffect(() => {
-    if (bibles.length === 0) return;
-    const next = pickDefaultBibleId(bibles, bibleId || localStorage.getItem(LS_BIBLE_KEY));
+    if (readerBibles.length === 0) return;
+    const next = pickDefaultBibleId(readerBibles, bibleId || getStoredBibleId());
     if (next && next !== bibleId) {
       setBibleId(next);
-      localStorage.setItem(LS_BIBLE_KEY, next);
+      persistBibleSelection(next, readerBibles.find((bible) => bible.id === next)?.abbreviation);
     }
-  }, [bibles, bibleId]);
+  }, [readerBibles, bibleId]);
 
   const readerPageClass = useMemo(
     () => pageToneClass(profile?.page_tone),
@@ -157,10 +161,10 @@ export default function ContentsReaderPage() {
         focusMode={false}
         onToggleFocus={() => {}}
         bibleId={bibleId}
-        bibles={bibles}
+        bibles={readerBibles}
         onChangeBible={(id) => {
           setBibleId(id);
-          localStorage.setItem(LS_BIBLE_KEY, id);
+          persistBibleSelection(id, readerBibles.find((bible) => bible.id === id)?.abbreviation);
         }}
         onBookmark={() => navigate("/read/Jhn/1")}
         currentBook={defaultBook}

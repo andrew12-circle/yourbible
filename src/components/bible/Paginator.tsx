@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useFontLoadRevision } from "@/hooks/useFontLoadRevision";
 import type { PassageVerse as Verse } from "@/lib/bible/api";
 import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
@@ -71,6 +72,7 @@ export function Paginator({
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState(0);
+  const fontLoadRevision = useFontLoadRevision();
   const lastSplitsRef = useRef<string>("");
   const paragraphStartSet = useMemo(() => new Set(paragraphStarts), [paragraphStarts]);
   const headingByVerse = useMemo(() => {
@@ -119,6 +121,7 @@ export function Paginator({
     fontSizeStyle?.fontSize,
     fontSizeStyle?.fontFamily,
     studyLayout,
+    fontLoadRevision,
   ]);
 
   useEffect(() => {

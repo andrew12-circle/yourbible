@@ -10,6 +10,11 @@ const corsHeaders = {
 };
 
 const EOTC_BIBLE_ID = "eotc-am-81";
+// Keep this aligned with src/lib/bible/bibleEditions.ts. This edge workflow
+// calls bible-search/bible-passage, both of which would otherwise use API.Bible.
+const BUNDLED_CSB_BIBLE_ID = "a556c5305ee15c3f-01";
+const BUNDLED_CSB_REMOTE_ERROR =
+  "Life Manual is unavailable for the bundled CSB because it would require API.Bible. API.Bible was not used.";
 const GATEWAY_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
 const BOOK_NAME_TO_ABBR: Record<string, string> = {
@@ -484,8 +489,11 @@ Deno.serve(async (req) => {
     };
 
     const action = body.action === "followup" ? "followup" : "search";
-    const bibleId = body.bibleId?.trim();
+    const bibleId = typeof body.bibleId === "string" ? body.bibleId.trim() : "";
     if (!bibleId) return jsonResponse({ error: "bibleId is required" }, 400);
+    if (bibleId === BUNDLED_CSB_BIBLE_ID) {
+      return jsonResponse({ error: BUNDLED_CSB_REMOTE_ERROR }, 409);
+    }
 
     if (action === "followup") {
       const issue = body.issue?.trim().slice(0, 2000);

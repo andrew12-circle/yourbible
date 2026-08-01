@@ -21,6 +21,7 @@ import {
   type ProvisionScriptureCategory,
 } from "@/lib/prayer/provisionScriptures";
 import { loadVerseTextsForRefs } from "@/lib/prayer/verseTextForRef";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -43,6 +44,7 @@ export default function PrayerScripturePickerDialog({
   const online = useOnlineStatus();
   const { data: bibles = [] } = useBibles();
   const bibleId = pickDefaultBibleId(bibles, getStoredBibleId()) ?? "";
+  const bundledEdition = isBundledBibleId(bibleId);
 
   const [category, setCategory] = useState<ProvisionScriptureCategory | "all">("all");
   const [query, setQuery] = useState("");
@@ -94,7 +96,7 @@ export default function PrayerScripturePickerDialog({
   }, [open, bibleId, curated, isSearching]);
 
   useEffect(() => {
-    if (!open || !bibleId || !isSearching || !online) {
+    if (!open || !bibleId || !isSearching || (!online && !bundledEdition)) {
       setSearchResults([]);
       setSearchError(null);
       return;
@@ -120,7 +122,7 @@ export default function PrayerScripturePickerDialog({
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [open, bibleId, query, isSearching, online]);
+  }, [open, bibleId, query, isSearching, online, bundledEdition]);
 
   const pickRef = useCallback(
     (ref: string) => {
@@ -204,12 +206,12 @@ export default function PrayerScripturePickerDialog({
               {searchError ? (
                 <p className="text-sm text-destructive px-2 py-4">{searchError}</p>
               ) : null}
-              {!searchLoading && !searchError && searchResults.length === 0 && online ? (
+              {!searchLoading && !searchError && searchResults.length === 0 && (online || bundledEdition) ? (
                 <p className="text-sm text-muted-foreground px-2 py-4">
                   No results for &ldquo;{query.trim()}&rdquo;.
                 </p>
               ) : null}
-              {!online ? (
+              {!online && !bundledEdition ? (
                 <p className="text-sm text-muted-foreground px-2 py-4">
                   Connect to search Scripture by keyword.
                 </p>

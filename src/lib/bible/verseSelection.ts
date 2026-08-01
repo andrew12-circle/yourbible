@@ -391,7 +391,8 @@ export function toolbarSelectionFromRange(
 }
 
 export function isRangeInReadingArea(range: Range): boolean {
-  return !!getReadingAreaFromRange(range);
+  const area = getReadingAreaFromRange(range);
+  return !!area && !area.hasAttribute("data-reader-selection-disabled");
 }
 
 export type HighlightInterval = { start: number; end: number; color: string };

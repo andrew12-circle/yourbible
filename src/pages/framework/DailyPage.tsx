@@ -8,6 +8,9 @@ import { BookOpen, Loader2, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { readerPath } from "@/lib/bible/reference";
 import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
+import { API_BIBLE_CSB_ID, isBundledBibleId } from "@/lib/bible/bibleEditions";
+import { BUNDLED_BIBLE_REMOTE_SERVICE_ERROR } from "@/lib/bible/remoteBibleService";
+import { getStoredBibleId } from "@/lib/bible/storedBibleId";
 
 interface Reading {
   id: string;
@@ -28,6 +31,8 @@ export default function DailyPage() {
   const autoStarted = useRef(false);
 
   const today = new Date().toISOString().slice(0, 10);
+  const bibleId = getStoredBibleId() ?? API_BIBLE_CSB_ID;
+  const bundledBible = isBundledBibleId(bibleId);
 
   const openInReader = useCallback((r: Reading, replace = false) => {
     navigate(readerPath(r.reference), {
@@ -59,9 +64,16 @@ export default function DailyPage() {
   }, [load]);
 
   const generate = useCallback(async (opts?: { redirect?: boolean }) => {
+    if (bundledBible) {
+      toast({
+        title: "Daily generation is paused for bundled CSB",
+        description: BUNDLED_BIBLE_REMOTE_SERVICE_ERROR,
+      });
+      return;
+    }
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke("framework-daily", { body: {} });
+      const { data, error } = await supabase.functions.invoke("framework-daily", { body: { bibleId } });
       if (error) throw error;
       if (data && typeof data === "object" && "error" in data && data.error) {
         throw new Error(String(data.error));
@@ -81,13 +93,13 @@ export default function DailyPage() {
     } finally {
       setGenerating(false);
     }
-  }, [load, openInReader]);
+  }, [bibleId, bundledBible, load, openInReader]);
 
   useEffect(() => {
-    if (authLoading || loading || reading || generating || autoStarted.current || !user) return;
+    if (authLoading || loading || reading || generating || autoStarted.current || !user || bundledBible) return;
     autoStarted.current = true;
     generate({ redirect: true });
-  }, [authLoading, loading, reading, generating, user, generate]);
+  }, [authLoading, loading, reading, generating, user, bundledBible, generate]);
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -110,14 +122,20 @@ export default function DailyPage() {
       ) : !reading ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center">
           <p className="text-muted-foreground mb-4">No reading for today yet.</p>
-          <Button onClick={() => generate({ redirect: true })} disabled={generating}>
-            {generating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
-            )}
-            Generate today's reading
-          </Button>
+          {bundledBible ? (
+            <p className="text-sm text-muted-foreground max-w-prose">
+              Daily generation is paused for the bundled CSB so it cannot use API.Bible. Use a reading plan or open the Bible directly.
+            </p>
+          ) : (
+            <Button onClick={() => generate({ redirect: true })} disabled={generating}>
+              {generating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Generate today's reading
+            </Button>
+          )}
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-card p-6 space-y-4">

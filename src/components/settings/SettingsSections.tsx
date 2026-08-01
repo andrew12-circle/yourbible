@@ -17,7 +17,7 @@ import { todayIso, useSettingsPage } from "@/hooks/useSettingsPage";
 import { SettingsCard } from "@/components/settings/SettingsSectionPanel";
 import { SettingsAppUpdateSection } from "@/components/settings/SettingsAppUpdateSection";
 import { SettingsOfflineBible } from "@/components/settings/SettingsOfflineBible";
-import { readBibleLanguage, LS_BIBLE_LANGUAGE_KEY } from "@/hooks/useBibles";
+import { readBibleLanguage } from "@/hooks/useBibles";
 import { EOTC_BIBLE_ID, readCanon, writeCanon, type CanonId } from "@/lib/bible/canon";
 import { LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
 import { useReaderDarkMode } from "@/hooks/useReaderDarkMode";
@@ -192,21 +192,16 @@ export function SettingsReaderSection({ state }: { state: SettingsState }) {
           </div>
           <div className="min-w-0 flex-1 space-y-2">
             <Label htmlFor="settings-bible-lang">Bible language</Label>
+            <p className="text-xs text-muted-foreground">
+              The complete locally bundled reader is currently English (CSB). More languages will appear when their full text is included with the app.
+            </p>
             <select
               id="settings-bible-lang"
               value={bibleLanguage}
-              onChange={(e) => {
-                localStorage.setItem(LS_BIBLE_LANGUAGE_KEY, e.target.value);
-                window.location.reload();
-              }}
-              className="flex h-10 w-full rounded-lg border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled
+              className="flex h-10 w-full rounded-lg border border-input bg-muted px-3 text-sm text-muted-foreground disabled:cursor-not-allowed"
             >
-              <option value="eng">English</option>
-              <option value="spa">Spanish</option>
-              <option value="fra">French</option>
-              <option value="deu">German</option>
-              <option value="por">Portuguese</option>
-              <option value="all">All languages</option>
+              <option value="eng">English â€” Christian Standard Bible</option>
             </select>
           </div>
         </div>

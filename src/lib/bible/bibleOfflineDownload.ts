@@ -1,5 +1,6 @@
 import { BOOKS } from "@/data/books";
 import { fetchPassage } from "@/lib/bible/api";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { getCachedPassage, setCachedPassage } from "@/lib/bible/passageCache";
 
 export const LS_OFFLINE_BIBLE_KEY = "yb.offlineBible";
@@ -38,6 +39,8 @@ export function writeOfflineBibleId(bibleId: string | null): void {
 }
 
 export async function countCachedChapters(bibleId: string): Promise<number> {
+  if (isBundledBibleId(bibleId)) return totalChapterCount();
+
   let n = 0;
   for (const { book, chapter } of CHAPTER_REFS) {
     const row = await getCachedPassage(bibleId, book, chapter);
@@ -59,7 +62,17 @@ export async function downloadBibleForOffline(
   };
 
   report("running");
-  writeOfflineBibleId(bibleId);
+
+  // The full CSB corpus is part of the application bundle and is precached by
+  // the service worker. Never turn a local-edition setting into 1,189 API
+  // requests just to duplicate those same files in IndexedDB.
+  if (isBundledBibleId(bibleId)) {
+    if (signal?.aborted) throw new Error("Download cancelled");
+    done = total;
+    writeOfflineBibleId(bibleId);
+    report("done");
+    return;
+  }
 
   for (const { book, chapter } of CHAPTER_REFS) {
     if (signal?.aborted) throw new Error("Download cancelled");
@@ -79,5 +92,6 @@ export async function downloadBibleForOffline(
     await new Promise((r) => setTimeout(r, 40));
   }
 
+  writeOfflineBibleId(bibleId);
   report("done");
 }

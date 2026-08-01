@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { BookOpen, ChevronDown, ChevronUp, ExternalLink, Loader2 } from "lucide-react";
 import { fetchPassage, listBibles, type Passage } from "@/lib/bible/api";
-import { getStoredBibleId, LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId, persistBibleSelection } from "@/lib/bible/storedBibleId";
+import { pickDefaultBibleId } from "@/hooks/useBibles";
 import { guessBookAbbr, guessChapter, guessVerseEnd, guessVerseStart, readerPath } from "@/lib/bible/reference";
 import { artifactMobileInsightHeroLink } from "@/lib/framework/artifactStudyTheme";
 import { cn } from "@/lib/utils";
@@ -53,13 +54,9 @@ export default function ClaimScriptureRef({
       let bibleId = getStoredBibleId();
       if (!bibleId) {
         const bibles = await listBibles();
-        bibleId = bibles[0]?.id ?? "";
+        bibleId = pickDefaultBibleId(bibles, getStoredBibleId());
         if (bibleId) {
-          try {
-            localStorage.setItem(LS_BIBLE_KEY, bibleId);
-          } catch {
-            /* ignore */
-          }
+          persistBibleSelection(bibleId, bibles.find((bible) => bible.id === bibleId)?.abbreviation);
         }
       }
       if (!bibleId) throw new Error("Choose a translation in the Bible reader first.");

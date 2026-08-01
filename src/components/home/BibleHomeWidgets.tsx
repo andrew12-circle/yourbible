@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Flame, Loader2, Search } from "lucide-react";
 import { fetchPassage } from "@/lib/bible/api";
-import { getStoredBibleId, LS_BIBLE_KEY } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId } from "@/lib/bible/storedBibleId";
 import { pickDefaultBibleId, useBibles } from "@/hooks/useBibles";
 import { formatVerseReference, getVerseOfDayRef } from "@/lib/bible/verseOfDay";
 import { useReadingStreak } from "@/hooks/useReadingActivity";
@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { READING_PLANS } from "@/data/readingPlans";
 import { BibleSearchDialog } from "@/components/bible/BibleSearchDialog";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 
 export function BibleHomeWidgets() {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export function BibleHomeWidgets() {
   const online = useOnlineStatus();
   const { data: bibles = [] } = useBibles();
   const [searchOpen, setSearchOpen] = useState(false);
-  const bibleId = pickDefaultBibleId(bibles, getStoredBibleId()) || localStorage.getItem(LS_BIBLE_KEY) || "";
+  const bibleId = pickDefaultBibleId(bibles, getStoredBibleId());
   const votd = getVerseOfDayRef();
   const { streak, isLoading: streakLoading } = useReadingStreak(user?.id);
   const [preview, setPreview] = useState<string | null>(null);
@@ -25,14 +26,13 @@ export function BibleHomeWidgets() {
 
   useEffect(() => {
     let cancelled = false;
-    const storedId = bibleId || getStoredBibleId();
-    if (!storedId) {
+    if (!bibleId) {
       setPreviewLoading(false);
       return;
     }
 
     setPreviewLoading(true);
-    fetchPassage(storedId, votd.book, votd.chapter)
+    fetchPassage(bibleId, votd.book, votd.chapter)
       .then((p) => {
         if (cancelled) return;
         const verse = p.verses.find((v) => v.number === votd.verse);
@@ -57,7 +57,7 @@ export function BibleHomeWidgets() {
       <button
         type="button"
         onClick={() => setSearchOpen(true)}
-        disabled={!online || !bibleId}
+        disabled={!bibleId || (!online && !isBundledBibleId(bibleId))}
         className="w-full flex items-center gap-3 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] active:scale-[0.985] transition disabled:opacity-60"
       >
         <Search className="w-4 h-4 text-zinc-700" aria-hidden />

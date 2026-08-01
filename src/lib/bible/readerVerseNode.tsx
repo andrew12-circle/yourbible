@@ -133,7 +133,12 @@ export interface ReaderVerseRenderDeps {
     bookAbbr?: string,
     chapterNum?: number,
   ) => { verse: number } | undefined;
-  onVerseNumberClick: (e: React.MouseEvent, v: { number: number; text: string }) => void;
+  onVerseNumberClick: (
+    e: React.MouseEvent,
+    v: { number: number; text: string },
+    bookAbbr: string,
+    chapter: number,
+  ) => void;
   navigate: (path: string) => void;
   setNoteOpen: (open: { verse: number }) => void;
 }
@@ -258,7 +263,7 @@ export function createReaderVerseRenderer({
         ) : (
           <button
             type="button"
-            onClick={(e) => onVerseNumberClick(e, v)}
+            onClick={(e) => onVerseNumberClick(e, v, verseBook, verseChapter)}
             className="verse-num verse-num-gutter bg-transparent border-0 p-0 cursor-pointer hover:text-leather transition-colors"
             aria-label={`Verse ${v.number}`}
             style={{ userSelect: "none" }}

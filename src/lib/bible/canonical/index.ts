@@ -32,4 +32,5 @@ export {
   indexPassageInCanonicalStore,
 } from "./getChapterVerses";
 export { searchCanonicalVerses, countIndexedVerses, type LocalVerseSearchHit } from "./localVerseSearch";
+export { searchBundledCsbVerses, findBundledVerseMatches } from "./bundledVerseSearch";
 export { loadCanonicalBundleFromUrl, hydrateCanonicalBundle } from "./bundleLoader";

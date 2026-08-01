@@ -1,5 +1,4 @@
 import type { Passage } from "@/lib/bible/api";
-import { fetchPassage } from "@/lib/bible/api";
 import {
   canonicalChapterToPassage,
   isCanonicalCsbBible,
@@ -7,6 +6,7 @@ import {
   CANONICAL_CSB_BIBLE_ID,
 } from "./passageToCanonical";
 import { getCanonicalChapter, setCanonicalChapter } from "./store";
+import { hydrateCanonicalBundle } from "./bundleLoader";
 import type { CanonicalChapterRecord } from "./types";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 
@@ -23,7 +23,7 @@ export async function getChapterFromCanonicalStore(
   chapter: number,
 ): Promise<CanonicalChapterRecord | null> {
   if (!isCanonicalCsbBible(bibleId)) return null;
-  const record = await getCanonicalChapter(bibleId, bookAbbr, chapter);
+  const record = await getCanonicalChapter(CANONICAL_CSB_BIBLE_ID, bookAbbr, chapter);
   if (!record) return null;
   if (record.parserRevision !== PASSAGE_PARSER_REVISION) return null;
   return record;
@@ -42,8 +42,9 @@ export async function indexPassageInCanonicalStore(
 }
 
 /**
- * Layer 1 read adapter: CSB from canonical store when available;
- * otherwise fetch via API and index for next time.
+ * Read CSB from its shipped canonical bundle. Missing/corrupt local content is
+ * an explicit failure: falling back to API.Bible would silently spend credits
+ * and make an otherwise offline reader unreliable.
  */
 export async function getChapterVerses(
   bibleId: string,
@@ -52,16 +53,17 @@ export async function getChapterVerses(
   signal?: AbortSignal,
   bibleAbbr?: string,
 ): Promise<Passage> {
-  if (isCanonicalCsbBible(bibleId, bibleAbbr)) {
-    const cached = await getChapterFromCanonicalStore(bibleId, bookAbbr, chapter);
-    if (cached) return canonicalChapterToPassage(cached);
+  if (isCanonicalCsbBible(bibleId)) {
+    const canonicalId = CANONICAL_CSB_BIBLE_ID;
+    const bundled = await hydrateCanonicalBundle(bookAbbr, chapter, canonicalId);
+    if (bundled) return canonicalChapterToPassage(bundled);
+    throw new Error(
+      `Bundled CSB chapter unavailable: ${bookAbbr} ${chapter}. API.Bible was not used.`,
+    );
   }
 
-  const passage = await fetchPassage(bibleId, bookAbbr, chapter, signal, bibleAbbr);
-  if (isCanonicalCsbBible(bibleId, bibleAbbr)) {
-    void indexPassageInCanonicalStore(passage, bookAbbr, chapter, bibleId);
-  }
-  return passage;
+  const { fetchPassage } = await import("@/lib/bible/api");
+  return fetchPassage(bibleId, bookAbbr, chapter, signal, bibleAbbr);
 }
 
 export async function getChapterVersesFromCanonicalOnly(

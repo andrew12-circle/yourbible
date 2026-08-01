@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useFontLoadRevision } from "@/hooks/useFontLoadRevision";
 import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
 import {
   applyScriptureColumnMeasureHtml,
@@ -16,7 +17,6 @@ import {
   type ReaderPlateFocus,
   type ReaderStreamUnit,
   buildReaderStream,
-  READER_PAGINATOR_SPLIT_REVISION,
 } from "@/lib/bible/readerStream";
 import {
   buildStreamSliceMeasureHtml,
@@ -56,12 +56,7 @@ export function BookPaginator({
   onSplitsChange,
 }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const [measureNodeReady, setMeasureNodeReady] = useState(false);
-  const bindMeasureRef = useCallback((el: HTMLDivElement | null) => {
-    ref.current = el;
-    setMeasureNodeReady(el != null);
-  }, []);
-  const [revision, setRevision] = useState(0);
+  const fontLoadRevision = useFontLoadRevision();
   const lastSplitsRef = useRef<string>("");
   const stream = useMemo(
     () => buildReaderStream(chapters, { plateFocus }),
@@ -79,12 +74,16 @@ export function BookPaginator({
 
   const chaptersKey = useMemo(
     () =>
-      chapters
-        .map(
-          (ch) =>
-            `${ch.bookAbbr}:${ch.chapter}:${ch.verses.map((v) => `${v.number}:${v.text.length}`).join(",")}`,
-        )
-        .join("|"),
+      JSON.stringify(
+        chapters.map((ch) => ({
+          bookAbbr: ch.bookAbbr,
+          chapter: ch.chapter,
+          verses: ch.verses,
+          paragraphStarts: ch.paragraphStarts,
+          headings: ch.headings,
+          poetryBlocks: ch.poetryBlocks,
+        })),
+      ),
     [chapters],
   );
 
@@ -93,24 +92,6 @@ export function BookPaginator({
 
   useEffect(() => {
     lastSplitsRef.current = "";
-    setRevision((r) => r + 1);
-  }, [
-    chaptersKey,
-    pageWidth,
-    pageHeight,
-    resolvedFirstPageHeight,
-    footerHeight,
-    className,
-    columnsClassName,
-    spreadMode,
-    studyLayout,
-    measureNodeReady,
-    fontSizeStyle?.fontSize,
-    fontSizeStyle?.fontFamily,
-    READER_PAGINATOR_SPLIT_REVISION,
-  ]);
-
-  useEffect(() => {
     if (!ref.current || pageHeight <= 0 || stream.length === 0) {
       if (spreadMode && columnsClassName) return;
       const next = [0, stream.length];
@@ -268,8 +249,26 @@ export function BookPaginator({
       lastSplitsRef.current = key;
       onSplitsChange(splits);
     }
+    // The DOM ref is assigned before effects run. Key this directly to the
+    // measurement inputs rather than bouncing through state, which otherwise
+    // repeats the costly full-book measurement for every input change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision]);
+  }, [
+    chaptersKey,
+    plateFocus?.bookAbbr,
+    plateFocus?.chapter,
+    pageWidth,
+    pageHeight,
+    resolvedFirstPageHeight,
+    footerHeight,
+    className,
+    columnsClassName,
+    spreadMode,
+    studyLayout,
+    fontSizeStyle?.fontSize,
+    fontSizeStyle?.fontFamily,
+    fontLoadRevision,
+  ]);
 
   return (
     <div
@@ -284,7 +283,7 @@ export function BookPaginator({
       }}
     >
       <div
-        ref={bindMeasureRef}
+        ref={ref}
         data-reading-area
         className={cn(className, studyLayout === "holman" && "reader-holman-study")}
         style={{

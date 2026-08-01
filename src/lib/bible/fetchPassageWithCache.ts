@@ -1,11 +1,6 @@
 import { fetchPassage, type Passage } from "@/lib/bible/api";
 import { adjacentChapterRefs } from "@/lib/bible/adjacentChapters";
-import {
-  getChapterVersesFromCanonicalOnly,
-  hydrateCanonicalBundle,
-  indexPassageInCanonicalStore,
-  isCanonicalCsbBible,
-} from "@/lib/bible/canonical";
+import { isCanonicalCsbBible } from "@/lib/bible/canonical";
 import { getCachedPassage, setCachedPassage } from "@/lib/bible/passageCache";
 import { queryClient } from "@/lib/queryClient";
 import { passageQueryKey } from "@/hooks/usePassage";
@@ -41,22 +36,14 @@ export async function fetchPassageWithCache(
   signal?: AbortSignal,
   bibleAbbr?: string,
 ): Promise<Passage> {
-  if (isCanonicalCsbBible(bibleId, bibleAbbr)) {
-    let canonical = await getChapterVersesFromCanonicalOnly(bibleId, book, chapter);
-    if (!canonical) {
-      await hydrateCanonicalBundle(book, chapter, bibleId);
-      canonical = await getChapterVersesFromCanonicalOnly(bibleId, book, chapter);
-    }
-    if (canonical) return canonical;
+  if (isCanonicalCsbBible(bibleId)) {
+    return fetchPassage(bibleId, book, chapter, signal, bibleAbbr);
   }
 
   const cached = await getCachedPassage(bibleId, book, chapter);
 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     if (cached) return cached.passage;
-    if (isCanonicalCsbBible(bibleId, bibleAbbr)) {
-      throw new Error("You are offline and this chapter is not saved yet.");
-    }
     throw new Error("You are offline and this chapter is not saved yet.");
   }
 
@@ -64,10 +51,6 @@ export async function fetchPassageWithCache(
     const passage = await fetchPassage(bibleId, book, chapter, signal, bibleAbbr);
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     await setCachedPassage(bibleId, book, chapter, passage);
-    if (isCanonicalCsbBible(bibleId, bibleAbbr)) {
-      void indexPassageInCanonicalStore(passage, book, chapter, bibleId);
-    }
-
     for (const ref of adjacentChapterRefs(book, chapter)) {
       void prefetchChapter(bibleId, ref.book, ref.chapter, bibleAbbr);
     }
@@ -84,6 +67,10 @@ export async function hydratePassageFromCache(
   book: string,
   chapter: number,
 ): Promise<Passage | undefined> {
+  // A legacy IndexedDB entry may have come from API.Bible. The bundled CSB is
+  // authoritative for this reader session, so never let stale cache data win
+  // the query race over the shipped chapter bundle.
+  if (isCanonicalCsbBible(bibleId)) return undefined;
   const cached = await getCachedPassage(bibleId, book, chapter);
   if (!cached) return undefined;
   queryClient.setQueryData(passageQueryKey(bibleId, book, chapter), cached.passage);

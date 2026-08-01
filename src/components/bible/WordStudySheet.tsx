@@ -15,6 +15,7 @@ import {
   type StrongsEntry,
 } from "@/lib/bible/strongsDictionary";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 
 import type { WordStudyContext } from "@/lib/bible/wordStudyContext";
 
@@ -47,6 +48,7 @@ export function WordStudySheet({ open, onOpenChange, bibleId, context }: Props) 
   const [strongsError, setStrongsError] = useState<string | null>(null);
 
   const word = context ? cleanWord(context.word) : "";
+  const bundledEdition = isBundledBibleId(bibleId);
   const book = context ? findBookByAbbr(context.bookAbbr) : undefined;
   const primaryVerse = context?.verses[0] ?? 1;
   const isOt = book?.testament === "OT";
@@ -62,7 +64,7 @@ export function WordStudySheet({ open, onOpenChange, bibleId, context }: Props) 
       setConcordance([]);
       return;
     }
-    if (!online) return;
+    if (!online && !bundledEdition) return;
     const controller = new AbortController();
     setConcordanceLoading(true);
     searchBible(bibleId, word, 30, controller.signal)
@@ -72,7 +74,7 @@ export function WordStudySheet({ open, onOpenChange, bibleId, context }: Props) 
         if (!controller.signal.aborted) setConcordanceLoading(false);
       });
     return () => controller.abort();
-  }, [open, context, word, bibleId, online]);
+  }, [open, context, word, bibleId, online, bundledEdition]);
 
   useEffect(() => {
     if (!open || !context || !isOt) {
@@ -163,7 +165,7 @@ export function WordStudySheet({ open, onOpenChange, bibleId, context }: Props) 
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
               Concordance
             </h3>
-            {!online ? (
+            {!online && !bundledEdition ? (
               <p className="text-muted-foreground">Connect to search for other occurrences.</p>
             ) : concordanceLoading ? (
               <div className="flex items-center gap-2 text-muted-foreground">

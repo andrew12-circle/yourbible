@@ -4,9 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { searchBible, type BibleSearchHit } from "@/lib/bible/api";
 import {
   isCanonicalCsbBible,
-  searchCanonicalVerses,
   countIndexedVerses,
-  type LocalVerseSearchHit,
 } from "@/lib/bible/canonical";
 import { BOOKS, findBookByAbbr } from "@/data/books";
 import { looksLikeBibleReference, parseBibleReference } from "@/lib/bible/parseBibleReference";
@@ -76,16 +74,9 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
       setLoading(true);
       setError(null);
 
-      if (isCanonicalCsbBible(bibleId) && localIndexSize > 0) {
+      if (isCanonicalCsbBible(bibleId)) {
         try {
-          const localHits = await searchCanonicalVerses(query.trim(), 40, bibleId);
-          const mapped: BibleSearchHit[] = localHits.map((h: LocalVerseSearchHit) => ({
-            reference: h.reference,
-            book: h.bookAbbr,
-            chapter: h.chapter,
-            verse: h.verse,
-            text: h.snippet,
-          }));
+          const mapped = await searchBible(bibleId, query.trim(), 40, controller.signal);
           const filtered =
             bookFilter === "all" ? mapped : mapped.filter((h) => h.book === bookFilter);
           setResults(filtered);
@@ -227,12 +218,17 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
             </div>
           ) : null}
 
-          {!online && !parsedRef && localIndexSize === 0 && (
+          {!online && !isCanonicalCsbBible(bibleId) && !parsedRef && localIndexSize === 0 && (
             <p className="text-sm text-muted-foreground px-2 py-4">Connect to search Scripture.</p>
           )}
-          {!online && !parsedRef && localIndexSize > 0 && query.trim().length < 2 && (
+          {isCanonicalCsbBible(bibleId) && !parsedRef && query.trim().length < 2 && (
             <p className="text-sm text-muted-foreground px-2 py-4">
-              Search your offline CSB index ({localIndexSize.toLocaleString()} verses indexed).
+              Search the full bundled CSB offline.
+            </p>
+          )}
+          {!online && !isCanonicalCsbBible(bibleId) && !parsedRef && localIndexSize > 0 && query.trim().length < 2 && (
+            <p className="text-sm text-muted-foreground px-2 py-4">
+              Search your offline index ({localIndexSize.toLocaleString()} verses indexed).
             </p>
           )}
           {loading && (
@@ -244,7 +240,7 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
           {error && !loading && (
             <p className="text-sm text-destructive px-2 py-4">{error}</p>
           )}
-          {!loading && !error && !parsedRef && query.trim().length >= 2 && results.length === 0 && online && (
+          {!loading && !error && !parsedRef && query.trim().length >= 2 && results.length === 0 && (online || isCanonicalCsbBible(bibleId)) && (
             <p className="text-sm text-muted-foreground px-2 py-4">No results for “{query.trim()}”.</p>
           )}
           {results.map((hit, i) => (

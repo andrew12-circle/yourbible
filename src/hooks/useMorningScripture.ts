@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
+import { API_BIBLE_CSB_ID } from "@/lib/bible/bibleEditions";
+import {
+  BUNDLED_BIBLE_REMOTE_SERVICE_ERROR,
+  usesBundledBible,
+} from "@/lib/bible/remoteBibleService";
 import {
   findNextReadingPlanDay,
   primaryReadingForPlanDay,
   type NextReadingPlanDay,
 } from "@/lib/bible/readingPlanProgress";
 import { readerPath } from "@/lib/bible/reference";
+import { getStoredBibleId } from "@/lib/bible/storedBibleId";
 
 export interface MorningDailyReading {
   id: string;
@@ -89,10 +95,17 @@ export function useMorningScripture(userId: string | undefined) {
 
   const generateDaily = useCallback(async () => {
     if (!userId) return null;
+    const bibleId = getStoredBibleId() ?? API_BIBLE_CSB_ID;
+    if (usesBundledBible(bibleId)) {
+      setError(BUNDLED_BIBLE_REMOTE_SERVICE_ERROR);
+      return null;
+    }
     setGenerating(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke("framework-daily", { body: {} });
+      const { data, error: fnError } = await supabase.functions.invoke("framework-daily", {
+        body: { bibleId },
+      });
       if (fnError) throw fnError;
       if (data && typeof data === "object" && "error" in data && data.error) {
         throw new Error(String(data.error));

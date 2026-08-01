@@ -7,6 +7,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Keep this aligned with src/lib/bible/bibleEditions.ts. The bundled CSB must
+// never be fetched through API.Bible by this convenience feature.
+const BUNDLED_CSB_BIBLE_ID = "a556c5305ee15c3f-01";
+const BUNDLED_CSB_REMOTE_ERROR =
+  "Daily generation is unavailable for the bundled CSB because it would require API.Bible. API.Bible was not used.";
+
 const VALID_ABBRS = new Set([
   "Gen", "Exo", "Lev", "Num", "Deu", "Jos", "Jdg", "Rut", "1Sa", "2Sa", "1Ki", "2Ki",
   "1Ch", "2Ch", "Ezr", "Neh", "Est", "Job", "Psa", "Pro", "Ecc", "Sng", "Isa", "Jer",
@@ -45,26 +51,6 @@ function stripJsonFence(text: string): string {
   const t = text.trim();
   const m = t.match(/^```(?:json)?\s*([\s\S]*?)```$/i);
   return (m?.[1] ?? t).trim();
-}
-
-async function defaultBibleId(apiKey: string): Promise<string> {
-  const fromEnv = Deno.env.get("DEFAULT_BIBLE_ID")?.trim();
-  if (fromEnv) return fromEnv;
-  const r = await fetch("https://rest.api.bible/v1/bibles?language=eng", {
-    headers: { "api-key": apiKey },
-  });
-  if (!r.ok) throw new Error(`API.Bible bibles: ${r.status}`);
-  const json = await r.json();
-  const list = (json?.data ?? []) as { id: string; abbreviation?: string; name?: string }[];
-  const pref = ["CSB", "KJV", "WEB", "ESV", "NIV"];
-  for (const code of pref) {
-    const found = list.find((b) => b.abbreviation?.toUpperCase() === code);
-    if (found) return found.id;
-  }
-  const byName = list.find((b) =>
-    /christian\s+standard\s+bible/i.test(b.name ?? "") || /\bcsb\b/i.test(b.name ?? ""),
-  );
-  return byName?.id ?? list[0]?.id ?? "";
 }
 
 function parseChapterText(content: string): { number: number; text: string }[] {
@@ -125,6 +111,16 @@ Deno.serve(async (req) => {
     if (!u.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json().catch(() => ({})) as { bibleId?: unknown };
+    const requestedBibleId = typeof body.bibleId === "string" ? body.bibleId.trim() : "";
+    // Older callers did not send an edition and therefore defaulted to CSB.
+    // Fail closed rather than silently reintroducing that remote fallback.
+    if (!requestedBibleId || requestedBibleId === BUNDLED_CSB_BIBLE_ID) {
+      return new Response(JSON.stringify({ error: BUNDLED_CSB_REMOTE_ERROR }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -190,10 +186,16 @@ ${tensionSummary || "(none)"}`;
     const verseEndRaw = args.verse_end != null ? Number(args.verse_end) : null;
     const verseEnd = verseEndRaw && verseEndRaw >= verseStart ? verseEndRaw : null;
 
-    const bibleId = await defaultBibleId(API_BIBLE_KEY);
     let passage = "";
     try {
-      passage = await fetchPassageText(API_BIBLE_KEY, bibleId, bookAbbr, chapter, verseStart, verseEnd);
+      passage = await fetchPassageText(
+        API_BIBLE_KEY,
+        requestedBibleId,
+        bookAbbr,
+        chapter,
+        verseStart,
+        verseEnd,
+      );
     } catch (e) {
       console.warn("framework-daily: passage fetch failed", e);
       passage = String(args.reference ?? "");

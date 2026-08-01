@@ -6,6 +6,7 @@ import { findBookByAbbr } from "@/data/books";
 import { looksLikeBibleReference, parseBibleReference } from "@/lib/bible/parseBibleReference";
 import { Input } from "@/components/ui/input";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 
 type Props = {
   bibleId: string;
@@ -15,6 +16,7 @@ type Props = {
 export function StudyConcordanceSearch({ bibleId }: Props) {
   const navigate = useNavigate();
   const online = useOnlineStatus();
+  const bundledEdition = isBundledBibleId(bibleId);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<BibleSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +37,7 @@ export function StudyConcordanceSearch({ bibleId }: Props) {
       return;
     }
 
-    if (!online) {
+    if (!online && !bundledEdition) {
       setError("Connect to search Scripture.");
       setResults([]);
       return;
@@ -61,7 +63,7 @@ export function StudyConcordanceSearch({ bibleId }: Props) {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [bibleId, query, online]);
+  }, [bibleId, query, online, bundledEdition]);
 
   const parsedRef = looksLikeBibleReference(query) ? parseBibleReference(query) : null;
 
@@ -113,7 +115,7 @@ export function StudyConcordanceSearch({ bibleId }: Props) {
 
       {error ? <p className="text-sm text-destructive mt-3">{error}</p> : null}
 
-      {!loading && !error && !parsedRef && query.trim().length >= 2 && results.length === 0 && online ? (
+      {!loading && !error && !parsedRef && query.trim().length >= 2 && results.length === 0 && (online || bundledEdition) ? (
         <p className="text-sm text-muted-foreground mt-3">No results for “{query.trim()}”.</p>
       ) : null}
 
@@ -132,7 +134,7 @@ export function StudyConcordanceSearch({ bibleId }: Props) {
         ))}
       </ul>
 
-      {!online && !parsedRef && query.trim().length >= 2 ? (
+      {!online && !bundledEdition && !parsedRef && query.trim().length >= 2 ? (
         <p className="text-sm text-muted-foreground mt-3">Concordance search requires an internet connection.</p>
       ) : null}
     </div>

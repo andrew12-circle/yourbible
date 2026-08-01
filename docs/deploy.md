@@ -52,6 +52,16 @@ Or copy the workflow file aside, commit the removal temporarily, push, restore t
 
 Build settings live in [`vercel.json`](../vercel.json): Vite app, `npm run build`, output `dist`, SPA rewrites to `index.html`.
 
+### Bundled Bible authorization gate
+
+Before releasing any build that includes a full-text Bible bundle, run:
+
+```bash
+npm run verify:authorized-bible
+```
+
+This is intentionally fail-closed until the private publisher/license attestation described in [authorized-bible-attestation.md](./authorized-bible-attestation.md) is present. Do not deploy a new or changed bundled edition if this check fails.
+
 ---
 
 ## 2. Supabase edge functions

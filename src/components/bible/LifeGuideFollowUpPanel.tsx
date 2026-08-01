@@ -8,16 +8,18 @@ import { cn } from "@/lib/utils";
 interface Props {
   followups: LifeGuideFollowUp[];
   busy: boolean;
+  disabled?: boolean;
   onAsk: (question: string) => void;
   className?: string;
 }
 
-export function LifeGuideFollowUpPanel({ followups, busy, onAsk, className }: Props) {
+export function LifeGuideFollowUpPanel({ followups, busy, disabled = false, onAsk, className }: Props) {
   const [input, setInput] = useState("");
+  const blocked = busy || disabled;
 
   const submit = () => {
     const q = input.trim();
-    if (!q || busy) return;
+    if (!q || blocked) return;
     setInput("");
     onAsk(q);
   };
@@ -61,7 +63,7 @@ export function LifeGuideFollowUpPanel({ followups, busy, onAsk, className }: Pr
             key={prompt}
             type="button"
             onClick={() => onAsk(prompt)}
-            disabled={busy}
+            disabled={blocked}
             className="text-left text-[12px] leading-snug px-2.5 py-1.5 rounded-lg bg-muted/50 hover:bg-muted border border-border/50 transition disabled:opacity-50"
           >
             {prompt}
@@ -81,9 +83,9 @@ export function LifeGuideFollowUpPanel({ followups, busy, onAsk, className }: Pr
           }}
           placeholder="e.g. What if they won't accept my apology?"
           className="rounded-xl"
-          disabled={busy}
+          disabled={blocked}
         />
-        <Button onClick={submit} disabled={busy || !input.trim()} size="icon" className="shrink-0 rounded-xl">
+        <Button onClick={submit} disabled={blocked || !input.trim()} size="icon" className="shrink-0 rounded-xl">
           {busy ? (
             <Loader2 className="w-4 h-4 animate-spin" aria-label="Thinking" />
           ) : (

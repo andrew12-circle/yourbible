@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { listBibles, type BibleEntry } from "@/lib/bible/api";
-import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
+import { getStoredBibleId, persistBibleSelection } from "@/lib/bible/storedBibleId";
+import { pickDefaultBibleId, readerBibleOptions } from "@/hooks/useBibles";
 import { toast } from "@/hooks/use-toast";
 import { HOME_PROFILE_PHOTO_STORAGE_KEY } from "@/lib/homeProfilePhoto";
 import {
@@ -38,22 +39,20 @@ export function useSettingsPage() {
   const wallpaperFileRef = useRef<HTMLInputElement>(null);
   const profilePhotoFileRef = useRef<HTMLInputElement>(null);
   const [bibles, setBibles] = useState<BibleEntry[]>([]);
-  const [bibleId, setBibleId] = useState(() =>
-    typeof window !== "undefined" ? localStorage.getItem(LS_BIBLE_KEY) ?? "" : "",
-  );
+  const [bibleId, setBibleId] = useState("");
 
   useEffect(() => {
     listBibles()
       .then((list) => {
-        setBibles(list);
-        const stored = localStorage.getItem(LS_BIBLE_KEY);
-        const found =
-          list.find((b) => b.id === stored) ??
-          list.find((b) => b.abbreviation === "CSB") ??
-          list[0];
-        if (found) {
-          setBibleId(found.id);
-          localStorage.setItem(LS_BIBLE_KEY, found.id);
+        const readerBibles = readerBibleOptions(list);
+        setBibles(readerBibles);
+        const nextId = pickDefaultBibleId(readerBibles, getStoredBibleId());
+        if (nextId) {
+          setBibleId(nextId);
+          persistBibleSelection(
+            nextId,
+            readerBibles.find((bible) => bible.id === nextId)?.abbreviation,
+          );
         }
       })
       .catch(() => {});
@@ -212,8 +211,10 @@ export function useSettingsPage() {
   };
 
   const onBibleChange = (nextId: string) => {
+    const next = bibles.find((bible) => bible.id === nextId);
+    if (!next) return;
     setBibleId(nextId);
-    persistBibleSelection(nextId, bibles.find((b) => b.id === nextId)?.abbreviation);
+    persistBibleSelection(nextId, next.abbreviation);
     toast({ title: "Translation updated", description: "Applies when you open the reader." });
   };
 

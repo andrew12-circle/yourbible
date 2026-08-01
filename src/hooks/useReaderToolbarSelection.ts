@@ -4,7 +4,7 @@ import {
   TOOLBAR_GAP,
   type ToolbarSelection,
 } from "@/components/bible/SelectionToolbar";
-import { toolbarSelectionFromRange } from "@/lib/bible/verseSelection";
+import { getReadingAreaFromRange, toolbarSelectionFromRange } from "@/lib/bible/verseSelection";
 import { readEffectiveLayoutViewport } from "@/lib/mini-phone/miniPhoneLayoutViewport";
 import { readIsCompactViewport } from "@/lib/shell/viewport";
 
@@ -29,7 +29,11 @@ export function useReaderToolbarSelection(
     const computeSelection = (): ToolbarSelection | null => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
-      return toolbarSelectionFromRange(sel.getRangeAt(0), verseLengths);
+      const range = sel.getRangeAt(0);
+      if (getReadingAreaFromRange(range)?.hasAttribute("data-reader-selection-disabled")) {
+        return null;
+      }
+      return toolbarSelectionFromRange(range, verseLengths);
     };
 
     const syncToolbar = () => {
@@ -56,9 +60,12 @@ export function useReaderToolbarSelection(
         ".verse-num, [data-selection-toolbar], [data-page-footer]",
       );
 
-    const isReadingAreaTarget = (target: EventTarget | null) =>
-      !!(target as HTMLElement | null)?.closest("[data-reading-area]") &&
-      !shouldIgnoreSelectionTarget(target);
+    const isReadingAreaTarget = (target: EventTarget | null) => {
+      const readingArea = (target as HTMLElement | null)?.closest("[data-reading-area]");
+      return !!readingArea &&
+        !readingArea.hasAttribute("data-reader-selection-disabled") &&
+        !shouldIgnoreSelectionTarget(target);
+    };
 
     const onSelectionStart = (e: Event) => {
       if (!isReadingAreaTarget(e.target)) return;

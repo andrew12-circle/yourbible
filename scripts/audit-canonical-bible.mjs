@@ -19,6 +19,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "..");
 const CHAPTERS_DIR = path.join(ROOT, "public", "bibles", "csb", "chapters");
+const EXPECTED_CSB_VERSE_COUNT = 31_082;
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -39,7 +40,16 @@ function loadChapter(bookAbbr, chapter) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Missing chapter bundle: ${filePath}`);
   }
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  const record = JSON.parse(fs.readFileSync(filePath, "utf8"));
+  if (
+    record.bookAbbr !== bookAbbr ||
+    record.chapter !== chapter ||
+    !Array.isArray(record.verses) ||
+    record.verses.length === 0
+  ) {
+    throw new Error(`Invalid chapter bundle: ${filePath}`);
+  }
+  return record;
 }
 
 function main() {
@@ -61,6 +71,13 @@ function main() {
   console.log(
     `Audited ${summary.chaptersAudited}/${expectedChapterCount()} chapters, ${summary.versesAudited} verses.`,
   );
+
+  if (!book && summary.versesAudited !== EXPECTED_CSB_VERSE_COUNT) {
+    console.error(
+      `Expected ${EXPECTED_CSB_VERSE_COUNT} bundled CSB verses, found ${summary.versesAudited}.`,
+    );
+    process.exit(1);
+  }
 
   if (summary.issueCount === 0) {
     console.log("No text integrity or render completeness issues found.");

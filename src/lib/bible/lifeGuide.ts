@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getDefaultJournalId } from "@/lib/journal/journals";
+import { assertRemoteBibleServiceAllowed } from "@/lib/bible/remoteBibleService";
 
 export interface LifeGuidePassage {
   reference: string;
@@ -105,6 +106,7 @@ export function updateRecentLifeGuideFollowups(
 }
 
 export async function fetchLifeGuide(issue: string, bibleId: string): Promise<LifeGuideResult> {
+  assertRemoteBibleServiceAllowed(bibleId);
   const { data, error } = await supabase.functions.invoke("bible-life-guide", {
     body: { action: "search", issue: issue.trim(), bibleId },
   });
@@ -122,6 +124,7 @@ export async function fetchLifeGuideFollowUp(opts: {
   guide: LifeGuideResult;
   history: LifeGuideFollowUp[];
 }): Promise<LifeGuideFollowUpResponse> {
+  assertRemoteBibleServiceAllowed(opts.bibleId);
   const { data, error } = await supabase.functions.invoke("bible-life-guide", {
     body: {
       action: "followup",

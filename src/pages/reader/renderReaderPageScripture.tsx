@@ -53,7 +53,6 @@ export type ReaderPageScriptureArgs = {
   inlineChapterPlates: BiblePlate[];
   renderVerse: (v: PassageVerse, ctx: VerseCtx) => ReactNode;
   activeStudyLayout: ResolvedStudyLayout;
-  pageStartsWithChapterHeader: boolean;
   useStudyPageStack: boolean;
   spreadColumnLayout: ReaderColumnLayout;
   holmanVerseGroups: HolmanVerseGroup[];
@@ -87,7 +86,6 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
     inlineChapterPlates,
     renderVerse,
     activeStudyLayout,
-    pageStartsWithChapterHeader,
     useStudyPageStack,
     spreadColumnLayout,
     holmanVerseGroups,
@@ -124,12 +122,7 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
       groups,
       resolveParagraphStarts,
       resolveHeading,
-      (v, ctx) =>
-        renderVerse(v, {
-          ...ctx,
-          showChapterDropCap:
-            useStreamReader && !scrollMode ? pageStartsWithChapterHeader : undefined,
-        }),
+      renderVerse,
       resolvePoetryBlocks,
       { studyLayout: activeStudyLayout },
     );

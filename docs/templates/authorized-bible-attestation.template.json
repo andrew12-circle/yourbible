@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "attestationId": "replace-with-a-reviewed-attestation-id",
+  "issuedAt": "2026-08-01T00:00:00Z",
+  "requiredEditions": ["CSB", "NKJV"],
+  "editions": [
+    {
+      "edition": {
+        "directory": "csb",
+        "bibleId": "replace-with-the-authorized-edition-id",
+        "abbreviation": "CSB",
+        "name": "Christian Standard Bible",
+        "publisher": "replace-with-the-rights-holder",
+        "textRevision": "replace-with-a-new-reviewed-source-revision"
+      },
+      "rightsGrant": {
+        "issuer": "replace-with-the-authorized-rights-issuer",
+        "reference": "replace-with-license-or-contract-reference",
+        "effectiveAt": "2026-08-01T00:00:00Z",
+        "expiresAt": null,
+        "permittedUses": [
+          "full-text-distribution",
+          "offline-pwa-storage",
+          "family-private-deployment"
+        ],
+        "document": {
+          "path": "rights/csb-offline-license.pdf",
+          "sha256": "REPLACE_WITH_64_LOWERCASE_HEX_CHARACTERS",
+          "bytes": 123456
+        }
+      },
+      "sourceExport": {
+        "provider": "replace-with-publisher-or-licensed-provider",
+        "format": "osis-or-usfm-or-provider-json",
+        "revision": "replace-with-publisher-release-identifier",
+        "package": {
+          "path": "source/csb-authorized-export.zip",
+          "sha256": "REPLACE_WITH_64_LOWERCASE_HEX_CHARACTERS",
+          "bytes": 123456
+        },
+        "publisherProof": {
+          "issuer": "replace-with-publisher-or-licensed-provider",
+          "reference": "replace-with-signed-release-manifest-or-receipt-reference",
+          "document": {
+            "path": "source/csb-publisher-release.pdf",
+            "sha256": "REPLACE_WITH_64_LOWERCASE_HEX_CHARACTERS",
+            "bytes": 123456
+          }
+        }
+      },
+      "pipeline": {
+        "importer": "scripts/ingest-authorized-bible.mjs",
+        "importerRevision": "git:replace-with-reviewed-importer-commit",
+        "sourceSha256": "REPLACE_WITH_THE_SAME_SOURCE_PACKAGE_SHA256"
+      },
+      "bundle": {
+        "root": "public/bibles/csb",
+        "generatedFromSourceSha256": "REPLACE_WITH_THE_SAME_SOURCE_PACKAGE_SHA256",
+        "chapters": [
+          {
+            "path": "chapters/Gen/1.json",
+            "sha256": "REPLACE_WITH_FILE_BYTE_SHA256",
+            "canonicalJsonSha256": "REPLACE_WITH_CANONICAL_JSON_SHA256"
+          }
+        ],
+        "auxiliaryFiles": [
+          {
+            "path": "meta.json",
+            "sha256": "REPLACE_WITH_FILE_BYTE_SHA256",
+            "canonicalJsonSha256": "REPLACE_WITH_CANONICAL_JSON_SHA256"
+          },
+          {
+            "path": "search.json",
+            "sha256": "REPLACE_WITH_FILE_BYTE_SHA256",
+            "canonicalJsonSha256": "REPLACE_WITH_CANONICAL_JSON_SHA256"
+          }
+        ],
+        "canonicalBundleSha256": "REPLACE_WITH_COMPLETE_BUNDLE_SHA256"
+      }
+    }
+  ]
+}

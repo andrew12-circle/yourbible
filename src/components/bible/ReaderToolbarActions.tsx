@@ -41,6 +41,7 @@ import {
   readerFontScaleGroup,
 } from "@/lib/bible/readerChromeClasses";
 import type { BibleEntry } from "@/lib/bible/api";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -130,6 +131,7 @@ export function ReaderToolbarActions({
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const current = bibles.find((b) => b.id === bibleId);
   const showStudyLayout = isStudyBibleEdition(current?.abbreviation);
+  const bundledEdition = isBundledBibleId(bibleId);
   const scaleBtn = compact ? "p-1" : "p-1";
   const scaleIcon = compact ? "w-3 h-3" : "w-3 h-3";
 
@@ -254,8 +256,8 @@ export function ReaderToolbarActions({
       {onSearch ? (
         <ReaderIconButton
           onClick={onSearch}
-          title={online ? "Search Scripture" : "Search requires internet"}
-          disabled={!online}
+          title={online || bundledEdition ? "Search Scripture" : "Search requires internet"}
+          disabled={!online && !bundledEdition}
         >
           <Search className="w-[18px] h-[18px]" strokeWidth={2} />
         </ReaderIconButton>
@@ -390,8 +392,10 @@ export function ReaderToolbarActions({
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[10px] font-normal leading-snug text-muted-foreground whitespace-normal">
             {current
-              ? `Scripture${showStudyLayout ? " and study notes" : ""} from ${current.name} (${current.abbreviation}) via API.Bible.`
-              : "Scripture text via API.Bible."}
+              ? bundledEdition
+                ? `Full ${current.name} (${current.abbreviation}) text is bundled for offline reading.`
+                : `Scripture${showStudyLayout ? " and study notes" : ""} from ${current.name} (${current.abbreviation}).`
+              : "Scripture edition unavailable."}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {onToggleColumnLayout ? (

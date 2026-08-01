@@ -1,4 +1,11 @@
 import { EOTC_BIBLE_ENTRY, WLC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
+import { BUNDLED_BIBLE_ENTRIES } from "@/lib/bible/bibleEditions";
+import { loadCanonicalBundleFromUrl } from "@/lib/bible/canonical/bundleLoader";
+import {
+  CANONICAL_CSB_BIBLE_ID,
+  canonicalChapterToPassage,
+  isCanonicalCsbBible,
+} from "@/lib/bible/canonical/passageToCanonical";
 import { parseChapterText, parsePassageHtml, sanitizePubVerseText } from "@/lib/bible/parsePassageHtml";
 import { collectCrossRefs, collectFootnotes, versePlainText } from "@/lib/bible/verseParts";
 import { edgeFunctionAuthHeaders } from "@/lib/auth/functionAuth";
@@ -120,22 +127,16 @@ export interface BibleEntry {
 const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 export async function listBibles(language = "eng"): Promise<BibleEntry[]> {
-  const u = new URL(`${FUNCTIONS_BASE}/bible-passage`);
-  u.searchParams.set("action", "bibles");
-  if (language !== "all") u.searchParams.set("language", language);
-  const r = await fetch(u.toString(), {
-    headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
-  });
-  if (!r.ok) throw new Error(`bibles: ${r.status}`);
-  const json = await r.json();
-  const list = (json?.data ?? []) as BibleEntry[];
-  if (!list.some((b) => b.id === WLC_BIBLE_ENTRY.id)) {
-    list.unshift({ ...WLC_BIBLE_ENTRY });
-  }
-  if (!list.some((b) => b.id === EOTC_BIBLE_ENTRY.id)) {
-    list.unshift({ ...EOTC_BIBLE_ENTRY });
-  }
-  return list;
+  const bundled = BUNDLED_BIBLE_ENTRIES.filter(
+    (edition) => language === "all" || edition.language.id === language,
+  );
+
+  // Reader-facing edition selection must not spend an API.Bible request merely
+  // to populate a dropdown. Keep the two locally supported special editions
+  // visible where their respective canon/tools need them.
+  const entries: BibleEntry[] = [{ ...EOTC_BIBLE_ENTRY }, ...bundled];
+  if (language === "all") entries.splice(1, 0, { ...WLC_BIBLE_ENTRY });
+  return entries;
 }
 
 export async function fetchPassage(
@@ -145,6 +146,22 @@ export async function fetchPassage(
   signal?: AbortSignal,
   bibleAbbr?: string,
 ): Promise<Passage> {
+  if (isCanonicalCsbBible(bibleId)) {
+    const bundled = await loadCanonicalBundleFromUrl(
+      book,
+      chapter,
+      CANONICAL_CSB_BIBLE_ID,
+    );
+    if (bundled) return canonicalChapterToPassage(bundled);
+    throw new Error(
+      `Bundled CSB chapter unavailable: ${book} ${chapter}. API.Bible was not used.`,
+    );
+  }
+
+  if (!isEotcBibleId(bibleId)) {
+    throw new Error("This translation is not bundled locally. API.Bible was not used.");
+  }
+
   const u = new URL(`${FUNCTIONS_BASE}/bible-passage`);
   u.searchParams.set("bibleId", bibleId);
   u.searchParams.set("book", book);
@@ -180,22 +197,12 @@ export async function fetchBookIntroduction(
   book: string,
   signal?: AbortSignal,
 ): Promise<BookIntroduction | null> {
-  const u = new URL(`${FUNCTIONS_BASE}/bible-passage`);
-  u.searchParams.set("action", "bookIntro");
-  u.searchParams.set("bibleId", bibleId);
-  u.searchParams.set("book", book);
-  const r = await fetch(u.toString(), {
-    headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
-    signal,
-  });
-  if (r.status === 404) return null;
-  if (!r.ok) {
-    const err = await r.text();
-    throw new Error(`bookIntro ${r.status}: ${err}`);
-  }
-  const json = (await r.json()) as BookIntroduction | { introduction: null };
-  if (!json || typeof json !== "object" || !("html" in json) || !json.html) return null;
-  return json as BookIntroduction;
+  // The local reader supplies its own concise book introductions. Do not make
+  // an API.Bible book-intro probe for an edition that is not bundled.
+  void bibleId;
+  void book;
+  void signal;
+  return null;
 }
 
 export async function searchBible(
@@ -204,20 +211,14 @@ export async function searchBible(
   limit = 25,
   signal?: AbortSignal,
 ): Promise<BibleSearchHit[]> {
-  const u = new URL(`${FUNCTIONS_BASE}/bible-search`);
-  u.searchParams.set("bibleId", bibleId);
-  u.searchParams.set("q", query);
-  u.searchParams.set("limit", String(limit));
-  const r = await fetch(u.toString(), {
-    headers: { Authorization: `Bearer ${ANON}`, apikey: ANON },
-    signal,
-  });
-  if (!r.ok) {
-    const err = await r.text();
-    throw new Error(`search ${r.status}: ${err}`);
+  // The only shipped full-text index is CSB. Keep this exact rather than
+  // treating a future bundled edition as CSB and returning the wrong text.
+  if (isCanonicalCsbBible(bibleId)) {
+    const { searchBundledCsbVerses } = await import("@/lib/bible/canonical/bundledVerseSearch");
+    return searchBundledCsbVerses(query, limit, signal);
   }
-  const json = (await r.json()) as { results?: BibleSearchHit[] };
-  return json.results ?? [];
+
+  throw new Error("Full-text search is available only for the bundled CSB edition. API.Bible was not used.");
 }
 
 export function passagePlainText(passage: Passage): string {

@@ -138,7 +138,7 @@ export default [
   { n: 173, t: "The Judas Kiss", b: "Mat", c: 26, v: 48, r: "Matthew 26:48", file: "Gustave Doré - The Holy Bible - Plate CXLI, The Judas Kiss.jpg" },
   { n: 174, t: "Peter Denying Christ", b: "Mat", c: 26, v: 69, r: "Matthew 26:69", file: "Gustave Doré, St Peter Denying Christ.jpg" },
   { n: 177, t: "The Crucifixion", b: "Mat", c: 27, v: 1, r: "Matthew 27:35", file: "Gustave_Doré_-_Crucifixion_of_Jesus.jpg" },
-  { n: 156, t: "Jesus Stilling the Tempest", b: "Mar", c: 4, v: 37, r: "Mark 4:37", file: "JesusCalmingtheTempestDore.jpg" },
+  { n: 156, t: "Jesus Stilling the Tempest", b: "Mrk", c: 4, v: 37, r: "Mark 4:37", file: "JesusCalmingtheTempestDore.jpg" },
   { n: 140, t: "The Annunciation", b: "Luk", c: 1, v: 26, r: "Luke 1:26", file: "Gustave Dore - The Annunciation.jpg" },
   { n: 165, t: "The Return of the Prodigal Son", b: "Luk", c: 15, v: 1, r: "Luke 15:11", file: "Gustave Dore - The prodigal son decides to return to his father.jpg" },
   { n: 167, t: "Lazarus at the Rich Man's House", b: "Luk", c: 16, v: 19, r: "Luke 16:19", file: "Gustave Dore Lazarus and the Rich Man.jpg" },

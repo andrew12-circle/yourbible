@@ -50,20 +50,29 @@ export function PageFlip({
     );
   }
   const slide = enableSlide;
+  const turn = !slide;
   const enterX = slide ? slideForTurn(direction, side, "enter") : 0;
   const exitX = slide ? slideForTurn(direction, side, "exit") : 0;
+  const outward = side === "left" ? -1 : 1;
+  const turnDirection = direction === "forward" ? 1 : -1;
+  const exitRotateY = turn ? outward * turnDirection * 8 : 0;
+  const enterRotateY = turn ? -exitRotateY : 0;
   const transition = { duration: DURATION, ease: EASE };
 
   return (
-    <motion.div className="relative h-full w-full min-h-0 min-w-0 overflow-hidden bg-paper">
+    <motion.div
+      className="relative h-full w-full min-h-0 min-w-0 overflow-hidden bg-paper"
+      style={turn ? { perspective: 1600 } : undefined}
+    >
       <AnimatePresence mode="sync" initial={false}>
         <motion.div
           key={pageKey}
-          initial={{ opacity: 0, x: enterX }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: exitX, pointerEvents: "none" }}
+          initial={{ opacity: 0, x: enterX, rotateY: enterRotateY }}
+          animate={{ opacity: 1, x: 0, rotateY: 0 }}
+          exit={{ opacity: 0, x: exitX, rotateY: exitRotateY, pointerEvents: "none" }}
           transition={transition}
-          className="absolute inset-0 h-full w-full overflow-hidden bg-paper will-change-[opacity,transform]"
+          className="absolute inset-0 h-full w-full overflow-hidden bg-paper will-change-[opacity,transform] [backface-visibility:hidden]"
+          style={turn ? { transformOrigin: side === "left" ? "right center" : "left center" } : undefined}
         >
           {children}
         </motion.div>

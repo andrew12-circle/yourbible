@@ -71,4 +71,19 @@ describe("verseSelection multi-verse paragraph", () => {
     expect(payload!.verses).toEqual([5, 6, 7]);
     expect(payload!.rect).toBeTruthy();
   });
+
+  it("does not create a markable selection for an adjacent-chapter page", () => {
+    const { verseLengths } = buildJohn1Paragraph();
+    document.querySelector("[data-reading-area]")!.setAttribute(
+      "data-reader-selection-disabled",
+      "",
+    );
+    const range = document.createRange();
+    const body = document.querySelector('[data-verse-body="5"]')!.firstChild!;
+    range.setStart(body, 0);
+    range.setEnd(body, (body.textContent ?? "").length);
+    mockRangeGeometry(range);
+
+    expect(toolbarSelectionFromRange(range, verseLengths)).toBeNull();
+  });
 });

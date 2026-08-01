@@ -108,4 +108,49 @@ describe("BookPaginator spread mode", () => {
       { timeout: 3000 },
     );
   });
+
+  it("remeasures when verse content or formatting changes with stable verse IDs", async () => {
+    const onSplitsChange = vi.fn();
+    const initialChapters = longChapter(2);
+    const { rerender } = render(
+      <BookPaginator
+        chapters={initialChapters}
+        pageWidth={360}
+        pageHeight={520}
+        firstPageHeight={480}
+        columnsClassName="scripture-columns-2"
+        footerHeight={76}
+        spreadMode
+        onSplitsChange={onSplitsChange}
+      />,
+    );
+
+    await waitFor(() => expect(onSplitsChange).toHaveBeenCalled());
+    onSplitsChange.mockClear();
+
+    rerender(
+      <BookPaginator
+        chapters={initialChapters.map((chapter) => ({
+          ...chapter,
+          verses: chapter.verses.map((verse) =>
+            verse.number === 1
+              ? { ...verse, text: verse.text.replace("Verse", "Word!") }
+              : verse,
+          ),
+          paragraphStarts: [1, 2],
+          headings: [{ beforeVerse: 2, text: "A changed heading" }],
+          poetryBlocks: [{ beforeVerse: 2, level: 1 }],
+        }))}
+        pageWidth={360}
+        pageHeight={520}
+        firstPageHeight={480}
+        columnsClassName="scripture-columns-2"
+        footerHeight={76}
+        spreadMode
+        onSplitsChange={onSplitsChange}
+      />,
+    );
+
+    await waitFor(() => expect(onSplitsChange).toHaveBeenCalled());
+  });
 });

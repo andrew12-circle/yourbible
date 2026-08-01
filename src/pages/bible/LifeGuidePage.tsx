@@ -5,7 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
 import { useLifeGuide } from "@/hooks/useLifeGuide";
 import { getStoredBibleId } from "@/lib/bible/storedBibleId";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { LIFE_GUIDE_STARTERS } from "@/lib/bible/lifeGuide";
+import { BUNDLED_BIBLE_REMOTE_SERVICE_ERROR } from "@/lib/bible/remoteBibleService";
 import { LifeGuideResult } from "@/components/bible/LifeGuideResult";
 import { LifeGuideActions } from "@/components/bible/LifeGuideActions";
 import { LifeGuideFollowUpPanel } from "@/components/bible/LifeGuideFollowUpPanel";
@@ -24,6 +26,7 @@ export default function LifeGuidePage() {
   const online = useOnlineStatus();
   const { data: bibles = [] } = useBibles();
   const bibleId = pickDefaultBibleId(bibles, getStoredBibleId()) ?? "";
+  const bundledBible = isBundledBibleId(bibleId);
   const [journalEntryId, setJournalEntryId] = useState<string | null>(null);
   const [playbookId, setPlaybookId] = useState<string | null>(null);
 
@@ -117,7 +120,7 @@ export default function LifeGuidePage() {
           />
           <Button
             onClick={() => void search()}
-            disabled={busy || !issue.trim() || !bibleId || !online}
+            disabled={busy || !issue.trim() || !bibleId || !online || bundledBible}
             className="w-full sm:w-auto"
           >
             {busy ? (
@@ -132,7 +135,9 @@ export default function LifeGuidePage() {
               </>
             )}
           </Button>
-          {!online && (
+          {bundledBible ? (
+            <p className="text-xs text-muted-foreground mt-2">{BUNDLED_BIBLE_REMOTE_SERVICE_ERROR}</p>
+          ) : !online && (
             <p className="text-xs text-muted-foreground mt-2">You need internet to search Scripture.</p>
           )}
           {error && (
@@ -154,7 +159,7 @@ export default function LifeGuidePage() {
                     setIssue(starter);
                     void search(starter);
                   }}
-                  disabled={busy || !bibleId || !online}
+                  disabled={busy || !bibleId || !online || bundledBible}
                   className="text-left text-[13px] leading-snug px-3 py-2 rounded-xl bg-muted/60 hover:bg-muted border border-border/50 transition disabled:opacity-50"
                 >
                   {starter}
@@ -210,6 +215,7 @@ export default function LifeGuidePage() {
             <LifeGuideFollowUpPanel
               followups={followups}
               busy={followUpBusy}
+              disabled={bundledBible || !online}
               onAsk={(q) => void askFollowUp(q)}
             />
           </>
