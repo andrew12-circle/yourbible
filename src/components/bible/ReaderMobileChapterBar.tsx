@@ -1,8 +1,5 @@
-import { useLayoutEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export const READER_MOBILE_CHAPTER_BAR_H = 40;
 
 type Props = {
   bookName: string;
@@ -14,10 +11,14 @@ type Props = {
   onBack: () => void;
   onForward: () => void;
   onOpenSettings: () => void;
+  /** The app dock is mounted below the reader controls. */
+  dockVisible: boolean;
+  /** Use local positioning when the reader lives inside the hub card. */
+  position: "absolute" | "fixed";
   className?: string;
 };
 
-/** Fixed chapter / page controls above the mobile reader dock. */
+/** Compact chapter / page controls over the lower edge of the mobile reader. */
 export function ReaderMobileChapterBar({
   bookName,
   chapter,
@@ -28,43 +29,26 @@ export function ReaderMobileChapterBar({
   onBack,
   onForward,
   onOpenSettings,
+  dockVisible,
+  position,
   className,
 }: Props) {
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    const bar = rootRef.current;
-    if (!bar) return;
-    const readerRoot = bar.closest("[data-bible-reader]") as HTMLElement | null;
-    if (!readerRoot) return;
-
-    const sync = () => {
-      const h = Math.ceil(bar.getBoundingClientRect().height);
-      readerRoot.style.setProperty("--reader-mobile-chapter-bar-h", `${h}px`);
-    };
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(bar);
-    return () => {
-      ro.disconnect();
-      readerRoot.style.removeProperty("--reader-mobile-chapter-bar-h");
-    };
-  }, []);
-
   return (
     <div
-      ref={rootRef}
       data-reader-chapter-bar
       className={cn(
-        "pointer-events-none fixed inset-x-0 z-[25] flex justify-center px-3",
-        "bottom-[calc(var(--reader-mobile-dock-h,6rem)+env(safe-area-inset-bottom,0px))]",
+        "pointer-events-none inset-x-0 z-[25] flex justify-center px-3",
+        position,
+        dockVisible
+          ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+max(0.75rem,env(safe-area-inset-bottom,0px)))]"
+          : "bottom-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
         className,
       )}
     >
       <div
         className={cn(
-          "pointer-events-auto flex h-10 w-full max-w-md items-center justify-between gap-2",
-          "rounded-full border border-border/40 bg-paper/95 px-2 shadow-md backdrop-blur-md",
+          "pointer-events-auto flex h-11 w-fit max-w-[min(20rem,calc(100vw-1.5rem))] items-center gap-1",
+          "rounded-full border border-border/40 bg-paper/95 px-1 shadow-lg backdrop-blur-md",
           "text-[10px] font-display tracking-widest text-muted-foreground/70",
         )}
       >
@@ -74,7 +58,7 @@ export function ReaderMobileChapterBar({
           disabled={!canGoBack}
           aria-label={scrollMode ? "Previous chapter" : "Previous page"}
           className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
             canGoBack
               ? "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               : "text-muted-foreground/25",
@@ -86,7 +70,7 @@ export function ReaderMobileChapterBar({
         <button
           type="button"
           onClick={onOpenSettings}
-          className="min-w-0 flex-1 truncate text-center hover:text-muted-foreground"
+          className="min-w-0 max-w-[13rem] truncate px-1.5 text-center hover:text-muted-foreground"
           aria-label={`${bookName} ${chapter} — open reader settings`}
         >
           <span className="font-medium">{bookName}</span>
@@ -106,7 +90,7 @@ export function ReaderMobileChapterBar({
           disabled={!canGoForward}
           aria-label={scrollMode ? "Next chapter" : "Next page"}
           className={cn(
-            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-colors",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors",
             canGoForward
               ? "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               : "text-muted-foreground/25",

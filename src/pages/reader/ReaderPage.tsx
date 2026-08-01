@@ -118,6 +118,8 @@ import { useAppShellMode } from "@/hooks/useAppShellMode";
 import {
   hubReaderInline,
   readReaderHubFullscreen,
+  readerMobilePageTurnBottomClass,
+  readerMobileSceneBottomClass,
   readerOverlayPosition,
   readerPageTurnTopOffsetClass,
   readerSceneTopOffsetClass,
@@ -1511,8 +1513,7 @@ export default function ReaderPage() {
               scrollMode
                 ? cn(
                     "block overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] scrollbar-hide",
-                    compactChrome &&
-                      "pb-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+0.75rem)]",
+                    compactChrome && !focusMode && "pb-[3.5rem]",
                   )
                 : "flex flex-col",
             )}
@@ -1624,11 +1625,9 @@ export default function ReaderPage() {
   };
   const spreadNudgeRight = compactChrome && !scrollMode && activePageIdx > 0;
   const showReaderDock = !showHubShell && compactChrome && !focusMode;
-  const mobileChromeBottom = showReaderDock
-    ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px))]"
-    : compactChrome
-      ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px))]"
-      : "bottom-0";
+  const showMobileChapterBar = compactChrome && !focusMode;
+  const mobileChromeBottom = readerMobileSceneBottomClass(showReaderDock);
+  const mobilePageTurnBottom = readerMobilePageTurnBottomClass(showReaderDock, compactChrome);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
@@ -1844,11 +1843,7 @@ export default function ReaderPage() {
           overlayPos,
           readerPageTurnTopOffsetClass(compactChrome, hubInline),
           "left-0 w-8 z-[5] opacity-0",
-          showReaderDock
-            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-            : compactChrome
-              ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-              : "bottom-safe-16",
+          mobilePageTurnBottom,
           inkMode && "pointer-events-none",
         )}
       />
@@ -1859,11 +1854,7 @@ export default function ReaderPage() {
           overlayPos,
           readerPageTurnTopOffsetClass(compactChrome, hubInline),
           "right-0 w-8 z-[5] opacity-0",
-          showReaderDock
-            ? "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-            : compactChrome
-              ? "bottom-[calc(var(--reader-mobile-chapter-bar-h,2.5rem)+env(safe-area-inset-bottom,0px)+1rem)]"
-              : "bottom-safe-16",
+          mobilePageTurnBottom,
           inkMode && "pointer-events-none",
         )}
       />
@@ -1921,7 +1912,7 @@ export default function ReaderPage() {
         )}
       </AnimatePresence>
 
-      {compactChrome && !focusMode ? (
+      {showMobileChapterBar ? (
         <ReaderMobileChapterBar
           bookName={book.name}
           chapter={chapter}
@@ -1931,6 +1922,8 @@ export default function ReaderPage() {
           onBack={handleMobileNavBack}
           onForward={handleMobileNavForward}
           onOpenSettings={openReaderSettings}
+          dockVisible={showReaderDock}
+          position={overlayPos}
         />
       ) : null}
 

@@ -44,6 +44,20 @@ export function readerPageTurnTopOffsetClass(compactChrome: boolean, hubInline: 
   return "top-[calc(var(--safe-area-inset-top)+3rem)]";
 }
 
+/** The book only yields vertical space to a dock that is actually rendered. */
+export function readerMobileSceneBottomClass(dockVisible: boolean): string {
+  return dockVisible ? "bottom-[var(--reader-mobile-dock-h,5.5rem)]" : "bottom-0";
+}
+
+/** Invisible edge turn targets sit above the rendered dock, never a hidden chapter bar. */
+export function readerMobilePageTurnBottomClass(
+  dockVisible: boolean,
+  compactChrome: boolean,
+): string {
+  if (dockVisible) return "bottom-[calc(var(--reader-mobile-dock-h,5.5rem)+1rem)]";
+  return compactChrome ? "bottom-[max(1rem,env(safe-area-inset-bottom,0px))]" : "bottom-safe-16";
+}
+
 /** Pull handle / header safe inset — hub card already reserves the status bar. */
 export function readerChromeTopClass(hubInline: boolean): string {
   return hubInline ? "top-2" : "top-[calc(var(--safe-area-inset-top)+0.35rem)]";
