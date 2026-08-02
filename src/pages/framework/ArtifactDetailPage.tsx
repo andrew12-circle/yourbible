@@ -453,6 +453,17 @@ export default function ArtifactDetailPage() {
   }, [a?.id, patchArtifactMetadata]);
   const stickyVideoMode = isArtifactStickyVideo(layoutMode, Boolean(youTubeVideoId));
   const mobilePinnedPane = !isDesktop && (stickyVideoMode || isReadableDocument);
+
+  useEffect(() => {
+    if (!mobilePinnedPane || mobileTab !== "study") return;
+    const scrollPane = mobileBodyScrollRef.current;
+    if (!scrollPane) return;
+    scrollPane.scrollTop = 0;
+    if (typeof scrollPane.scrollTo === "function") {
+      scrollPane.scrollTo({ top: 0, behavior: "auto" });
+    }
+  }, [id, mobilePinnedPane, mobileTab]);
+
   const desktopPremiumStudyPane = useMemo(
     () => (desktopPremiumSplitPane ? resolveDesktopPremiumStudyPane(pageSectionHash) : null),
     [desktopPremiumSplitPane, pageSectionHash],

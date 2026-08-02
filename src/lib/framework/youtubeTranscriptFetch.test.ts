@@ -7,21 +7,10 @@ import {
   isStaleYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
 
-vi.mock("@/lib/framework/youtubeInvidiousCaptions", () => ({
-  fetchYoutubeCaptionsViaInvidious: vi.fn(() => Promise.resolve(null)),
-}));
-
-vi.mock("@/lib/framework/youtubeTranscriptPlusClient", () => ({
-  fetchYoutubeCaptionsInBrowser: vi.fn(() => Promise.resolve({ text: null })),
-}));
-
-vi.mock("@/lib/framework/youtubeLocalCaptions", () => ({
-  fetchYoutubeCaptionsViaLocalDevApi: vi.fn(() => Promise.resolve({ text: null, error: "mock" })),
-}));
-
-vi.mock("@/lib/framework/youtubeEdgeCaptions", () => ({
-  resolveYoutubeCaptionsViaEdge: vi.fn(() => Promise.resolve({ text: null, attempts: ["edge: mock"] })),
+vi.mock("@/lib/framework/youtubeClientCaptions", () => ({
+  resolveClientYoutubeCaptions: vi.fn(),
 }));
 
 vi.mock("@/integrations/supabase/client", () => {
@@ -64,6 +53,25 @@ afterEach(() => {
 });
 
 describe("youtube transcript fetch helper", () => {
+  it("does not wait for an unresponsive browser caption fallback before queuing the edge job", async () => {
+    vi.mocked(resolveClientYoutubeCaptions).mockImplementation(
+      () => new Promise<Awaited<ReturnType<typeof resolveClientYoutubeCaptions>>>(() => undefined),
+    );
+    vi.mocked(mockedSupabase.functions.invoke).mockResolvedValue({ data: { ok: true }, error: null });
+
+    const result = await startYoutubeTranscriptFetch({
+      artifactId: "artifact-1",
+      url: "https://www.youtube.com/watch?v=abc123def45",
+      processingToken: "token-1",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(resolveClientYoutubeCaptions).not.toHaveBeenCalled();
+    expect(mockedSupabase.functions.invoke).toHaveBeenCalledWith("framework-fetch-transcript", {
+      body: expect.objectContaining({ artifact_id: "artifact-1", processing_token: "token-1" }),
+    });
+  });
+
   it("starts the transcript edge function with the artifact token", async () => {
     vi.mocked(mockedSupabase.functions.invoke).mockResolvedValue({ data: { ok: true }, error: null });
 

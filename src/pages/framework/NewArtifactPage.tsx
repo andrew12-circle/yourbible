@@ -270,15 +270,18 @@ export default function NewArtifactPage() {
     }
     markManualYoutubeFetch(data.id);
     const prefetchedRawText = captionPrefetch.status === "ready" ? captionPrefetch.rawText : null;
-    navigate(`/framework/artifacts/${data.id}`);
-    setBusy(false);
-    void startYoutubeTranscriptFetchWithPrefetch({
+    // Start the durable request before route navigation. On mobile, navigation can
+    // tear down the form before a fire-and-forget request has actually left the page.
+    const fetchStarted = startYoutubeTranscriptFetchWithPrefetch({
       artifactId: data.id,
       url: normalizedUrl,
       processingToken,
       prefetchedRawText,
       videoId,
-    }).then((started) => {
+    });
+    navigate(`/framework/artifacts/${data.id}`);
+    setBusy(false);
+    void fetchStarted.then((started) => {
       if (!started.ok) {
         toast({
           title: "Could not start transcript fetch",

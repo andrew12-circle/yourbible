@@ -1,9 +1,8 @@
 import { normalizePastedTranscript } from "@/lib/normalizePastedTranscript";
-import { canonicalYouTubeWatchUrl, getYouTubeVideoId, resolveYouTubeVideoId } from "@/lib/youtube";
+import { canonicalYouTubeWatchUrl, resolveYouTubeVideoId } from "@/lib/youtube";
 import { supabase } from "@/integrations/supabase/client";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
-import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
 import { markManualYoutubeFetch } from "@/lib/framework/youtubeFetchCoordinator";
 
 type StartYoutubeTranscriptFetchParams = {
@@ -147,28 +146,6 @@ async function submitPrefetchedCaptions(
   return { ok: true };
 }
 
-async function tryClientCaptionFetch(
-  artifactId: string,
-  url: string,
-  processingToken: string,
-  videoId?: string | null,
-): Promise<TranscriptFetchResult | null> {
-  const resolvedId = videoId ?? getYouTubeVideoId(url);
-  if (!resolvedId) return null;
-
-  try {
-    const resolved = await resolveClientYoutubeCaptions(resolvedId);
-    if (resolved.text) {
-      const fetchUrl = canonicalYouTubeWatchUrl(resolvedId, url);
-      return submitPrefetchedCaptions(artifactId, fetchUrl, resolved.text, processingToken, resolvedId);
-    }
-    console.warn("Client caption fetch:", resolved.attempts.join("; "));
-  } catch (err) {
-    console.warn("Client caption fetch error:", err);
-  }
-  return null;
-}
-
 /** Optional captions warmed in the browser before submit (see useYoutubeCaptionPrefetch). */
 export async function startYoutubeTranscriptFetchWithPrefetch({
   artifactId,
@@ -209,9 +186,11 @@ export async function startYoutubeTranscriptFetch({
   const { videoId: resolvedId, fetchUrl } = resolveFetchTarget(url, metadata, videoId);
 
   try {
-    const clientResult = await tryClientCaptionFetch(artifactId, fetchUrl, processingToken, resolvedId);
-    if (clientResult) return clientResult;
-
+    // A user has already submitted the artifact. Do not await the browser's
+    // fallback ladder here: on iOS one unavailable caption provider can hold
+    // the artifact in "fetching" long enough to look like a blank study.
+    // `useYoutubeCaptionPrefetch` still supplies browser-resolved captions
+    // before submit; otherwise, start the durable edge job immediately.
     let token = processingToken;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {

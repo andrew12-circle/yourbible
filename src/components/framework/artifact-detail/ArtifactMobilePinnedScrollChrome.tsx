@@ -56,7 +56,7 @@ export default function ArtifactMobilePinnedScrollChrome({
   }, [hideVideoMeta, insightExploreOpen, insightExplorePanel]);
 
   return (
-    <div className="shrink-0 lg:hidden">
+    <div className="shrink-0">
       {!hideVideoMeta ? (
         <ArtifactMobileVideoMeta
           displayTitle={displayTitle}

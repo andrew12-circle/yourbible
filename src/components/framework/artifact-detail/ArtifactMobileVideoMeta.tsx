@@ -26,7 +26,7 @@ export default function ArtifactMobileVideoMeta({
   const channelLabel = channel?.trim() || providerName?.trim() || "YouTube";
 
   return (
-    <div className="bg-card px-3 py-3 lg:hidden">
+    <div className="bg-card px-3 py-3">
       <Link
         to={backTo}
         className="mb-2.5 inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-sm"
