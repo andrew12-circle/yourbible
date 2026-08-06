@@ -1,5 +1,6 @@
 import { type MouseEvent, useMemo, useState } from "react";
 import {
+  Brain,
   ChevronDown,
   ChevronRight,
   Folder,
@@ -54,6 +55,7 @@ type Props = {
   onDeleteChat: (id: string, e?: MouseEvent) => void;
   onMoveChatToProject: (chatId: string, projectId: string | null) => void;
   onSelectProjectFilter: (projectId: string | null) => void;
+  onEditProjectMemory: (projectId: string) => void;
   onDeleteProject: (projectId: string) => void;
   onCloseSidebar?: () => void;
   /** Mobile sheet — larger touch targets and a prominent new-chat action. */
@@ -72,6 +74,7 @@ export default function MyAiChatSidebar({
   onDeleteChat,
   onMoveChatToProject,
   onSelectProjectFilter,
+  onEditProjectMemory,
   onDeleteProject,
   onCloseSidebar,
   variant = "panel",
@@ -231,14 +234,40 @@ export default function MyAiChatSidebar({
             <span className={myAiSidebarSectionCount}>({section.chats.length})</span>
           </button>
           {projectId ? (
-            <button
-              type="button"
-              className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/section:opacity-100 focus-visible:opacity-100"
-              aria-label={`Delete folder ${section.label}`}
-              onClick={() => onDeleteProject(projectId)}
-            >
-              <Trash2 className="h-3 w-3" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/section:opacity-100 focus-visible:opacity-100"
+                  aria-label={`Project options for ${section.label}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditProjectMemory(projectId);
+                  }}
+                >
+                  <Brain className="mr-2 h-3.5 w-3.5" />
+                  Project memory
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteProject(projectId);
+                  }}
+                >
+                  <Trash2 className="mr-2 h-3.5 w-3.5" />
+                  Delete folder
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : null}
         </div>
 

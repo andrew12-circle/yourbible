@@ -12,6 +12,7 @@ export type MyAiChatCitation = {
 
 export type MyAiChatRequestBody = {
   chat_id?: string | null;
+  project_id?: string | null;
   message?: string;
   mode?: "journal";
   journal_entry_id?: string;

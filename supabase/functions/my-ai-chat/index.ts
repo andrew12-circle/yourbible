@@ -26,6 +26,7 @@ type Citation = {
 
 type RequestBody = {
   chat_id?: string | null;
+  project_id?: string | null;
   message?: string;
   include_general_knowledge?: boolean;
   mode?: "chat" | "journal";
@@ -1238,6 +1239,10 @@ Deno.serve(async (req) => {
     let message = typeof body.message === "string" ? body.message.trim() : "";
     let skipUserInsert = false;
     let chatId: string | null = typeof body.chat_id === "string" && body.chat_id.length ? body.chat_id : null;
+    const requestedProjectId =
+      typeof body.project_id === "string" && /^[0-9a-f-]{36}$/i.test(body.project_id)
+        ? body.project_id
+        : null;
 
     if (body.retry_last === true) {
       if (!chatId) return jsonResponse({ error: "chat_id is required for retry_last" }, 400);
@@ -1321,7 +1326,7 @@ Deno.serve(async (req) => {
         }
       }
     } else {
-      const insertRow: { user_id: string; journal_entry_id?: string } = { user_id: userId };
+      const insertRow: { user_id: string; journal_entry_id?: string; project_id?: string } = { user_id: userId };
       if (mode === "journal" && journalEntryId) {
         const reflectionRequested = body.journal_reflection === true;
         const { data: je, error: jeErr } = await supabase
@@ -1340,6 +1345,17 @@ Deno.serve(async (req) => {
           return jsonResponse({ error: "Invalid journal_entry_id for journal chat" }, 400);
         }
         insertRow.journal_entry_id = journalEntryId;
+      }
+      if (requestedProjectId && mode !== "journal") {
+        const { data: projectRow, error: projectErr } = await supabase
+          .from("my_ai_projects")
+          .select("id")
+          .eq("id", requestedProjectId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (projectErr) return jsonResponse({ error: projectErr.message }, 502);
+        if (!projectRow?.id) return jsonResponse({ error: "Invalid project_id" }, 400);
+        insertRow.project_id = requestedProjectId;
       }
       const { data: created, error: cErr } = await supabase
         .from("my_ai_chats")
