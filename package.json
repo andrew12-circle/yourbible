@@ -39,6 +39,10 @@
     "generate:children-model-sheets": "npx tsx scripts/generate-children-book-illustrations.ts --model-sheets --force"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.0",
     "@fix-webm-duration/fix": "^1.0.1",
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^1.1.1",
@@ -103,6 +107,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.6.0",
