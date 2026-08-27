@@ -102,6 +102,7 @@ export default function JournalVideoCaptureDialog({
   const stopOnMaxRef = useRef<() => void>(() => {});
   const [pickMode, setPickMode] = useState<JournalVideoCaptureMode | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
+  const [reviewSaveError, setReviewSaveError] = useState<string | null>(null);
   const [pauseReason, setPauseReason] = useState<JournalVideoPauseReason | null>(null);
 
   const capture = useJournalVideoCapture({
@@ -180,7 +181,7 @@ export default function JournalVideoCaptureDialog({
     silenceSeconds: JOURNAL_VIDEO_SILENCE_AUTO_PAUSE_SECONDS,
     onSilence: () => {
       setPauseReason("silence");
-      pauseRecordingRef.current();
+      pauseRecordingRef.current("silence");
     },
   });
 
@@ -191,7 +192,7 @@ export default function JournalVideoCaptureDialog({
 
   const handlePauseRecording = useCallback(() => {
     setPauseReason("manual");
-    pauseRecordingRef.current();
+    pauseRecordingRef.current("manual");
   }, []);
 
   const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
@@ -211,6 +212,7 @@ export default function JournalVideoCaptureDialog({
     if (!open) {
       setPickMode(null);
       setPendingReview(null);
+      setReviewSaveError(null);
       setPauseReason(null);
       setCountdownDeferred(false);
       countdownStartedRef.current = false;
@@ -219,13 +221,15 @@ export default function JournalVideoCaptureDialog({
     if (isMobile || defaultMode) {
       setPickMode(defaultMode ?? "camera");
     }
+  }, [open, isMobile, defaultMode]);
+
+  useEffect(() => {
     return () => {
       countdownStartedRef.current = false;
-      // Do not cancel() here — that wiped recovery drafts on reload while paused.
-      // Tear down media only; crash recovery can still salvage transcript/video.
+      // Component unmount is an interruption, never an implicit discard.
       releaseCaptureRef.current();
     };
-  }, [open, isMobile, defaultMode]);
+  }, []);
 
   useEffect(() => {
     if (!open || !pickMode || pendingReview) return;
@@ -274,6 +278,7 @@ export default function JournalVideoCaptureDialog({
   const finishCapture = async (result: JournalVideoCaptureResult, durationMs: number) => {
     onReviewReady?.(result, durationMs);
     if (reviewBeforeUpload) {
+      setReviewSaveError(null);
       setPendingReview({ result, durationMs });
       return;
     }
@@ -283,7 +288,13 @@ export default function JournalVideoCaptureDialog({
   const handleStop = async () => {
     const result = await capture.stopRecording();
     if (!result) {
-      handleClose();
+      // A failed/empty stop is never an implicit discard. Keep the dialog and
+      // any recovery draft intact so Stop/Close can be retried safely.
+      setPauseReason(
+        capture.interruptionReason === "silence" || capture.interruptionReason === "manual"
+          ? capture.interruptionReason
+          : "interrupted",
+      );
       return;
     }
     await finishCapture(result, result.durationMs);
@@ -296,6 +307,7 @@ export default function JournalVideoCaptureDialog({
   const handleRetake = () => {
     void clearInProgressJournalVideoRecording(pendingReview?.result.recoveryDraftId);
     setPendingReview(null);
+    setReviewSaveError(null);
     setCountdownDeferred(false);
     countdownStartedRef.current = false;
     resetAudioCheck();
@@ -304,15 +316,32 @@ export default function JournalVideoCaptureDialog({
 
   const handleConfirmReview = async () => {
     if (!pendingReview) return;
-    await onComplete(pendingReview.result, pendingReview.durationMs);
-    setPendingReview(null);
-    onOpenChange(false);
+    setReviewSaveError(null);
+    try {
+      await onComplete(pendingReview.result, pendingReview.durationMs);
+      setPendingReview(null);
+      onOpenChange(false);
+    } catch {
+      setReviewSaveError("Couldn't save this video yet.");
+    }
   };
 
   const recording = capture.phase === "recording";
   const paused = capture.phase === "paused";
   const active = recording || paused;
   const processing = capture.phase === "processing" || uploading || transcribing;
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    if (processing || pendingReview) return;
+    if (active) {
+      void handleStop();
+      return;
+    }
+    handleClose();
+  };
   const ready = capture.phase === "preview" || capture.phase === "countdown" || active;
   const starting = open && pickMode !== null && capture.phase === "idle" && !capture.error;
   const showAudioCheck =
@@ -415,8 +444,16 @@ export default function JournalVideoCaptureDialog({
 
       {paused ? (
         <JournalVideoPausedOverlay
-          reason={pauseReason ?? "manual"}
+          reason={
+            capture.interruptionReason === "unmounted"
+              ? "interrupted"
+              : (capture.interruptionReason ?? pauseReason ?? "manual")
+          }
           onResume={handleResumeRecording}
+          onSavePartial={() => void handleStop()}
+          canResume={capture.canResume}
+          backupState={capture.durableBackupState}
+          backupError={capture.durableBackupError}
         />
       ) : null}
 
@@ -425,8 +462,8 @@ export default function JournalVideoCaptureDialog({
           type="button"
           variant="ghost"
           size="icon"
-          className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-10 h-9 w-9 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
-          onClick={handleClose}
+          className="absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] z-30 h-11 w-11 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
+          onClick={() => handleDialogOpenChange(false)}
           disabled={processing}
           aria-label="Close"
         >
@@ -437,8 +474,8 @@ export default function JournalVideoCaptureDialog({
           type="button"
           variant="ghost"
           size="icon"
-          className="absolute right-2 top-2 z-10 h-8 w-8 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
-          onClick={handleClose}
+          className="absolute right-2 top-2 z-30 h-8 w-8 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
+          onClick={() => handleDialogOpenChange(false)}
           disabled={processing}
           aria-label="Close"
         >
@@ -569,6 +606,7 @@ export default function JournalVideoCaptureDialog({
       confirming={uploading || transcribing}
       confirmLabel={confirmLabel}
       reviewHint={reviewHint}
+      saveError={reviewSaveError}
     />
   ) : null;
 
@@ -585,12 +623,13 @@ export default function JournalVideoCaptureDialog({
     "gap-0 overflow-hidden p-0",
     pendingReview ? "sm:max-w-lg" : isScreen ? "sm:max-w-4xl" : "sm:max-w-3xl",
     !pendingReview &&
-      "max-sm:fixed max-sm:inset-0 max-sm:left-0 max-sm:top-0 max-sm:flex max-sm:h-[100dvh] max-sm:max-h-[100dvh] max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:flex-col max-sm:rounded-none max-sm:border-0",
+      isMobile &&
+      "inset-0 left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none border-0 sm:max-w-none sm:rounded-none",
     "[&>button.absolute]:hidden",
   );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       {stackElevated ? (
         <DialogPortal>
           <DialogOverlay className="z-[100]" />

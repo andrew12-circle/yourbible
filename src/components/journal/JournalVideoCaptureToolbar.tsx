@@ -68,16 +68,23 @@ const SmartBarIconButton = forwardRef<
     title?: string;
     onClick?: () => void;
     disabled?: boolean;
+    touchTarget?: boolean;
     children: React.ReactNode;
   }
->(function SmartBarIconButton({ label, title, onClick, disabled, children }, ref) {
+>(function SmartBarIconButton(
+  { label, title, onClick, disabled, touchTarget = false, children },
+  ref,
+) {
   return (
     <Button
       ref={ref}
       type="button"
       size="icon"
       variant="ghost"
-      className="h-9 w-9 shrink-0 rounded-full text-white hover:bg-white/20 hover:text-white disabled:opacity-40"
+      className={cn(
+        "h-9 w-9 shrink-0 rounded-full text-white hover:bg-white/20 hover:text-white disabled:opacity-40",
+        touchTarget && "h-11 w-11",
+      )}
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
@@ -165,19 +172,37 @@ export function JournalVideoCaptureToolbar({
   return (
     <div
       className={cn(
-        "inline-flex max-w-[min(100%,42rem)] items-center gap-1 overflow-x-auto rounded-full",
+        "inline-flex max-w-[min(100%,42rem)] items-center gap-1 rounded-full",
         "bg-black/55 px-2 py-1.5 shadow-lg backdrop-blur-md",
-        "scrollbar-none [&::-webkit-scrollbar]:hidden",
+        isMobile && (active || processing)
+          ? "w-full overflow-hidden px-1.5"
+          : "overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden",
         className,
       )}
+      style={
+        isMobile
+          ? {
+              maxWidth:
+                "calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))",
+            }
+          : undefined
+      }
     >
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div
+        className={cn(
+          "flex items-center gap-1",
+          isMobile && (active || processing)
+            ? "min-w-0 flex-1 overflow-x-auto overscroll-x-contain scrollbar-none [&::-webkit-scrollbar]:hidden"
+            : "shrink-0",
+        )}
+      >
+        <div className="flex shrink-0 items-center gap-0.5">
         {showPreviewStart && onStartCountdown ? (
           <Button
             type="button"
             size="sm"
             variant="secondary"
-            className="h-8 shrink-0 gap-1 rounded-full px-3 text-xs"
+            className={cn("h-8 shrink-0 gap-1 rounded-full px-3 text-xs", isMobile && "h-11")}
             onClick={onStartCountdown}
           >
             <Video className="h-3.5 w-3.5" />
@@ -190,7 +215,7 @@ export function JournalVideoCaptureToolbar({
             type="button"
             size="sm"
             variant="secondary"
-            className="h-8 shrink-0 gap-1 rounded-full px-3 text-xs"
+            className={cn("h-8 shrink-0 gap-1 rounded-full px-3 text-xs", isMobile && "h-11")}
             onClick={capture.skipCountdown}
           >
             <SkipForward className="h-3.5 w-3.5" />
@@ -214,6 +239,7 @@ export function JournalVideoCaptureToolbar({
         {active ? (
           <SmartBarIconButton
             label="Mark chapter"
+            touchTarget={isMobile}
             onClick={() => {
               const label = capture.markChapter();
               if (label) {
@@ -230,6 +256,7 @@ export function JournalVideoCaptureToolbar({
             {isMobile ? (
               <SmartBarIconButton
                 label="Flip camera"
+                touchTarget
                 onClick={() => void capture.switchFacing()}
               >
                 <FlipHorizontal className="h-4 w-4" />
@@ -263,7 +290,7 @@ export function JournalVideoCaptureToolbar({
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <SmartBarIconButton label="Webcam">
+              <SmartBarIconButton label="Webcam" touchTarget={isMobile}>
                 <Camera className="h-4 w-4" />
               </SmartBarIconButton>
             )}
@@ -273,7 +300,7 @@ export function JournalVideoCaptureToolbar({
         {showScreenControls && active ? (
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
-              <SmartBarIconButton label="Camera bubble layout">
+              <SmartBarIconButton label="Camera bubble layout" touchTarget={isMobile}>
                 <Monitor className="h-4 w-4" />
               </SmartBarIconButton>
             </DropdownMenuTrigger>
@@ -320,26 +347,30 @@ export function JournalVideoCaptureToolbar({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : null}
-      </div>
+        </div>
 
-      {!qualityLocked ? (
-        <>
-          <SmartBarDivider />
-          <div className="flex shrink-0 items-center gap-0.5">
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-8 shrink-0 rounded-full px-2.5 text-[11px] font-semibold tabular-nums text-white hover:bg-white/20 hover:text-white"
-              onClick={cycleQuality}
-              aria-label={`Video quality ${capture.settings.quality}. Tap to switch.`}
-              title="Tap to switch quality"
-            >
-              {capture.settings.quality}
-            </Button>
-          </div>
-        </>
-      ) : null}
+        {!qualityLocked ? (
+          <>
+            <SmartBarDivider />
+            <div className="flex shrink-0 items-center gap-0.5">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className={cn(
+                  "h-8 shrink-0 rounded-full px-2.5 text-[11px] font-semibold tabular-nums text-white hover:bg-white/20 hover:text-white",
+                  isMobile && "h-11",
+                )}
+                onClick={cycleQuality}
+                aria-label={`Video quality ${capture.settings.quality}. Tap to switch.`}
+                title="Tap to switch quality"
+              >
+                {capture.settings.quality}
+              </Button>
+            </div>
+          </>
+        ) : null}
+      </div>
 
       {active || processing ? (
         <>
@@ -354,6 +385,7 @@ export function JournalVideoCaptureToolbar({
                 <SmartBarIconButton
                   label={paused ? "Resume recording" : "Pause recording"}
                   onClick={onPauseResume}
+                  touchTarget={isMobile}
                 >
                   {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
                 </SmartBarIconButton>
@@ -361,7 +393,10 @@ export function JournalVideoCaptureToolbar({
                   type="button"
                   size="icon"
                   variant="ghost"
-                  className="h-9 w-9 shrink-0 rounded-full bg-red-500/90 text-white hover:bg-red-500 hover:text-white"
+                  className={cn(
+                    "h-9 w-9 shrink-0 rounded-full bg-red-500/90 text-white hover:bg-red-500 hover:text-white",
+                    isMobile && "h-11 w-11",
+                  )}
                   onClick={onStop}
                   aria-label="Stop recording"
                 >
@@ -377,11 +412,19 @@ export function JournalVideoCaptureToolbar({
 
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <SmartBarIconButton label="Recording settings">
+          <SmartBarIconButton label="Recording settings" touchTarget={isMobile}>
             <Settings2 className="h-4 w-4" />
           </SmartBarIconButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className={cn("max-h-[min(70vh,28rem)] overflow-y-auto", menuClass)}>
+        <DropdownMenuContent
+          align="end"
+          className={cn(
+            "max-h-[min(70vh,28rem)] overflow-y-auto",
+            isMobile &&
+              "max-h-[calc(100dvh_-_env(safe-area-inset-top,0px)_-_env(safe-area-inset-bottom,0px)_-_1rem)]",
+            menuClass,
+          )}
+        >
           {!qualityLocked ? (
             <>
               <DropdownMenuLabel>Quality</DropdownMenuLabel>

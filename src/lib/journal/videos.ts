@@ -75,9 +75,13 @@ export function pickJournalVideoMimeType(): string {
   return "";
 }
 
-/** Chunk interval for ondataavailable. Safari MP4 needs ≥1s segments. */
+/**
+ * Chunk interval for ondataavailable. One-second segments keep recovery writes
+ * frequent enough to be useful without churning durable storage four times a
+ * second on browsers that support shorter slices.
+ */
 export function journalVideoRecorderTimesliceMs(): number {
-  return isAppleVideoCapture() ? 1000 : 250;
+  return 1000;
 }
 
 /**
@@ -224,6 +228,7 @@ export function journalVideoCaptureSupported(): boolean {
 }
 
 function isMobileVideoCapture(): boolean {
+  if (typeof navigator === "undefined" || typeof window === "undefined") return false;
   return (
     /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
     (navigator.maxTouchPoints > 1 && window.innerWidth < 1024)
@@ -232,6 +237,7 @@ function isMobileVideoCapture(): boolean {
 
 /** HD widescreen — matches typical webcam output (16:9). */
 export const JOURNAL_VIDEO_ASPECT_RATIO = 16 / 9;
+const JOURNAL_VIDEO_PORTRAIT_ASPECT_RATIO = 9 / 16;
 
 export type JournalVideoConstraintOptions = {
   quality?: JournalVideoQuality;
@@ -240,13 +246,43 @@ export type JournalVideoConstraintOptions = {
   audioDeviceId?: string | null;
 };
 
+function mobileVideoCaptureIsPortrait(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (typeof window.matchMedia === "function") {
+      return window.matchMedia("(orientation: portrait)").matches;
+    }
+  } catch {
+    /* fall back to the current viewport dimensions */
+  }
+  return window.innerHeight >= window.innerWidth;
+}
+
+function journalVideoCaptureDimensions(
+  mobile: boolean,
+  quality: JournalVideoQuality,
+): { width: number; height: number; aspectRatio: number } {
+  const dimensions = qualityDimensions(quality);
+  if (mobile && mobileVideoCaptureIsPortrait()) {
+    return {
+      width: dimensions.height,
+      height: dimensions.width,
+      aspectRatio: JOURNAL_VIDEO_PORTRAIT_ASPECT_RATIO,
+    };
+  }
+  return { ...dimensions, aspectRatio: JOURNAL_VIDEO_ASPECT_RATIO };
+}
+
 function journalVideoTrackConstraints(
   mobile: boolean,
   options: JournalVideoConstraintOptions = {},
 ): MediaTrackConstraints {
-  const { width, height } = qualityDimensions(options.quality ?? "720p");
+  const { width, height, aspectRatio } = journalVideoCaptureDimensions(
+    mobile,
+    options.quality ?? "720p",
+  );
   const video: MediaTrackConstraints = {
-    aspectRatio: { ideal: JOURNAL_VIDEO_ASPECT_RATIO },
+    aspectRatio: { ideal: aspectRatio },
     width: { ideal: width, max: width },
     height: { ideal: height, max: height },
     frameRate: mobile ? { ideal: 24, max: 30 } : { ideal: 30, max: 30 },
@@ -304,10 +340,13 @@ export async function tuneJournalVideoStream(
 ): Promise<void> {
   const track = stream.getVideoTracks()[0];
   if (!track) return;
-  const { width, height } = qualityDimensions(quality);
+  const { width, height, aspectRatio } = journalVideoCaptureDimensions(
+    isMobileVideoCapture(),
+    quality,
+  );
   try {
     await track.applyConstraints({
-      aspectRatio: { ideal: JOURNAL_VIDEO_ASPECT_RATIO },
+      aspectRatio: { ideal: aspectRatio },
       width: { max: width },
       height: { max: height },
       frameRate: { max: 30 },
@@ -317,26 +356,122 @@ export async function tuneJournalVideoStream(
   }
 }
 
+export function buildJournalVideoStoragePath(
+  userId: string,
+  entryId: string,
+  mime: string,
+  stableRecordingId?: string,
+): { path: string; idempotent: boolean } {
+  const ext = mime.includes("mp4") ? "mp4" : "webm";
+  const stableObjectName = stableRecordingId
+    ?.trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 128);
+  const objectName = stableObjectName || crypto.randomUUID();
+  return {
+    path: `${userId}/${entryId}/${objectName}.${ext}`,
+    idempotent: Boolean(stableObjectName),
+  };
+}
+
+const JOURNAL_VIDEO_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function fallbackJournalVideoHashBytes(value: string): Uint8Array {
+  const seeds = [0x811c9dc5, 0x9e3779b9, 0x85ebca6b, 0xc2b2ae35];
+  const bytes = new Uint8Array(16);
+  const view = new DataView(bytes.buffer);
+  seeds.forEach((seed, index) => {
+    let hash = seed;
+    for (let i = 0; i < value.length; i += 1) {
+      hash ^= value.charCodeAt(i);
+      hash = Math.imul(hash, 0x01000193);
+      hash ^= hash >>> 13;
+    }
+    hash ^= value.length + index;
+    hash = Math.imul(hash ^ (hash >>> 16), 0x85ebca6b);
+    hash = Math.imul(hash ^ (hash >>> 13), 0xc2b2ae35);
+    view.setUint32(index * 4, (hash ^ (hash >>> 16)) >>> 0);
+  });
+  return bytes;
+}
+
+function journalVideoUuidFromBytes(source: Uint8Array): string {
+  const bytes = source.slice(0, 16);
+  // Mark deterministic hashes as RFC 4122 version 5 / standard variant UUIDs.
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Deterministic row id for every durable recording id, including legacy non-UUID ids. */
+export async function deriveJournalVideoRecordingRowId(
+  userId: string,
+  entryId: string,
+  stableRecordingId?: string,
+): Promise<string | undefined> {
+  const normalized = stableRecordingId?.trim();
+  if (!normalized) return undefined;
+  if (JOURNAL_VIDEO_UUID_PATTERN.test(normalized)) return normalized.toLowerCase();
+
+  const scopedId = `yourbible-journal-video\u0000${userId}\u0000${entryId}\u0000${normalized}`;
+  let hashBytes: Uint8Array | null = null;
+  try {
+    if (typeof crypto !== "undefined" && crypto.subtle) {
+      hashBytes = new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(scopedId)),
+      );
+    }
+  } catch {
+    // Deterministic JS hashing remains available in older MediaRecorder browsers.
+  }
+  return journalVideoUuidFromBytes(hashBytes ?? fallbackJournalVideoHashBytes(scopedId));
+}
+
 export async function uploadEntryVideo(
   userId: string,
   entryId: string,
   blob: Blob,
   durationMs?: number,
-): Promise<{ storage_path: string; duration_ms?: number; mime_type: string }> {
+  stableRecordingId?: string,
+): Promise<{
+  storage_path: string;
+  duration_ms?: number;
+  mime_type: string;
+  recording_id?: string;
+}> {
   if (isJournalVideoUploadTooLarge(blob.size)) {
     throw new Error(journalVideoUploadTooLargeMessage(durationMs ?? 0, blob.size));
   }
   const mime = blob.type || pickJournalVideoMimeType() || "video/webm";
   const uploadBlob =
     durationMs && mime.includes("webm") ? await fixJournalVideoBlob(blob, durationMs) : blob;
-  const ext = mime.includes("mp4") ? "mp4" : "webm";
-  const path = `${userId}/${entryId}/${crypto.randomUUID()}.${ext}`;
+  const { path, idempotent } = buildJournalVideoStoragePath(
+    userId,
+    entryId,
+    mime,
+    stableRecordingId,
+  );
   const { error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).upload(path, uploadBlob, {
-    upsert: false,
+    // A durable queue id makes crash retries overwrite the same object instead
+    // of leaking a new random upload on every attempt.
+    upsert: idempotent,
     contentType: mime,
   });
   if (error) throw new Error(formatVideoStorageError(error.message));
-  return { storage_path: path, duration_ms: durationMs, mime_type: mime };
+  const recordingId = await deriveJournalVideoRecordingRowId(
+    userId,
+    entryId,
+    stableRecordingId,
+  );
+  return {
+    storage_path: path,
+    duration_ms: durationMs,
+    mime_type: mime,
+    recording_id: recordingId,
+  };
 }
 
 export async function getSignedVideoUrl(path: string, expiresIn = 3600): Promise<string | null> {
@@ -380,21 +515,73 @@ export async function fetchEntryVideos(entryId: string): Promise<JournalVideoRow
 export async function insertEntryVideo(
   userId: string,
   entryId: string,
-  uploaded: { storage_path: string; duration_ms?: number; mime_type: string },
+  uploaded: {
+    storage_path: string;
+    duration_ms?: number;
+    mime_type: string;
+    recording_id?: string;
+  },
   opts?: { anchor_offset?: number; transcript?: string | null },
 ): Promise<JournalVideoRow | null> {
+  const select =
+    "id,entry_id,storage_path,duration_ms,mime_type,transcript,anchor_offset,created_at";
+  // The upload queue retries with a deterministic storage path. If the browser
+  // crashed after this row was inserted but before local cleanup, reuse it.
+  const { data: existing, error: existingError } = await supabase
+    .from("journal_videos")
+    .select(select)
+    .eq("user_id", userId)
+    .eq("entry_id", entryId)
+    .eq("storage_path", uploaded.storage_path)
+    .limit(1)
+    .maybeSingle();
+  if (existingError) throw new Error(formatVideoStorageError(existingError.message));
+  if (existing) {
+    const url = await getSignedVideoUrl(existing.storage_path);
+    return { ...(existing as JournalVideoRow), url: url ?? undefined };
+  }
+
+  const rowInput = {
+    ...(uploaded.recording_id ? { id: uploaded.recording_id } : {}),
+    user_id: userId,
+    entry_id: entryId,
+    storage_path: uploaded.storage_path,
+    duration_ms: uploaded.duration_ms ?? null,
+    mime_type: uploaded.mime_type,
+    anchor_offset: opts?.anchor_offset ?? 0,
+    transcript: opts?.transcript ?? null,
+  };
+  // Queue/recovery ids are UUIDs, so the table primary key gives concurrent
+  // tabs an atomic idempotency key without requiring a risky data migration.
+  // DO NOTHING is essential: a late duplicate must never replace a richer
+  // transcript already written by the first successful attempt.
+  if (uploaded.recording_id) {
+    const { error: insertError } = await supabase
+      .from("journal_videos")
+      .upsert(rowInput, { onConflict: "id", ignoreDuplicates: true });
+    if (insertError) throw new Error(formatVideoStorageError(insertError.message));
+
+    const { data: canonical, error: canonicalError } = await supabase
+      .from("journal_videos")
+      .select(select)
+      .eq("id", uploaded.recording_id)
+      .maybeSingle();
+    if (canonicalError) throw new Error(formatVideoStorageError(canonicalError.message));
+    if (!canonical) return null;
+    if (
+      canonical.entry_id !== entryId ||
+      canonical.storage_path !== uploaded.storage_path
+    ) {
+      throw new Error("The durable video recording id conflicts with another journal video.");
+    }
+    const url = await getSignedVideoUrl(canonical.storage_path);
+    return { ...(canonical as JournalVideoRow), url: url ?? undefined };
+  }
+
   const { data, error } = await supabase
     .from("journal_videos")
-    .insert({
-      user_id: userId,
-      entry_id: entryId,
-      storage_path: uploaded.storage_path,
-      duration_ms: uploaded.duration_ms ?? null,
-      mime_type: uploaded.mime_type,
-      anchor_offset: opts?.anchor_offset ?? 0,
-      transcript: opts?.transcript ?? null,
-    })
-    .select("id,entry_id,storage_path,duration_ms,mime_type,transcript,anchor_offset,created_at")
+    .insert(rowInput)
+    .select(select)
     .maybeSingle();
   if (error) throw new Error(formatVideoStorageError(error.message));
   if (!data) return null;
@@ -424,6 +611,10 @@ export type TranscribeJournalVideoResult = {
   text: string;
   source: "audio-sidecar" | "storage-video" | "live" | "none";
   error?: string;
+  /** True when either server-side audio path returned usable speech. */
+  serverTranscriptSucceeded: boolean;
+  /** Durable queue disposition; independent from whichever candidate text is longest. */
+  disposition: "complete" | "retryable-error" | "terminal-no-speech";
 };
 
 const MIN_JOURNAL_VIDEO_AUDIO_BYTES = 200;
@@ -449,6 +640,18 @@ type TranscriptCandidate = {
   source: Exclude<TranscribeJournalVideoResult["source"], "none">;
 };
 
+function isTerminalJournalVideoSpeechError(error: string): boolean {
+  return (
+    /empty transcript/i.test(error) ||
+    /nothing to transcribe/i.test(error) ||
+    /couldn.?t detect speech/i.test(error) ||
+    /no (?:usable )?(?:speech|voice|words)(?: was| were)? (?:detected|found|captured)/i.test(error) ||
+    /no audio (?:track )?(?:was )?captured/i.test(error) ||
+    /speech (?:was )?not detected/i.test(error) ||
+    /too short|record a little longer/i.test(error)
+  );
+}
+
 /** Pick the longest transcript — server STT beats partial live captions. */
 function pickBestTranscriptCandidate(candidates: TranscriptCandidate[]): TranscriptCandidate | null {
   if (!candidates.length) return null;
@@ -461,26 +664,49 @@ export async function transcribeJournalVideo(
   opts: TranscribeJournalVideoOptions = {},
 ): Promise<TranscribeJournalVideoResult> {
   const live = pickBestVideoJournalTranscript(opts.liveTranscript, opts.peakLiveTranscript);
-  let lastError: string | undefined;
   const audio = opts.audioBlob;
   const candidates: TranscriptCandidate[] = [];
+  const retryableErrors: string[] = [];
+  const terminalErrors: string[] = [];
+  let serverTranscriptSucceeded = false;
+  const recordError = (error: string) => {
+    const normalized = error.trim();
+    if (!normalized) return;
+    if (isTerminalJournalVideoSpeechError(normalized)) terminalErrors.push(normalized);
+    else retryableErrors.push(normalized);
+  };
 
   if (audio && audio.size > MIN_JOURNAL_VIDEO_AUDIO_BYTES && opts.userId) {
+    let sidecarPath: string | null = null;
     try {
-      const path = await uploadJournalVoiceMemo(opts.userId, audio);
-      const result = await transcribeJournalVoiceMemo(path, "voice-memos");
+      sidecarPath = await uploadJournalVoiceMemo(opts.userId, audio);
+      const result = await transcribeJournalVoiceMemo(sidecarPath, "voice-memos");
       if (result.ok && result.text.trim()) {
         candidates.push({ text: result.text.trim(), source: "audio-sidecar" });
+        serverTranscriptSucceeded = true;
+      } else if (result.ok) {
+        recordError("Empty transcript returned for the captured audio.");
       } else if (!result.ok) {
-        lastError = result.error;
+        recordError(result.error);
       }
     } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
+      recordError(e instanceof Error ? e.message : String(e));
+    } finally {
+      // The queue retains the local audio Blob for retry. The uploaded sidecar
+      // is only a transcription transport and must not leak on every attempt.
+      if (sidecarPath) {
+        try {
+          const { error } = await supabase.storage.from("voice-memos").remove([sidecarPath]);
+          if (error) console.warn("[journal-video] audio sidecar cleanup failed:", error.message);
+        } catch (error) {
+          console.warn("[journal-video] audio sidecar cleanup failed:", error);
+        }
+      }
     }
   } else if (audio && audio.size > 0 && audio.size <= MIN_JOURNAL_VIDEO_AUDIO_BYTES) {
-    lastError = "Audio was too short to transcribe — record a little longer.";
+    recordError("Audio was too short to transcribe — record a little longer.");
   } else if (!audio?.size && !storagePath) {
-    lastError = "No audio track was captured for transcription.";
+    recordError("No audio track was captured for transcription.");
   }
 
   if (storagePath && opts.userId) {
@@ -488,11 +714,14 @@ export async function transcribeJournalVideo(
       const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos");
       if (result.ok && result.text.trim()) {
         candidates.push({ text: result.text.trim(), source: "storage-video" });
-      } else if (!result.ok && !lastError) {
-        lastError = result.error;
+        serverTranscriptSucceeded = true;
+      } else if (result.ok) {
+        recordError("Empty transcript returned for the captured video.");
+      } else if (!result.ok) {
+        recordError(result.error);
       }
     } catch (e) {
-      if (!lastError) lastError = e instanceof Error ? e.message : String(e);
+      recordError(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -501,11 +730,27 @@ export async function transcribeJournalVideo(
   }
 
   const best = pickBestTranscriptCandidate(candidates);
-  if (best) {
-    return { text: best.text, source: best.source, error: lastError };
-  }
+  const disposition: TranscribeJournalVideoResult["disposition"] = serverTranscriptSucceeded
+    ? "complete"
+    : retryableErrors.length > 0
+      ? "retryable-error"
+      : terminalErrors.length > 0
+        ? "terminal-no-speech"
+        : "complete";
+  const error =
+    disposition === "retryable-error"
+      ? retryableErrors[retryableErrors.length - 1]
+      : disposition === "terminal-no-speech"
+        ? terminalErrors[terminalErrors.length - 1]
+        : undefined;
 
-  return { text: "", source: "none", error: lastError };
+  return {
+    text: best?.text ?? "",
+    source: best?.source ?? "none",
+    ...(error ? { error } : {}),
+    serverTranscriptSucceeded,
+    disposition,
+  };
 }
 
 /** Re-run server transcription from a stored journal video (recovery after partial live captions). */

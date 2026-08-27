@@ -1535,7 +1535,7 @@ export function useNewJournalEntryPage() {
           description: e instanceof Error ? e.message : "Please try again.",
           variant: "destructive",
         });
-        setVideoOpen(false);
+        throw e;
       } finally {
         setVideoUploading(false);
         setVideoTranscribing(false);

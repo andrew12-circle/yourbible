@@ -77,81 +77,93 @@ export function JournalVideoAudioCheckOverlay({ capture, isMobile, onContinue, c
   return (
     <div
       className={cn(
-        "absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 overflow-y-auto bg-black/60 px-6 py-8 text-center text-white backdrop-blur-[2px]",
+        "absolute inset-0 z-20 overflow-y-auto overscroll-contain bg-black/60 text-center text-white backdrop-blur-[2px]",
         className,
       )}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10">
-        <Mic className="h-6 w-6" aria-hidden />
-      </div>
-      <div className="max-w-sm space-y-1.5">
-        <p className="text-lg font-semibold">Set up your camera &amp; mic</p>
-        <p className="text-sm text-white/80">
-          Pick your devices, say <span className="font-medium text-white">&ldquo;test, test&rdquo;</span>{" "}
-          and watch the bars move. Recording starts when you tap below.
-        </p>
-      </div>
-
-      <div className="flex w-full max-w-xs flex-col gap-2.5">
-        {showCameraControls ? (
-          <DeviceRow icon={<Camera className="h-4 w-4" aria-hidden />} label={cameraTitle}>
-            {isMobile ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="h-9 w-full justify-between gap-2 rounded-lg"
-                onClick={() => void capture.switchFacing()}
-              >
-                <span className="truncate">Flip camera</span>
-                <FlipHorizontal className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
-              </Button>
-            ) : (
-              <DeviceDropdown
-                triggerLabel={activeCameraLabel}
-                menuLabel="Camera"
-                value={activeVideoDeviceId}
-                devices={videoDevices}
-                fallbackPrefix="Camera"
-                onSelect={(id) => void capture.selectDevice(id)}
-                emptyLabel="Detecting cameras…"
-              />
-            )}
-          </DeviceRow>
-        ) : null}
-
-        <DeviceRow icon={<Mic className="h-4 w-4" aria-hidden />} label="Microphone">
-          <DeviceDropdown
-            triggerLabel={activeMicLabel}
-            menuLabel="Microphone"
-            value={activeAudioDeviceId}
-            devices={audioDevices}
-            fallbackPrefix="Microphone"
-            onSelect={selectMic}
-            emptyLabel="Detecting microphones…"
-          />
-        </DeviceRow>
-      </div>
-
-      <div className="flex flex-col items-center gap-1.5">
-        <JournalVideoLiveMicWaveform
-          stream={stream}
-          active
-          className="h-6 gap-1 [&_span]:w-1.5"
-          maxBarHeight={22}
-        />
-        <p className="text-xs text-white/70">Moving bars mean your mic is working</p>
-      </div>
-
-      <Button
-        type="button"
-        variant="secondary"
-        size="sm"
-        className="rounded-full px-6"
-        onClick={onContinue}
+      <div
+        className={cn(
+          "flex min-h-full w-full flex-col",
+          "pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]",
+          "pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))]",
+        )}
       >
-        Looks good — continue
-      </Button>
+        <div className="my-auto flex w-full flex-col items-center gap-4 [@media(max-height:520px)]:gap-2">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 [@media(max-height:520px)]:hidden">
+            <Mic className="h-6 w-6" aria-hidden />
+          </div>
+          <div className="max-w-sm space-y-1.5 [@media(max-height:520px)]:space-y-0.5">
+            <p className="text-lg font-semibold">Set up your camera &amp; mic</p>
+            <p className="text-sm text-white/80">
+              Pick your devices, say{" "}
+              <span className="font-medium text-white">&ldquo;test, test&rdquo;</span> and watch the bars
+              move. Recording starts when you tap below.
+            </p>
+          </div>
+
+          <div className="flex w-full max-w-xs flex-col gap-2.5 [@media(max-height:520px)]:gap-1.5">
+            {showCameraControls ? (
+              <DeviceRow icon={<Camera className="h-4 w-4" aria-hidden />} label={cameraTitle}>
+                {isMobile ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-11 w-full justify-between gap-2 rounded-lg"
+                    onClick={() => void capture.switchFacing()}
+                  >
+                    <span className="truncate">Flip camera</span>
+                    <FlipHorizontal className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
+                  </Button>
+                ) : (
+                  <DeviceDropdown
+                    triggerLabel={activeCameraLabel}
+                    menuLabel="Camera"
+                    value={activeVideoDeviceId}
+                    devices={videoDevices}
+                    fallbackPrefix="Camera"
+                    onSelect={(id) => void capture.selectDevice(id)}
+                    emptyLabel="Detecting cameras…"
+                  />
+                )}
+              </DeviceRow>
+            ) : null}
+
+            <DeviceRow icon={<Mic className="h-4 w-4" aria-hidden />} label="Microphone">
+              <DeviceDropdown
+                triggerLabel={activeMicLabel}
+                menuLabel="Microphone"
+                value={activeAudioDeviceId}
+                devices={audioDevices}
+                fallbackPrefix="Microphone"
+                onSelect={selectMic}
+                emptyLabel="Detecting microphones…"
+                touchTarget={isMobile}
+              />
+            </DeviceRow>
+          </div>
+
+          <div className="flex flex-col items-center gap-1.5 [@media(max-height:520px)]:gap-0.5">
+            <JournalVideoLiveMicWaveform
+              stream={stream}
+              active
+              className="h-6 gap-1 [&_span]:w-1.5"
+              maxBarHeight={22}
+            />
+            <p className="text-xs text-white/70">Moving bars mean your mic is working</p>
+          </div>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className={cn("rounded-full px-6", isMobile && "min-h-11")}
+            onClick={onContinue}
+          >
+            Looks good — continue
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -184,6 +196,7 @@ function DeviceDropdown({
   fallbackPrefix,
   onSelect,
   emptyLabel,
+  touchTarget = false,
 }: {
   triggerLabel: string;
   menuLabel: string;
@@ -192,6 +205,7 @@ function DeviceDropdown({
   fallbackPrefix: string;
   onSelect: (deviceId: string) => void;
   emptyLabel: string;
+  touchTarget?: boolean;
 }) {
   const hasDevices = devices.length > 0;
   return (
@@ -202,7 +216,7 @@ function DeviceDropdown({
           variant="secondary"
           size="sm"
           disabled={!hasDevices}
-          className="h-9 w-full justify-between gap-2 rounded-lg"
+          className={cn("h-9 w-full justify-between gap-2 rounded-lg", touchTarget && "h-11")}
         >
           <span className="truncate">{hasDevices ? triggerLabel : emptyLabel}</span>
           <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden />
@@ -210,7 +224,11 @@ function DeviceDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className={cn("max-h-[min(50vh,20rem)] w-[min(20rem,80vw)] overflow-y-auto", OVERLAY_MENU_Z)}
+        className={cn(
+          "w-[min(20rem,80vw)] overflow-y-auto",
+          "max-h-[calc(100dvh_-_env(safe-area-inset-top,0px)_-_env(safe-area-inset-bottom,0px)_-_1rem)]",
+          OVERLAY_MENU_Z,
+        )}
       >
         <DropdownMenuLabel>{menuLabel}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={onSelect}>

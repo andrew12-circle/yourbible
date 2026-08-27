@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { journalVideoBlocksAppRefresh } from "@/lib/pwa/journalVideoRefreshGuard";
 import { stripAppRefreshParam } from "@/lib/pwa/forceAppRefresh";
 
 /**
@@ -24,6 +25,12 @@ export function PwaUpdatePrompt() {
         action: {
           label: "Refresh",
           onClick: () => {
+            if (journalVideoBlocksAppRefresh()) {
+              toast.warning("Finish or save your video journal first", {
+                description: "The update is ready and will wait. Your active recording stays open.",
+              });
+              return;
+            }
             void updateSW?.(true);
           },
         },

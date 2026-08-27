@@ -223,8 +223,14 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
           weekRangeLabel: pendingReview.weekRangeLabel,
           weekStart: pendingReview.weekStart,
           reflection: finalReflection,
-        }).catch(() => null);
+        }).catch((error) => {
+          if (video) throw error;
+          return null;
+        });
 
+        if (video && !journalResult?.entryId) {
+          throw new Error("The week review was saved, but its journal entry was not ready for video yet.");
+        }
         if (video && journalResult?.entryId) {
           await saveJournalVideoCaptureWithQueue({
             userId,
@@ -232,7 +238,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
             result: video.result,
             durationMs: video.durationMs,
             anchorOffset: 0,
-          }).catch(() => {});
+          });
         }
 
         setClosedWeekIndicesBySubject((prev) => {
