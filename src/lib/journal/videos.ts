@@ -787,7 +787,14 @@ export async function transcribeVideoBlob(userId: string, blob: Blob): Promise<s
 }
 
 export async function deleteEntryVideo(id: string, storagePath: string): Promise<void> {
-  await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).remove([storagePath]).catch(() => {});
   const { error } = await supabase.from("journal_videos").delete().eq("id", id);
   if (error) throw new Error(formatVideoStorageError(error.message));
+  const { error: storageError } = await supabase.storage
+    .from(JOURNAL_VIDEOS_BUCKET)
+    .remove([storagePath]);
+  if (storageError) {
+    // The entry no longer points at the object. Retaining an orphaned source is
+    // safer than deleting storage first and leaving a broken database row.
+    console.warn("[journal-video] removed database row but could not clean storage", storageError);
+  }
 }

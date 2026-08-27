@@ -46,7 +46,7 @@ export default function JournalEntryVideos({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 text-xs text-muted-foreground"
+                className="h-11 gap-1.5 text-xs text-muted-foreground"
                 disabled={retranscribingId === v.id}
                 onClick={() => onRetranscribe(v)}
               >
@@ -63,7 +63,7 @@ export default function JournalEntryVideos({
             <button
               type="button"
               onClick={() => onRemove(v.id, v.storage_path)}
-              className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
+              className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-full bg-black/65 text-white opacity-100 transition hover:bg-black/80 focus-visible:ring-2 focus-visible:ring-white"
               aria-label="Remove video"
             >
               <Trash2 className="h-4 w-4" />

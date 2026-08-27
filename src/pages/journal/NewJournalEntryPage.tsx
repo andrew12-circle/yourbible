@@ -37,7 +37,7 @@ import JournalPrivacyBlurToggle from "@/components/journal/JournalPrivacyBlurTog
 import { AiWritingAssistToolbarButton } from "@/components/writing/AiWritingAssistToggle";
 import { JOURNAL_COMPOSE_HINT } from "@/lib/journal/journalPurpose";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   journalComposeMainPaddingBottom,
@@ -48,6 +48,7 @@ export default function NewJournalEntryPage() {
   const p = useNewJournalEntryPage();
   const { showHubShell } = useAppShellMode();
   const togglePrivacyBlur = useJournalPrivacyBlurStore((s) => s.toggleJournalPrivacyBlur);
+  const [dockHeightPx, setDockHeightPx] = useState(0);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -60,8 +61,86 @@ export default function NewJournalEntryPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [togglePrivacyBlur]);
 
+  useLayoutEffect(() => {
+    const dock = p.bottomDockRef.current;
+    if (!dock) return;
+    const sync = () => setDockHeightPx(Math.max(0, dock.getBoundingClientRect().height));
+    sync();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(sync);
+    observer.observe(dock);
+    return () => observer.disconnect();
+  }, [p.loading, p.bottomDockRef]);
+
   if (p.loading) return null;
   if (!p.user) return <Navigate to="/auth" replace />;
+  const videoCaptureDialog = p.videoOpen ? (
+    <JournalVideoCaptureDialog
+      open={p.videoOpen}
+      onOpenChange={(open) => {
+        if (!open && !p.videoUploading && !p.videoTranscribing && !p.videoSummarizing) {
+          p.handleVideoRecordingCancelled();
+        }
+        p.setVideoOpen(open);
+      }}
+      onComplete={p.handleVideoComplete}
+      uploading={p.videoUploading}
+      transcribing={p.videoTranscribing || p.videoSummarizing}
+      transcribingLabel={p.videoSummarizing ? "Summarizing…" : undefined}
+      defaultMode="camera"
+      onRecordingStart={p.handleVideoRecordingStart}
+      onLiveTranscript={p.handleVideoLiveTranscript}
+      nativeCaptureContext={
+        p.user?.id && (p.nativeVideoDraftOwnerId || p.activeEntryId)
+          ? {
+              userId: p.user.id,
+              entryId: p.nativeVideoDraftOwnerId ?? p.activeEntryId!,
+              anchorOffset: p.videoAnchorRef.current,
+            }
+          : undefined
+      }
+      recovery={
+        p.user?.id && p.activeEntryId
+          ? {
+              userId: p.user.id,
+              entryId: p.activeEntryId,
+              anchorOffset: p.videoAnchorRef.current,
+            }
+          : undefined
+      }
+    />
+  ) : null;
+  if (p.entryHydrating) {
+    return (
+      <>
+        <div
+          className={cn(
+            journalEntryPageRoot(showHubShell, p.inMiniPhone),
+            "items-center justify-center gap-3 px-6 text-center text-muted-foreground",
+          )}
+          aria-live="polite"
+        >
+          {p.entryLoadFailed ? (
+            <>
+              <p className="text-base font-semibold text-foreground">This entry could not open</p>
+              <p className="max-w-sm text-sm">
+                Check your connection and try again. Any video kept on this iPhone is still safe.
+              </p>
+              <Button type="button" className="mt-1 min-h-11" onClick={() => window.location.reload()}>
+                Try again
+              </Button>
+            </>
+          ) : (
+            <>
+              <Loader2 className="h-6 w-6 animate-spin" aria-hidden />
+              <p className="text-sm font-medium">Opening your journal…</p>
+            </>
+          )}
+        </div>
+        {videoCaptureDialog}
+      </>
+    );
+  }
 
   const dictateButton = (
     <DictateButton
@@ -75,9 +154,14 @@ export default function NewJournalEntryPage() {
     />
   );
 
-  const keyboardOpen = p.kbInset > 0;
+  const keyboardOpen = p.keyboardOpen;
   const hideBottomChrome = keyboardOpen || (p.bodyFocused && !p.inlineChatMode);
-  const showComposeMap = !hideBottomChrome && !p.inlineChatMode && !p.isListening;
+  const showComposeMap =
+    !hideBottomChrome &&
+    !p.inlineChatMode &&
+    !p.isListening &&
+    p.lat != null &&
+    p.lng != null;
 
   const mobileKeyboardLayout = journalComposeUsesVisualViewportLayout({
     isMobile: p.isMobile,
@@ -109,7 +193,7 @@ export default function NewJournalEntryPage() {
           <button
             type="button"
             onClick={() => p.navigate(p.layoutBack)}
-            className="-ml-1 px-1 h-9 flex items-center text-primary"
+            className="-ml-1 flex h-11 min-w-11 items-center px-1 text-primary"
             aria-label="Back"
           >
             <ChevronLeft className="w-6 h-6" strokeWidth={2.5} />
@@ -130,7 +214,7 @@ export default function NewJournalEntryPage() {
             disabled={p.busy}
             size="sm"
             variant="ghost"
-            className="text-primary text-[15px] font-semibold px-2"
+            className="h-11 text-primary text-[15px] font-semibold px-2"
           >
             {p.busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Done"}
           </Button>
@@ -164,6 +248,7 @@ export default function NewJournalEntryPage() {
         style={{
           paddingBottom: journalComposeMainPaddingBottom({
             bodyFocused: p.bodyFocused,
+            dockHeightPx,
             hideBottomChrome,
             inMiniPhone: p.inMiniPhone,
             inlineChatMode: p.inlineChatMode,
@@ -401,6 +486,7 @@ export default function NewJournalEntryPage() {
               onMore={() => p.setMoreOpen(true)}
               chatDisabled={!p.canReplyWithAi}
               videoDisabled={!p.videoCaptureSupported || p.inlineChatMode || p.isListening || p.isVent}
+              dictating={p.dictating}
             />
           )}
         </div>
@@ -550,33 +636,7 @@ export default function NewJournalEntryPage() {
         </SheetContent>
       </Sheet>
 
-      {p.videoOpen ? (
-        <JournalVideoCaptureDialog
-          open={p.videoOpen}
-          onOpenChange={(open) => {
-            if (!open && !p.videoUploading && !p.videoTranscribing && !p.videoSummarizing) {
-              p.handleVideoRecordingCancelled();
-            }
-            p.setVideoOpen(open);
-          }}
-          onComplete={p.handleVideoComplete}
-          uploading={p.videoUploading}
-          transcribing={p.videoTranscribing || p.videoSummarizing}
-          transcribingLabel={p.videoSummarizing ? "Summarizing…" : undefined}
-          defaultMode="camera"
-          onRecordingStart={p.handleVideoRecordingStart}
-          onLiveTranscript={p.handleVideoLiveTranscript}
-          recovery={
-            p.user?.id && p.activeEntryId
-              ? {
-                  userId: p.user.id,
-                  entryId: p.activeEntryId,
-                  anchorOffset: p.videoAnchorRef.current,
-                }
-              : undefined
-          }
-        />
-      ) : null}
+      {videoCaptureDialog}
 
       <SketchPad
         open={p.sketchOpen}

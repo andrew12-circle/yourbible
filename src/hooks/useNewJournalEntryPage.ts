@@ -91,6 +91,12 @@ import {
   journalComposeCaretKeyboardInset,
   journalComposeUsesVisualViewportLayout,
 } from "@/lib/journal/journalComposeKeyboardLayout";
+import {
+  createNativeJournalVideoDraftOwnerId,
+  isNativeJournalVideoDraftOwnerId,
+  nativeJournalVideoCaptureSupported,
+  rememberNativeJournalVideoDraftEntry,
+} from "@/lib/native/journalVideoNative";
 
 interface BeliefOpt {
   id: string;
@@ -104,7 +110,13 @@ export function useNewJournalEntryPage() {
   const location = useLocation();
   const { id: editId } = useParams<{ id: string }>();
   const [params] = useSearchParams();
-  const { keyboardInset: kbInset, offsetTop: vvOffsetTop, viewportHeight } = useVisualViewportMetrics();
+  const chatRequested = params.get("chat") === "1";
+  const {
+    keyboardInset: kbInset,
+    keyboardOpen,
+    offsetTop: vvOffsetTop,
+    viewportHeight,
+  } = useVisualViewportMetrics();
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
 
@@ -155,6 +167,7 @@ export function useNewJournalEntryPage() {
   const voiceRepliesRef = useRef(voiceReplies);
   const mountedRef = useRef(true);
   const [dictInterim, setDictInterim] = useState("");
+  const [dictating, setDictating] = useState(false);
   const [sketchOpen, setSketchOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
@@ -167,6 +180,9 @@ export function useNewJournalEntryPage() {
   const [composerFocused, setComposerFocused] = useState(false);
   const [bodyFocused, setBodyFocused] = useState(false);
   const [photoSuggestionDismissed, setPhotoSuggestionDismissed] = useState(false);
+  const [loadedEditId, setLoadedEditId] = useState<string | null>(null);
+  const [editLoadFailedId, setEditLoadFailedId] = useState<string | null>(null);
+  const [nativeVideoDraftOwnerId, setNativeVideoDraftOwnerId] = useState<string | null>(null);
   const composerLockScrollYRef = useRef<number | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const photoCameraInputRef = useRef<HTMLInputElement | null>(null);
@@ -177,6 +193,7 @@ export function useNewJournalEntryPage() {
   const focusBodyEditorRef = useRef<() => void>(() => {});
   const videoAnchorRef = useRef(0);
   const videoLiveSnapRef = useRef<{ body: string; anchor: number } | null>(null);
+  const captureRequestHandledRef = useRef(false);
   const [listeningSections, setListeningSections] = useState<ListeningSections>({
     thought: "",
     words: "",
@@ -212,7 +229,6 @@ export function useNewJournalEntryPage() {
   const isListening = entryKind === "listening";
   const canReplyWithAi = !isVent && !isListening;
   const inlineChatMode = replyWithAi && canReplyWithAi;
-  const keyboardOpen = kbInset > 0;
   const visualViewportKeyboardLayout = journalComposeUsesVisualViewportLayout({
     isMobile,
     inMiniPhone,
@@ -224,6 +240,13 @@ export function useNewJournalEntryPage() {
   );
 
   voiceRepliesRef.current = voiceReplies;
+
+  const setInlineEntryIdWithNativeOwner = useCallback((id: string) => {
+    if (user?.id && nativeVideoDraftOwnerId) {
+      rememberNativeJournalVideoDraftEntry(user.id, nativeVideoDraftOwnerId, id);
+    }
+    setInlineEntryId(id);
+  }, [nativeVideoDraftOwnerId, user?.id]);
 
   const getComposeSnapshot = useCallback(
     (): ComposePersistenceSnapshot => ({
@@ -273,7 +296,7 @@ export function useNewJournalEntryPage() {
     userId: user?.id,
     editId,
     inlineEntryId,
-    setInlineEntryId,
+    setInlineEntryId: setInlineEntryIdWithNativeOwner,
     entryKind,
     isListening,
     getSnapshot: getComposeSnapshot,
@@ -482,10 +505,35 @@ export function useNewJournalEntryPage() {
   }, []);
 
   useEffect(() => {
-    if (!editId || !user) return;
-    (async () => {
+    setLoadedEditId(null);
+    setEditLoadFailedId(null);
+    if (!editId) return;
+    setTitle("");
+    setSummary("");
+    setBody("");
+    setMood(null);
+    setTags([]);
+    setEntryKind(null);
+    setExistingPhotos([]);
+    setChatId(null);
+    setChatTurns([]);
+  }, [editId]);
+
+  useEffect(() => {
+    if (!editId) return;
+    setReplyWithAi(chatRequested);
+  }, [chatRequested, editId]);
+
+  useEffect(() => {
+    const activeUserId = user?.id;
+    if (!editId || !activeUserId) return;
+    let cancelled = false;
+    void (async () => {
+      let entryHydrated = false;
+      try {
       const data = await fetchJournalEntryDetail(editId);
-      if (!data) return;
+      if (cancelled) return;
+      if (!data) throw new Error("This journal entry could not be found.");
       setTitle(data.title ?? "");
       setSummary((data as { summary?: string | null }).summary ?? "");
       const parsedBody = parseChatJournalEntry(data.body, (data as { summary?: string | null }).summary);
@@ -512,35 +560,62 @@ export function useNewJournalEntryPage() {
       setWeather(data.weather ?? null);
       setWeatherTempC(data.weather_temp_c ?? null);
       setWeatherIcon(data.weather_icon ?? null);
+      setChatId(null);
+      setChatTurns([]);
+      setExistingPhotos([]);
       const dt = new Date(data.entry_at_ts);
       dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
       setEntryAt(dt.toISOString().slice(0, 16));
 
       setInlineEntryId(editId);
+      setEditLoadFailedId(null);
+      setLoadedEditId(editId);
+      entryHydrated = true;
       const { data: chatRow } = await supabase
         .from("my_ai_chats")
         .select("id")
         .eq("journal_entry_id", editId)
-        .eq("user_id", user.id)
+        .eq("user_id", activeUserId)
         .maybeSingle();
+      if (cancelled) return;
       if (chatRow?.id) {
         setChatId(chatRow.id);
-        await loadChatTurns(chatRow.id);
+        const turns = await loadInlineChatTurns(chatRow.id);
+        if (cancelled) return;
+        setChatTurns(turns);
       }
-      // Open in the normal write layout; chat lives in a collapsed accordion.
-      // Opt in with ?chat=1 when the user explicitly continues a conversation.
-      setReplyWithAi(params.get("chat") === "1");
 
       const { data: photos } = await supabase
         .from("journal_photos")
         .select("id,storage_path")
         .eq("entry_id", editId);
+      if (cancelled) return;
       const urls = await getSignedPhotoUrls((photos ?? []).map((p) => p.storage_path));
+      if (cancelled) return;
       setExistingPhotos(
         (photos ?? []).map((p) => ({ id: p.id, storage_path: p.storage_path, url: urls[p.storage_path] })),
       );
+      } catch (error) {
+        if (cancelled) return;
+        if (entryHydrated) {
+          console.warn("[journal-entry] optional entry details failed to load", error);
+          return;
+        }
+        setEditLoadFailedId(editId);
+        toast({
+          title: "Couldn't load this entry",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Check your connection. Any video saved on this iPhone is still safe.",
+          variant: "destructive",
+        });
+      }
     })();
-  }, [editId, user, loadChatTurns, params]);
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, user?.id]);
 
   useEffect(() => {
     setPhotoSuggestionDismissed(false);
@@ -566,6 +641,7 @@ export function useNewJournalEntryPage() {
 
   useEffect(() => {
     if (!user || inlineChatMode) return;
+    if (editId && loadedEditId !== editId) return;
     if (!body.trim() && !title.trim() && !editId && !inlineEntryId) return;
     if (!hasMeaningfulComposeContent({ title, body, entryKind, listeningSections })) return;
     scheduleComposePersist();
@@ -590,6 +666,7 @@ export function useNewJournalEntryPage() {
     entryAt,
     listeningSections,
     editId,
+    loadedEditId,
     inlineEntryId,
     scheduleComposePersist,
   ]);
@@ -1223,6 +1300,11 @@ export function useNewJournalEntryPage() {
       return;
     }
 
+    if (artifactReturnTo === "/journal/notes") {
+      navigate(artifactReturnTo);
+      return;
+    }
+
     navigate(`/journal/${entryId}`);
   }, [
     user,
@@ -1255,6 +1337,7 @@ export function useNewJournalEntryPage() {
     flushComposeSave,
     clearComposeDraft,
     clearStoredPendingSketch,
+    artifactReturnTo,
   ]);
 
   const openChatMode = useCallback(async () => {
@@ -1301,13 +1384,20 @@ export function useNewJournalEntryPage() {
   }, [scrollToCaretEnd]);
   focusBodyEditorRef.current = focusBodyEditor;
 
-  const { onListeningChange: onDictationListeningChange, formatting: dictationFormatting } =
+  const { onListeningChange: formatAfterDictation, formatting: dictationFormatting } =
     useDictationAutoFormat({
       enabled: !isVent && !inlineChatMode,
       getBody: () => bodyRef.current,
       setBody: (next) => handleBodyChange(next),
       onFormatted: () => focusBodyEditorRef.current(),
     });
+  const onDictationListeningChange = useCallback(
+    (listening: boolean) => {
+      setDictating(listening);
+      formatAfterDictation(listening);
+    },
+    [formatAfterDictation],
+  );
 
   const appendDictatedText = useCallback((chunk: string) => {
     setBody((b) => {
@@ -1414,7 +1504,7 @@ export function useNewJournalEntryPage() {
         toast({ title: "Couldn't start entry", description: error?.message, variant: "destructive" });
         return null;
       }
-      setInlineEntryId(data.id);
+      setInlineEntryIdWithNativeOwner(data.id);
       return data.id;
     } catch (err) {
       toast({
@@ -1446,7 +1536,14 @@ export function useNewJournalEntryPage() {
     weatherIcon,
     analyzeForMirror,
     entryKind,
+    setInlineEntryIdWithNativeOwner,
   ]);
+
+  const openNativeDraftVideo = useCallback((ownerId: string) => {
+    videoAnchorRef.current = getVideoAnchorOffset();
+    setNativeVideoDraftOwnerId(ownerId);
+    setVideoOpen(true);
+  }, [getVideoAnchorOffset]);
 
   const triggerVideo = useCallback(async () => {
     if (!journalVideoCaptureSupported()) {
@@ -1454,16 +1551,88 @@ export function useNewJournalEntryPage() {
       return;
     }
     videoAnchorRef.current = getVideoAnchorOffset();
+    if (nativeJournalVideoCaptureSupported() && !editId && !inlineEntryId) {
+      openNativeDraftVideo(
+        nativeVideoDraftOwnerId ?? createNativeJournalVideoDraftOwnerId(),
+      );
+      return;
+    }
     const entryId = await ensureDraftEntry();
     if (entryId) setVideoOpen(true);
-  }, [ensureDraftEntry, getVideoAnchorOffset]);
+  }, [
+    editId,
+    ensureDraftEntry,
+    getVideoAnchorOffset,
+    inlineEntryId,
+    nativeVideoDraftOwnerId,
+    openNativeDraftVideo,
+  ]);
+
+  useEffect(() => {
+    const resumeVideo = params.get("resumeVideo") === "1";
+    const captureAction = params.get("capture");
+    const requestedNativeOwner = params.get("nativeVideoOwner");
+    const nativeDraftOwner = isNativeJournalVideoDraftOwnerId(requestedNativeOwner)
+      ? requestedNativeOwner
+      : null;
+    const requestedAction = resumeVideo || captureAction === "video" || captureAction === "dictate";
+    if (!requestedAction) {
+      captureRequestHandledRef.current = false;
+      return;
+    }
+    if (
+      captureRequestHandledRef.current ||
+      loading ||
+      !user?.id ||
+      (resumeVideo && !editId && !nativeDraftOwner) ||
+      (editId != null &&
+        loadedEditId !== editId &&
+        !(resumeVideo && editLoadFailedId === editId))
+    ) {
+      return;
+    }
+    captureRequestHandledRef.current = true;
+    const nextParams = new URLSearchParams(params);
+    nextParams.delete("resumeVideo");
+    nextParams.delete("capture");
+    nextParams.delete("nativeVideoOwner");
+    const nextSearch = nextParams.toString();
+    navigate(
+      { pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : "" },
+      { replace: true },
+    );
+    if (resumeVideo || captureAction === "video") {
+      if (nativeDraftOwner && nativeJournalVideoCaptureSupported()) {
+        openNativeDraftVideo(nativeDraftOwner);
+      } else {
+        void triggerVideo();
+      }
+    } else {
+      window.requestAnimationFrame(() => dictateRef.current?.toggle());
+    }
+  }, [
+    editId,
+    editLoadFailedId,
+    loadedEditId,
+    loading,
+    location.pathname,
+    navigate,
+    openNativeDraftVideo,
+    params,
+    triggerVideo,
+    user?.id,
+  ]);
 
   const handleVideoComplete = useCallback(
     async (result: JournalVideoCaptureResult, durationMs: number) => {
-      const entryId = editId ?? inlineEntryId;
-      if (!user?.id || !entryId) {
-        toast({ title: "Save the entry first", variant: "destructive" });
-        throw new Error("Save the journal entry before attaching this recording.");
+      if (!user?.id) {
+        throw new Error("Sign in again to attach this recording. It remains safe on this iPhone.");
+      }
+      const entryId = editId ?? inlineEntryId ?? await ensureDraftEntry();
+      if (!entryId) {
+        throw new Error(
+          "Your recording is safe on this iPhone. Connect to the internet, then tap Save video again.",
+        );
       }
       const anchorOffset = videoAnchorRef.current;
       const recordedMs = result.durationMs || durationMs;
@@ -1528,6 +1697,7 @@ export function useNewJournalEntryPage() {
           });
         }
         setVideoOpen(false);
+        setNativeVideoDraftOwnerId(null);
       } catch (e) {
         toast({
           title: "Couldn't save video",
@@ -1540,7 +1710,15 @@ export function useNewJournalEntryPage() {
         setVideoTranscribing(false);
       }
     },
-    [user?.id, editId, inlineEntryId, reloadVideos, handleBodyChange, videoAutoTitle],
+    [
+      user?.id,
+      editId,
+      inlineEntryId,
+      ensureDraftEntry,
+      reloadVideos,
+      handleBodyChange,
+      videoAutoTitle,
+    ],
   );
 
   useEffect(() => {
@@ -1662,9 +1840,13 @@ export function useNewJournalEntryPage() {
     user,
     loading,
     editId,
+    entryHydrating: Boolean(editId && loadedEditId !== editId),
+    entryLoadFailed: Boolean(editId && editLoadFailedId === editId),
     activeEntryId,
+    nativeVideoDraftOwnerId,
     navigate,
     kbInset,
+    keyboardOpen,
     vvOffsetTop,
     viewportHeight,
     inMiniPhone,
@@ -1781,6 +1963,7 @@ export function useNewJournalEntryPage() {
     useMyLocation,
     appendDictatedText,
     onDictationListeningChange,
+    dictating,
     dictationFormatting,
     handlePhotoInputChange,
     handleSketchAutosave,

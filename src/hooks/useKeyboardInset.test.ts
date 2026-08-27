@@ -9,7 +9,12 @@ describe("readVisualViewportMetricsForTest", () => {
         vvHeight: 800,
         vvOffsetTop: 0,
       }),
-    ).toEqual({ keyboardInset: 0, offsetTop: 0, viewportHeight: 800 });
+    ).toEqual({
+      keyboardOpen: false,
+      keyboardInset: 0,
+      offsetTop: 0,
+      viewportHeight: 800,
+    });
   });
 
   it("returns inset and offset when keyboard is open", () => {
@@ -19,6 +24,11 @@ describe("readVisualViewportMetricsForTest", () => {
         vvHeight: 500,
         vvOffsetTop: 44,
       }),
-    ).toEqual({ keyboardInset: 256, offsetTop: 44, viewportHeight: 500 });
+    ).toEqual({
+      keyboardOpen: true,
+      keyboardInset: 256,
+      offsetTop: 44,
+      viewportHeight: 500,
+    });
   });
 });

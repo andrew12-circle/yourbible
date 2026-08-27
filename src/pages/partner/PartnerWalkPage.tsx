@@ -5,9 +5,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, HeartHandshake, Sparkles } from "lucide-react";
+import { Home, Loader2, HeartHandshake, Sparkles } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
+import { cn } from "@/lib/utils";
 
 type Conn = {
   id: string;
@@ -32,6 +33,17 @@ type SummaryRow = {
   mood_pulse: unknown;
   generated_at: string | null;
 };
+
+function PartnerHomeLink() {
+  return (
+    <Button asChild variant="ghost" className="h-11 rounded-full px-3">
+      <Link to="/home">
+        <Home className="mr-2 h-5 w-5" aria-hidden />
+        Home
+      </Link>
+    </Button>
+  );
+}
 
 function partnerId(c: Conn, me: string): string {
   return c.user_a === me ? c.user_b : c.user_a;
@@ -110,7 +122,8 @@ export default function PartnerWalkPage() {
   if (conns.length === 0) {
     return (
       <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] app-mesh pb-safe-16")}>
-        <div className={hubShellScrollMain(showHubShell, "max-w-lg mx-auto px-5 pt-10 space-y-6")}>
+        <div className={hubShellScrollMain(showHubShell, cn("max-w-lg mx-auto px-5 pt-10 space-y-6", !showHubShell && "pt-[calc(var(--safe-area-inset-top)+2rem)]"))}>
+          {!showHubShell ? <PartnerHomeLink /> : null}
           <div className="text-center space-y-2">
             <HeartHandshake className="w-10 h-10 mx-auto text-rose-400" />
             <h1 className="font-display text-2xl text-leather">Walking together</h1>
@@ -129,7 +142,8 @@ export default function PartnerWalkPage() {
 
   return (
     <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] app-mesh pb-safe-20")}>
-      <div className={hubShellScrollMain(showHubShell, "max-w-lg mx-auto px-5 pt-8 space-y-6")}>
+      <div className={hubShellScrollMain(showHubShell, cn("max-w-lg mx-auto px-5 pt-8 space-y-6", !showHubShell && "pt-[calc(var(--safe-area-inset-top)+1.5rem)]"))}>
+        {!showHubShell ? <PartnerHomeLink /> : null}
         {conns.map((c) => {
           const peer = peerByConn.get(c.id);
           const sum = summaries[c.id];

@@ -217,8 +217,10 @@ extension JournalVideoRecorderPlugin: JournalVideoCaptureEventSink {
     }
 }
 
+@objc(HolyParkAppBridgeViewController)
 final class HolyParkAppBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
+        super.capacitorDidLoad()
         bridge?.registerPluginInstance(HolyParkNativePlugin())
         bridge?.registerPluginInstance(JournalVideoRecorderPlugin())
     }

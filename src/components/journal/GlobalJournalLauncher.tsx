@@ -7,6 +7,7 @@ import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { floatingJournalPlaybackRef } from "@/lib/journal/floatingJournalPlaybackRef";
 import { useFloatingJournalStore } from "@/lib/journal/floatingJournalStore";
 import { cn } from "@/lib/utils";
+import { Capacitor } from "@capacitor/core";
 
 function isJournalRoute(pathname: string) {
   return pathname === "/journal" || pathname.startsWith("/journal/");
@@ -38,16 +39,17 @@ export default function GlobalJournalLauncher() {
   const setLauncherTucked = useFloatingJournalStore((s) => s.setLauncherTucked);
   const routeArtifact = useFloatingJournalStore((s) => s.routeArtifact);
   const playbackCaptureAvailable = useFloatingJournalStore((s) => s.playbackCaptureAvailable);
+  const nativeApp = Capacitor.isNativePlatform();
 
-  const chromeHidden = !user || journalLauncherChromeHidden(pathname, showHubShell);
-  const showPanel = Boolean(user && panelOpen);
+  const chromeHidden = nativeApp || !user || journalLauncherChromeHidden(pathname, showHubShell);
+  const showPanel = Boolean(!nativeApp && user && panelOpen);
   const showChrome = !chromeHidden;
 
   useEffect(() => {
-    if (journalLauncherChromeHidden(pathname, showHubShell) && panelOpen && !floatingClaimResearch) {
+    if ((nativeApp || journalLauncherChromeHidden(pathname, showHubShell)) && panelOpen && !floatingClaimResearch) {
       setPanelOpen(false);
     }
-  }, [pathname, panelOpen, setPanelOpen, floatingClaimResearch, showHubShell]);
+  }, [nativeApp, pathname, panelOpen, setPanelOpen, floatingClaimResearch, showHubShell]);
 
   if (!showPanel && !showChrome) return null;
 

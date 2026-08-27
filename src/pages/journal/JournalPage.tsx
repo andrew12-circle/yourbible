@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
-import { Search } from "lucide-react";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Mic, PenLine, Search, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import JournalShell from "@/components/journal/JournalShell";
@@ -11,7 +11,6 @@ import EntryEditorPane from "@/components/journal/EntryEditorPane";
 import JournalOverviewPane from "@/components/journal/JournalOverviewPane";
 import AllEntriesOverviewPane from "@/components/journal/AllEntriesOverviewPane";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
-import JournalHandwritingScriptureNote from "@/components/journal/JournalHandwritingScriptureNote";
 import { Input } from "@/components/ui/input";
 import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import { useIsDesktop } from "@/hooks/use-desktop";
@@ -54,9 +53,11 @@ export default function JournalPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const params = useParams<{ journalId?: string; entryId?: string }>();
+  const [searchParams] = useSearchParams();
   const journalId = params.journalId ?? null;
   const entryId = params.entryId ?? null;
   const isDesktop = useIsDesktop();
+  const notesMode = searchParams.get("notes") === "1";
 
   // Desktop: 3-pane shell
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -226,7 +227,13 @@ export default function JournalPage() {
     return <MobileEntryRedirect entryId={entryId} />;
   }
 
-  return <MobileJournalList journalId={journalId} notesJournalId={notesJournalId} />;
+  return (
+    <MobileJournalList
+      journalId={journalId}
+      notesJournalId={notesJournalId}
+      notesMode={notesMode}
+    />
+  );
 }
 
 /** Resolve entry kind then open the correct mobile read/chat route. */
@@ -256,9 +263,11 @@ function MobileEntryRedirect({ entryId }: { entryId: string }) {
 function MobileJournalList({
   journalId,
   notesJournalId,
+  notesMode,
 }: {
   journalId: string | null;
   notesJournalId: string | null;
+  notesMode: boolean;
 }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -271,6 +280,18 @@ function MobileJournalList({
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const notesReturnTo = "/journal/notes";
+  const composeHref = useCallback(
+    (capture?: "video" | "dictate") => {
+      const next = new URLSearchParams();
+      if (journalId) next.set("journalId", journalId);
+      if (notesMode) next.set("returnTo", notesReturnTo);
+      if (capture) next.set("capture", capture);
+      const search = next.toString();
+      return `/journal/new${search ? `?${search}` : ""}`;
+    },
+    [journalId, notesMode],
+  );
 
   const attachPhotoUrls = useCallback(async (list: JournalEntryListRow[], merge: boolean) => {
     const ids = list.map((e) => e.id);
@@ -398,6 +419,29 @@ function MobileJournalList({
 
   return (
     <JournalShell journalId={journalId} activeTab="list" totalCount={entries.length} subtitle={JOURNAL_PURPOSE}>
+      <div className="grid grid-cols-3 gap-2 px-5 pt-3">
+        <button
+          type="button"
+          onClick={() => navigate(composeHref("video"))}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-xl bg-primary px-2 text-sm font-semibold text-primary-foreground shadow-sm active:scale-[0.98]"
+        >
+          <Video className="h-5 w-5" aria-hidden /> Video
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate(composeHref())}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-2 text-sm font-semibold active:bg-muted"
+        >
+          <PenLine className="h-5 w-5" aria-hidden /> Write
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate(composeHref("dictate"))}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-card px-2 text-sm font-semibold active:bg-muted"
+        >
+          <Mic className="h-5 w-5" aria-hidden /> Dictate
+        </button>
+      </div>
       <div className="px-5 pt-3 pb-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-muted-foreground" />
@@ -408,13 +452,6 @@ function MobileJournalList({
             className="pl-9 h-9 rounded-[10px] bg-muted/70 border-0 text-[15px] placeholder:text-muted-foreground/70 focus-visible:ring-0"
           />
         </div>
-      </div>
-
-      <div className="px-5 pb-3">
-        <JournalHandwritingScriptureNote
-          compact
-          onStart={() => navigate(`/journal/new${journalId ? `?journalId=${journalId}` : ""}`)}
-        />
       </div>
 
       {loadError && filtered.length === 0 && (
@@ -439,7 +476,7 @@ function MobileJournalList({
           </p>
           <Button
             onClick={() =>
-              navigate(`/journal/new${journalId ? `?journalId=${journalId}` : ""}`)
+              navigate(composeHref())
             }
           >
             Start journaling
@@ -449,7 +486,7 @@ function MobileJournalList({
 
       {pinned.length > 0 && (
         <section className="mb-1">
-          <h2 className="sticky top-[var(--safe-area-inset-top)] z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
+          <h2 className="sticky top-0 z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
             Pinned
           </h2>
           <div className="divide-y divide-border/40">
@@ -457,6 +494,11 @@ function MobileJournalList({
               <EntryListItem
                 key={e.id}
                 entry={{ ...e, photo_url: photoUrls[e.id], video_url: videoUrls[e.id] }}
+                href={
+                  notesMode
+                    ? `/journal/${e.id}/edit?returnTo=${encodeURIComponent(notesReturnTo)}`
+                    : undefined
+                }
                 onPin={() => handlePin(e.id, e.pinned)}
                 onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
                 onDelete={() => handleDelete(e.id)}
@@ -468,7 +510,7 @@ function MobileJournalList({
 
       {grouped.map(([month, list]) => (
         <section key={month}>
-          <h2 className="sticky top-[var(--safe-area-inset-top)] z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
+          <h2 className="sticky top-0 z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
             {formatMonth(month)}
           </h2>
           <div className="divide-y divide-border/40">
@@ -476,6 +518,11 @@ function MobileJournalList({
               <EntryListItem
                 key={e.id}
                 entry={{ ...e, photo_url: photoUrls[e.id], video_url: videoUrls[e.id] }}
+                href={
+                  notesMode
+                    ? `/journal/${e.id}/edit?returnTo=${encodeURIComponent(notesReturnTo)}`
+                    : undefined
+                }
                 onPin={() => handlePin(e.id, e.pinned)}
                 onFlag={() => handleFlag(e.id, e.analyze_for_mirror)}
                 onDelete={() => handleDelete(e.id)}

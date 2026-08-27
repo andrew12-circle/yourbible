@@ -13,15 +13,18 @@ import {
 import type { CSSProperties } from "react";
 
 export function useMobileComposerDock(showHubShell: boolean) {
-  const { keyboardInset: kbInset, offsetTop: vvOffsetTop, viewportHeight } =
-    useVisualViewportMetrics();
+  const {
+    keyboardInset: kbInset,
+    keyboardOpen,
+    offsetTop: vvOffsetTop,
+    viewportHeight,
+  } = useVisualViewportMetrics();
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
   const isTablet = useIsTablet();
   const [composerFocused, setComposerFocused] = useState(false);
   const lockScrollYRef = useRef<number | null>(null);
 
-  const keyboardOpen = kbInset > 0;
   const mobileKeyboardLayout =
     !showHubShell && (isMobile || inMiniPhone || isTablet) && keyboardOpen;
 

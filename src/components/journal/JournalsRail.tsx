@@ -44,7 +44,8 @@ interface Props {
 export default function JournalsRail({ journals, onChange, activeJournalId, inSheet, inDesk, onImportDayOne }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const notesMode = new URLSearchParams(search).get("notes") === "1";
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState(JOURNAL_COLORS[0].value);
@@ -85,24 +86,25 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
       >
         <Link
           to="/settings"
-          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           title="Settings"
+          aria-label="Settings"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="h-5 w-5" />
         </Link>
         <div className="flex items-center gap-2">
           <Link
             to="/home"
-            className="text-[11px] uppercase tracking-wider text-muted-foreground hover:text-foreground"
+            className="inline-flex h-11 min-w-11 items-center justify-center rounded-full px-3 text-sm font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             Home
           </Link>
           {inSheet ? (
             <SheetClose
-              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               aria-label="Close menu"
             >
-              <X className="w-4 h-4" />
+              <X className="h-5 w-5" />
             </SheetClose>
           ) : null}
         </div>
@@ -156,7 +158,7 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
           to="/journal/notes"
           icon={<StickyNote className="w-4 h-4" />}
           label="Notes"
-          active={pathname.startsWith("/journal/notes")}
+          active={pathname.startsWith("/journal/notes") || notesMode}
           accent="48 96% 53%"
         />
         <RailItem

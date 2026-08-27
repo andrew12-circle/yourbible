@@ -701,9 +701,9 @@ export default function TodosPage() {
 
         showHubShell,
 
-        "min-h-[100dvh] bg-background flex flex-col md:flex-row pb-[max(5rem,env(safe-area-inset-bottom))]",
+        "min-h-[100dvh] bg-background flex flex-col lg:flex-row pb-[max(5rem,env(safe-area-inset-bottom))]",
 
-        "bg-background flex flex-col md:flex-row min-h-0 h-full overflow-hidden",
+        "bg-background flex flex-col lg:flex-row min-h-0 h-full overflow-hidden",
 
       )}
 
@@ -727,7 +727,7 @@ export default function TodosPage() {
           todoMainWidthClass(layoutMode, contentWidth),
         )}
       >
-        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b px-4 py-4 space-y-3">
+        <header className="sticky top-0 z-10 space-y-3 border-b bg-background/95 py-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] backdrop-blur">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-start gap-2 min-w-0">
               {sidebarCollapsed && (
@@ -735,7 +735,7 @@ export default function TodosPage() {
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="hidden md:inline-flex h-9 w-9 shrink-0 mt-0.5"
+                  className="mt-0.5 hidden h-9 w-9 shrink-0 lg:inline-flex"
                   onClick={toggleSidebar}
                   aria-label="Expand tasks sidebar"
                 >
@@ -763,7 +763,7 @@ export default function TodosPage() {
                       setContentWidth(v);
                     }
                   }}
-                  className="hidden md:flex"
+                  className="hidden lg:flex"
                 >
                   <ToggleGroupItem
                     value="comfortable"

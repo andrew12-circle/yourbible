@@ -1,4 +1,5 @@
-import { BookOpen, Sparkles } from "lucide-react";
+import { BookOpen, Home, Sparkles } from "lucide-react";
+import { Link } from "react-router-dom";
 import { ChildrenBookCoverThumbnail } from "@/components/children-books/ChildrenBookCoverSpread";
 import type { ChildrenBook } from "@/lib/children-books/storybook";
 import { cn } from "@/lib/utils";
@@ -60,8 +61,22 @@ export function ChildrenBooksLibrary({ books, showHubShell, onSelectBook }: Chil
         showHubShell ? "h-full" : "h-[100dvh]",
       )}
     >
-      <main className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-10">
+      <main
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto px-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10",
+          showHubShell ? "pt-8" : "pt-[max(1rem,env(safe-area-inset-top))]",
+        )}
+      >
         <div className="mx-auto max-w-5xl">
+          {!showHubShell ? (
+            <Link
+              to="/home"
+              className="mb-4 inline-flex h-11 items-center gap-2 rounded-full px-3 text-sm font-semibold text-leather/80 hover:bg-black/5"
+            >
+              <Home className="h-5 w-5" aria-hidden />
+              Home
+            </Link>
+          ) : null}
           <header className="mb-8 text-center sm:mb-10">
             <div className="flex items-center justify-center gap-2 sm:gap-3">
               <Sparkles

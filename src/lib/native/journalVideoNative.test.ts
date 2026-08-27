@@ -34,10 +34,16 @@ vi.mock("@capacitor/core", () => ({
 import {
   acknowledgeNativeJournalVideoQueued,
   buildNativeJournalVideoCaptureResult,
+  createNativeJournalVideoDraftOwnerId,
   discardNativeJournalVideoCapture,
   findPendingNativeJournalVideoCapture,
   getNativeJournalVideoCapture,
   nativeJournalVideoCaptureSupported,
+  nativeJournalVideoRecoveryHref,
+  parseNativeLifeWeekVideoOwner,
+  readNativeJournalVideoDraftEntry,
+  rememberNativeJournalVideoDraftEntry,
+  isNativeJournalVideoDraftOwnerId,
   readNativeJournalVideoBlob,
   resumeNativeJournalVideoCapture,
   startNativeJournalVideoCapture,
@@ -75,6 +81,7 @@ const ready: NativeJournalVideoCaptureSnapshot = {
 };
 
 beforeEach(() => {
+  localStorage.clear();
   nativeMocks.listeners.clear();
   nativeMocks.removeListeners.clear();
   nativeMocks.isNativePlatform.mockReturnValue(true);
@@ -192,6 +199,62 @@ describe("native journal video bridge", () => {
     await expect(
       findPendingNativeJournalVideoCapture(undefined),
     ).resolves.toBeNull();
+  });
+
+  it("creates a recovery deep link only for an exact-user journal entry", () => {
+    const capture = {
+      ...ready,
+      userId: "user-1",
+      entryId: "6cd9c431-adca-489a-a564-328a2cc4f0dd",
+    };
+    expect(nativeJournalVideoRecoveryHref(capture, "user-1")).toBe(
+      "/journal/6cd9c431-adca-489a-a564-328a2cc4f0dd/edit?resumeVideo=1",
+    );
+    expect(nativeJournalVideoRecoveryHref(capture, "user-2")).toBeNull();
+    expect(
+      nativeJournalVideoRecoveryHref(
+        { ...capture, entryId: "life-week:self:123" },
+        "user-1",
+      ),
+    ).toBe("/life-weeks?resumeLifeWeekVideo=life-week%3Aself%3A123");
+    expect(
+      nativeJournalVideoRecoveryHref(
+        { ...capture, entryId: "journal-draft:native-local-session-1" },
+        "user-1",
+      ),
+    ).toBe(
+      "/journal/new?resumeVideo=1&nativeVideoOwner=journal-draft%3Anative-local-session-1",
+    );
+    expect(nativeJournalVideoRecoveryHref({ ...capture, entryId: "unknown-owner" }, "user-1"))
+      .toBeNull();
+  });
+
+  it("creates a validated owner for an offline native journal draft", () => {
+    const owner = createNativeJournalVideoDraftOwnerId();
+    expect(isNativeJournalVideoDraftOwnerId(owner)).toBe(true);
+    expect(isNativeJournalVideoDraftOwnerId("journal-draft:../../other-user")).toBe(false);
+  });
+
+  it("remembers the server entry bound to a local native draft", () => {
+    const owner = "journal-draft:native-local-session-1";
+    const entryId = "6cd9c431-adca-489a-a564-328a2cc4f0dd";
+    expect(rememberNativeJournalVideoDraftEntry("user-1", owner, entryId)).toBe(true);
+    expect(readNativeJournalVideoDraftEntry("user-1", owner)).toBe(entryId);
+    expect(readNativeJournalVideoDraftEntry("user-2", owner)).toBeNull();
+    expect(
+      nativeJournalVideoRecoveryHref({ ...ready, userId: "user-1", entryId: owner }, "user-1"),
+    ).toBe(
+      `/journal/${entryId}/edit?resumeVideo=1&nativeVideoOwner=journal-draft%3Anative-local-session-1`,
+    );
+  });
+
+  it("strictly parses a native Life Week owner", () => {
+    expect(parseNativeLifeWeekVideoOwner("life-week:self:123")).toEqual({
+      subject: "self",
+      weekIndex: 123,
+    });
+    expect(parseNativeLifeWeekVideoOwner("life-week:self:-1")).toBeNull();
+    expect(parseNativeLifeWeekVideoOwner("life-week:self:1:other")).toBeNull();
   });
 
   it("converts the file URL and fetches a Blob without base64", async () => {

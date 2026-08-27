@@ -247,9 +247,10 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
         onClick={onBackToLibrary}
         aria-label="Back to library"
         className={cn(
-          "absolute left-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-full",
-          "text-leather/50 opacity-0 transition hover:bg-white/60 hover:text-leather",
-          "group-hover/reader:opacity-100 focus-visible:opacity-100",
+          "absolute left-3 z-30 flex h-11 w-11 items-center justify-center rounded-full",
+          showHubShell ? "top-3" : "top-[calc(var(--safe-area-inset-top)+0.5rem)]",
+          "text-leather/60 transition hover:bg-white/60 hover:text-leather",
+          compactChrome ? "opacity-100" : "opacity-0 group-hover/reader:opacity-100 focus-visible:opacity-100",
         )}
       >
         <Library className="h-4 w-4" aria-hidden />
@@ -262,9 +263,10 @@ export function ChildrenBookReader({ book, showHubShell, onBackToLibrary }: Chil
             onClick={openIllustration}
             aria-label="Illustration tools for this page"
             className={cn(
-              "absolute right-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-full",
-              "text-leather/50 opacity-0 transition hover:bg-white/60 hover:text-leather",
-              "group-hover/reader:opacity-100 focus-visible:opacity-100",
+              "absolute right-3 z-30 flex h-11 w-11 items-center justify-center rounded-full",
+              showHubShell ? "top-3" : "top-[calc(var(--safe-area-inset-top)+0.5rem)]",
+              "text-leather/60 transition hover:bg-white/60 hover:text-leather",
+              compactChrome ? "opacity-100" : "opacity-0 group-hover/reader:opacity-100 focus-visible:opacity-100",
             )}
           >
             <ImageIcon className="h-4 w-4" aria-hidden />

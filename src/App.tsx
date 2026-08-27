@@ -10,6 +10,8 @@ import AppRouteFallback from "@/components/AppRouteFallback";
 import OfflineBanner from "@/components/OfflineBanner";
 import { PwaResumeManager } from "@/components/PwaResumeManager";
 import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
+import { NativeBootstrap } from "@/components/native/NativeBootstrap";
+import { NativeJournalVideoRecoveryBanner } from "@/components/journal/NativeJournalVideoRecoveryBanner";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { GlobalMediaPlayerProvider } from "@/contexts/GlobalMediaPlayerContext";
@@ -121,6 +123,7 @@ const App = () => (
           <Sonner />
           <PwaUpdatePrompt />
           <BrowserRouter>
+            <NativeBootstrap />
             <PwaResumeManager />
             <AppOfflineBanner />
             <AuthProvider>
@@ -128,6 +131,7 @@ const App = () => (
               <LifeWeekReviewProvider>
               <JournalVideoLaunchProvider>
               <ThemeSwitcher />
+              <NativeJournalVideoRecoveryBanner />
               <Suspense fallback={<AppRouteFallback />}>
                 <Routes>
                 <Route path="/" element={<Index />} />

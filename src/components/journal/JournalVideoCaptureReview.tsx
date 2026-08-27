@@ -11,6 +11,7 @@ type Props = {
   durationMs: number;
   onRetake: () => void;
   onConfirm: () => void;
+  onKeepForLater?: () => void;
   confirming?: boolean;
   confirmLabel?: string;
   reviewHint?: string;
@@ -23,6 +24,7 @@ export function JournalVideoCaptureReview({
   durationMs,
   onRetake,
   onConfirm,
+  onKeepForLater,
   confirming = false,
   confirmLabel = "Save video",
   reviewHint,
@@ -131,6 +133,17 @@ export function JournalVideoCaptureReview({
           >
             {saveError} Your recording is still here. Tap {confirmLabel} to retry.
           </p>
+        ) : null}
+        {onKeepForLater ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="min-h-11 w-full"
+            onClick={onKeepForLater}
+            disabled={confirming}
+          >
+            Keep for later
+          </Button>
         ) : null}
         <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
           <Button

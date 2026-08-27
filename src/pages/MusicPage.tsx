@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate } from "react-router-dom";
-import { Music2, Pause, Play, Radio, X } from "lucide-react";
+import { Link, Navigate } from "react-router-dom";
+import { ChevronLeft, Music2, Pause, Play, Radio, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,9 +48,18 @@ export default function MusicPage() {
   if (!user) return <Navigate to="/auth" replace />;
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 pb-safe-28">
+    <div className="mx-auto min-h-[100dvh] w-full max-w-4xl px-4 pb-safe-28 pt-[calc(var(--safe-area-inset-top)+1rem)]">
       <header className="mb-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Music</h1>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/home"
+            className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Back to home"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Link>
+          <h1 className="text-2xl font-semibold tracking-tight">Music</h1>
+        </div>
         <p className="mt-1 text-sm text-muted-foreground">
           Pick a station or paste a link — it keeps playing while you use the app, floating in the corner
           until you come back here.
@@ -75,7 +84,7 @@ export default function MusicPage() {
                 type="button"
                 size="icon"
                 variant="secondary"
-                className="h-10 w-10 shrink-0 rounded-full"
+                className="h-11 w-11 shrink-0 rounded-full"
                 onClick={() => setPlaying(!playing)}
                 aria-label={playing ? "Pause" : "Play"}
               >
@@ -86,7 +95,7 @@ export default function MusicPage() {
               type="button"
               size="icon"
               variant="ghost"
-              className="h-10 w-10 shrink-0"
+              className="h-11 w-11 shrink-0"
               onClick={stop}
               aria-label="Stop music"
             >

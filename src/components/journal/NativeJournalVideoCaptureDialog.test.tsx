@@ -138,7 +138,11 @@ describe("NativeJournalVideoCaptureDialog", () => {
       }),
     );
     expect(onRecordingStart).toHaveBeenCalledOnce();
-    expect(nativeMocks.readBlob).toHaveBeenCalledWith(ready);
+    expect(nativeMocks.readBlob).toHaveBeenCalledWith(
+      ready,
+      expect.any(Function),
+      expect.any(AbortSignal),
+    );
   });
 
   it("acknowledges the native source only after onComplete durably succeeds", async () => {

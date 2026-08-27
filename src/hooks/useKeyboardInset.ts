@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Capacitor } from "@capacitor/core";
+import {
+  readNativeKeyboardState,
+  subscribeNativeKeyboardState,
+} from "@/lib/native/nativeKeyboard";
 
 export type VisualViewportMetrics = {
+  /** Whether the keyboard is open, including native-resize mode where no overlay inset is needed. */
+  keyboardOpen: boolean;
   /** Height occluded by the on-screen keyboard (px). */
   keyboardInset: number;
   /** Visual viewport offset from layout top — non-zero when iOS shifts content for the keyboard. */
@@ -17,6 +24,7 @@ export function readVisualViewportMetricsForTest(layout: {
   const diff = layout.innerHeight - layout.vvHeight - layout.vvOffsetTop;
   const keyboardOpen = diff > 40;
   return {
+    keyboardOpen,
     keyboardInset: keyboardOpen ? diff : 0,
     offsetTop: keyboardOpen ? Math.max(0, layout.vvOffsetTop) : 0,
     viewportHeight: layout.vvHeight,
@@ -27,7 +35,7 @@ function readVisualViewportMetrics(): VisualViewportMetrics {
   const vv = typeof window !== "undefined" ? window.visualViewport : null;
   if (!vv) {
     const h = typeof window !== "undefined" ? window.innerHeight : 0;
-    return { keyboardInset: 0, offsetTop: 0, viewportHeight: h };
+    return { keyboardOpen: false, keyboardInset: 0, offsetTop: 0, viewportHeight: h };
   }
   return readVisualViewportMetricsForTest({
     innerHeight: window.innerHeight,
@@ -42,6 +50,11 @@ function readVisualViewportMetrics(): VisualViewportMetrics {
  */
 export function useVisualViewportMetrics(): VisualViewportMetrics {
   const [metrics, setMetrics] = useState<VisualViewportMetrics>(() => readVisualViewportMetrics());
+  const nativeKeyboard = useSyncExternalStore(
+    subscribeNativeKeyboardState,
+    readNativeKeyboardState,
+    readNativeKeyboardState,
+  );
 
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
@@ -57,7 +70,16 @@ export function useVisualViewportMetrics(): VisualViewportMetrics {
     };
   }, []);
 
-  return metrics;
+  if (!Capacitor.isNativePlatform()) return metrics;
+
+  // Capacitor's native resize mode already shrinks the WebView. Keep the open
+  // signal, but do not translate fixed docks by the reported keyboard height.
+  return {
+    ...metrics,
+    keyboardOpen: nativeKeyboard.open,
+    keyboardInset: 0,
+    offsetTop: 0,
+  };
 }
 
 /**

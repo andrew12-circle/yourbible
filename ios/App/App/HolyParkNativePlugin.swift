@@ -71,9 +71,3 @@ public final class HolyParkNativePlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 }
-
-final class HolyParkBridgeViewController: CAPBridgeViewController {
-    override func capacitorDidLoad() {
-        bridge?.registerPluginInstance(HolyParkNativePlugin())
-    }
-}

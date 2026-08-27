@@ -3,6 +3,7 @@ import {
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users, CircleHelp,
   Sunrise, Grid3X3, HandHeart, Images,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
@@ -30,6 +31,31 @@ export type HomeDashboardCounts = {
   journalToday: number;
   prayerWaiting: number;
 };
+
+const MOBILE_HOME_PRIORITY = [
+  "Video journal",
+  "Journal",
+  "Bible",
+  "Morning formula",
+  "My AI",
+  "Daily",
+  "Prayer",
+  "Tasks",
+  "Life Manual",
+] as const;
+
+/** Keep the primary iPhone workflows on page one without deleting secondary tools. */
+export function prioritizeMobileHomeApps(apps: HomeAppIcon[]): HomeAppIcon[] {
+  const priority = new Map(MOBILE_HOME_PRIORITY.map((label, index) => [label, index]));
+  return apps
+    .map((app, index) => ({ app, index }))
+    .sort((a, b) => {
+      const aPriority = priority.get(a.app.label) ?? Number.POSITIVE_INFINITY;
+      const bPriority = priority.get(b.app.label) ?? Number.POSITIVE_INFINITY;
+      return aPriority - bPriority || a.index - b.index;
+    })
+    .map(({ app }) => app);
+}
 
 export function getBibleRoute(): string {
   const lastRead = typeof window !== "undefined" ? localStorage.getItem(LAST_READ_KEY) : null;
@@ -82,6 +108,13 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     { label: "Mind map", to: "/framework/graph", icon: Share2, color: IOS_APP_BG.graph, ariaLabel: "Mind map — unified graph of notes, videos, beliefs" },
     { label: "Beliefs", to: "/framework/beliefs", icon: Network, color: IOS_APP_BG.beliefs, badge: counts.beliefs || undefined },
     { label: "Influences", to: "/framework/influences", icon: Users, color: IOS_APP_BG.influences },
+    {
+      label: "Video journal",
+      to: "/journal/new?capture=video",
+      icon: Video,
+      color: IOS_APP_BG.journal,
+      ariaLabel: "Start a video journal",
+    },
     { label: "Journal", to: "/journal", icon: NotebookPen, color: IOS_APP_BG.journal, badge: promptBadge },
     {
       label: "Prayer",

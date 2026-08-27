@@ -69,6 +69,7 @@ export function NewJournalEntryToolbar({
   onMore,
   chatDisabled,
   videoDisabled,
+  dictating,
 }: {
   onPhotos: () => void;
   onWrite: () => void;
@@ -78,6 +79,7 @@ export function NewJournalEntryToolbar({
   onMore: () => void;
   chatDisabled?: boolean;
   videoDisabled?: boolean;
+  dictating?: boolean;
 }) {
   return (
     <JournalEntryDockShell>
@@ -90,7 +92,12 @@ export function NewJournalEntryToolbar({
           onClick={onVideo}
           disabled={videoDisabled}
         />
-        <ToolbarTile icon={<Mic className="w-5 h-5" />} label="Audio" onClick={onAudio} />
+        <ToolbarTile
+          icon={<Mic className={cn("w-5 h-5", dictating && "animate-pulse")} />}
+          label={dictating ? "Stop" : "Dictate"}
+          onClick={onAudio}
+          accent={dictating}
+        />
         <ToolbarTile
           icon={<MessageCircle className="w-5 h-5" />}
           label="Chat AI"

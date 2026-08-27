@@ -14,9 +14,9 @@ type Props = {
 
 function composeMapHeight(inMiniPhone: boolean, isMobile: boolean, docked: boolean): number {
   if (docked) {
-    if (inMiniPhone) return 140;
-    if (isMobile) return 160;
-    return 168;
+    if (inMiniPhone) return 104;
+    if (isMobile) return 120;
+    return 144;
   }
   if (inMiniPhone) return 180;
   if (isMobile) return Math.min(320, Math.max(220, Math.round(window.innerHeight * 0.28)));

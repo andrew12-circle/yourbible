@@ -145,7 +145,7 @@ export default function JournalShell({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
-            className="p-2 rounded-full hover:bg-white/15"
+            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15"
             aria-label="More"
           >
             {exporting ? (
@@ -199,7 +199,7 @@ export default function JournalShell({
         )}
         {/* Mobile rail in sheet */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetContent side="left" className="w-72 p-0 [&>button]:hidden" style={{ padding: 0 }}>
+          <SheetContent side="left" className="w-72 p-0 [&>button]:hidden">
             <JournalsRail
               journals={journals}
               activeJournalId={journalId}
@@ -226,7 +226,9 @@ export default function JournalShell({
                     "journal-pane-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch]",
                     footer
                       ? "pb-3"
-                      : "pb-[calc(4.5rem+var(--safe-area-inset-bottom))]",
+                      : showHubShell
+                        ? "pb-[4.5rem]"
+                        : "pb-[calc(4.5rem+var(--safe-area-inset-bottom))]",
                   )
                 : "pb-[calc(8rem+var(--safe-area-inset-bottom))]",
             )}
@@ -259,7 +261,9 @@ export default function JournalShell({
           "w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform z-40",
           inMiniPhone
             ? "absolute bottom-[calc(var(--safe-area-inset-bottom)+3.25rem)] right-5"
-            : "fixed bottom-[calc(var(--safe-area-inset-bottom)+1.75rem)] right-7",
+            : showHubShell
+              ? "absolute bottom-5 right-5"
+              : "fixed bottom-[calc(var(--safe-area-inset-bottom)+1.75rem)] right-7",
         )}
         style={{ background: fabColor, boxShadow: `0 12px 28px -8px ${fabColor}` }}
         aria-label="New entry"

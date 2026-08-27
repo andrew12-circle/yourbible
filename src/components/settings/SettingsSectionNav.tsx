@@ -122,7 +122,7 @@ export function SettingsPageHeader({
   return (
     <div className="flex min-w-0 items-center gap-3">
       {showBack ? (
-        <Button variant="ghost" size="icon" asChild className="md:hidden shrink-0">
+        <Button variant="ghost" size="icon" asChild className="h-11 w-11 shrink-0 lg:hidden">
           <Link to="/home" aria-label="Back to home">
             <ChevronLeft className="h-5 w-5" />
           </Link>
@@ -132,16 +132,16 @@ export function SettingsPageHeader({
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
           <Settings className="h-4 w-4 text-muted-foreground" />
         </div>
-        <div className="min-w-0 md:hidden">
+        <div className="min-w-0 lg:hidden">
           <h1 className="truncate text-base font-semibold">{activeSection.label}</h1>
           <p className="truncate text-xs text-muted-foreground">{activeSection.description}</p>
         </div>
-        <div className="min-w-0 hidden md:block">
+        <div className="hidden min-w-0 lg:block">
           <h1 className="truncate text-sm font-semibold">Settings</h1>
           <p className="truncate text-xs text-muted-foreground">Profile, reader, and integrations</p>
         </div>
       </div>
-      <div className="ml-auto hidden md:flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="ml-auto hidden items-center gap-2 text-xs text-muted-foreground lg:flex">
         <Icon className={cn("h-3.5 w-3.5", activeSection.accent)} />
         <span>{activeSection.label}</span>
       </div>

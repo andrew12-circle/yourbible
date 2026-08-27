@@ -10,7 +10,18 @@ import sharp from "sharp";
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = path.join(root, "public");
 const sourcePng = path.join(publicDir, "app-icon-source.png");
+const iosAssetsDir = path.join(root, "ios", "App", "App", "Assets.xcassets");
+const iosAppIcon = path.join(iosAssetsDir, "AppIcon.appiconset", "AppIcon-512@2x.png");
+const iosSplashDir = path.join(iosAssetsDir, "Splash.imageset");
 const vectorTargets = ["app-icon.svg", "favicon.svg", "icon.svg"];
+const nativeSplashTargets = [
+  "Default@1x~universal~anyany.png",
+  "Default@2x~universal~anyany.png",
+  "Default@3x~universal~anyany.png",
+  "Default@1x~universal~anyany-dark.png",
+  "Default@2x~universal~anyany-dark.png",
+  "Default@3x~universal~anyany-dark.png",
+];
 
 const rasterTargets = [
   { name: "app-icon-512.png", size: 512 },
@@ -44,6 +55,44 @@ async function writeEmbeddedSvg(outPath) {
   fs.writeFileSync(outPath, svg);
 }
 
+async function renderNativeAssets() {
+  // Apple supplies the final icon mask. Crop beyond the rounded source edge so
+  // the native bitmap is full bleed and cannot show white corner halos.
+  await sharp(sourcePng)
+    .extract({ left: 96, top: 96, width: 832, height: 832 })
+    .resize(1024, 1024, { fit: "fill" })
+    .png()
+    .toFile(iosAppIcon);
+
+  const markSize = 720;
+  const markMask = Buffer.from(
+    `<svg width="${markSize}" height="${markSize}"><circle cx="${markSize / 2}" cy="${markSize / 2}" r="${markSize / 2}" fill="white"/></svg>`,
+  );
+  const mark = await sharp(sourcePng)
+    .extract({ left: 144, top: 144, width: 736, height: 736 })
+    .resize(markSize, markSize)
+    .ensureAlpha()
+    .composite([{ input: markMask, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+  const splash = await sharp({
+    create: {
+      width: 2732,
+      height: 2732,
+      channels: 4,
+      background: "#0f172a",
+    },
+  })
+    .composite([{ input: mark, gravity: "center" }])
+    .png()
+    .toBuffer();
+
+  for (const name of nativeSplashTargets) {
+    fs.writeFileSync(path.join(iosSplashDir, name), splash);
+  }
+  console.log("wrote native iOS app icon and splash assets");
+}
+
 async function main() {
   if (!fs.existsSync(sourcePng)) {
     throw new Error("Missing public/app-icon-source.png (master app icon)");
@@ -63,6 +112,8 @@ async function main() {
     await writeEmbeddedSvg(path.join(publicDir, name));
     console.log("wrote", name);
   }
+
+  await renderNativeAssets();
 }
 
 main().catch((err) => {

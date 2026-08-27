@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { needsOnboarding } from "@/lib/auth/onboardingGate";
 import {
   LIFE_WEEK_REVIEW_MAX_DISMISSALS,
+  buildPendingLifeWeekReview,
   emptyClosedWeekIndicesBySubject,
   listClosedLifeWeekIndicesBySubject,
   resolvePendingLifeWeekReviews,
@@ -22,7 +23,10 @@ import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import { saveJournalVideoCaptureWithQueue } from "@/lib/journal/journalVideoUploadProcessor";
 import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
-import { acknowledgeNativeJournalVideoQueued } from "@/lib/native/journalVideoNative";
+import {
+  acknowledgeNativeJournalVideoQueued,
+  parseNativeLifeWeekVideoOwner,
+} from "@/lib/native/journalVideoNative";
 
 export type LifeWeekReviewVideoCapture = {
   result: JournalVideoCaptureResult;
@@ -62,6 +66,8 @@ type LifeWeekReviewContextValue = {
   ) => void;
   completeReview: (reflection: string, video?: LifeWeekReviewVideoCapture) => Promise<void>;
   dismissPendingReview: () => void;
+  openNativeVideoReview: (ownerId: string) => boolean;
+  nativeVideoReviewOwnerId: string | null;
   saving: boolean;
   refresh: () => Promise<void>;
 };
@@ -86,6 +92,8 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
   );
   const [sessionDismissedKeys, setSessionDismissedKeys] = useState<Set<string>>(() => new Set());
   const [draftsByKey, setDraftsByKey] = useState<Record<string, LifeWeekReviewDraft>>({});
+  const [forcedReview, setForcedReview] = useState<PendingLifeWeekReview | null>(null);
+  const [nativeVideoReviewOwnerId, setNativeVideoReviewOwnerId] = useState<string | null>(null);
 
   const getDraft = useCallback(
     (subject: LifeWeekReviewSubject, weekIndex: number): LifeWeekReviewDraft => {
@@ -145,6 +153,8 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       setDismissCountsByKey({});
       setSessionDismissedKeys(new Set());
       setDraftsByKey({});
+      setForcedReview(null);
+      setNativeVideoReviewOwnerId(null);
       return;
     }
     setDismissCountsByKey(localListLifeWeekReviewDismissCounts(userId));
@@ -191,7 +201,24 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     });
   }, [enabled, reviewPeople, closedWeekIndicesBySubject, sessionDismissedKeys, dismissCountsByKey, userId]);
 
-  const pendingReview = pendingReviews[0] ?? null;
+  const openNativeVideoReview = useCallback((ownerId: string): boolean => {
+    const parsed = parseNativeLifeWeekVideoOwner(ownerId);
+    if (!parsed) return false;
+    const person = reviewPeople.find((item) => item.subject === parsed.subject);
+    if (!person) return false;
+    const review = buildPendingLifeWeekReview(
+      person.birthIso,
+      parsed.weekIndex,
+      person.subject,
+      person.personName,
+    );
+    if (!review) return false;
+    setForcedReview(review);
+    setNativeVideoReviewOwnerId(ownerId);
+    return true;
+  }, [reviewPeople]);
+
+  const pendingReview = forcedReview ?? pendingReviews[0] ?? null;
 
   const pendingReviewDismissalsLeft = useMemo(() => {
     if (!userId || !pendingReview) return 0;
@@ -209,14 +236,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
           : "";
         const finalReflection = reflection.trim() || transcriptFromVideo || "(Video week reflection)";
 
-        await saveLifeWeekReview(
-          userId,
-          pendingReview.subject,
-          pendingReview.weekIndex,
-          pendingReview.weekStart,
-          finalReflection,
-        );
-        const journalResult = await syncLifeWeekReviewToJournal(userId, {
+        const journalContext = {
           subject: pendingReview.subject,
           personName: pendingReview.personName,
           weekIndex: pendingReview.weekIndex,
@@ -224,15 +244,15 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
           weekRangeLabel: pendingReview.weekRangeLabel,
           weekStart: pendingReview.weekStart,
           reflection: finalReflection,
-        }).catch((error) => {
-          if (video) throw error;
-          return null;
-        });
-
-        if (video && !journalResult?.entryId) {
-          throw new Error("The week review was saved, but its journal entry was not ready for video yet.");
-        }
-        if (video && journalResult?.entryId) {
+        };
+        if (video) {
+          // The week does not close until both its journal entry and video queue
+          // receipt are durable. A call, upload error, or app restart can retry
+          // this idempotently without making the prompt disappear first.
+          const journalResult = await syncLifeWeekReviewToJournal(userId, journalContext);
+          if (!journalResult?.entryId) {
+            throw new Error("The week review journal entry was not ready for video yet.");
+          }
           await saveJournalVideoCaptureWithQueue({
             userId,
             entryId: journalResult.entryId,
@@ -240,6 +260,21 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
             durationMs: video.durationMs,
             anchorOffset: 0,
           });
+        }
+
+        await saveLifeWeekReview(
+          userId,
+          pendingReview.subject,
+          pendingReview.weekIndex,
+          pendingReview.weekStart,
+          finalReflection,
+        );
+
+        if (!video) {
+          await syncLifeWeekReviewToJournal(userId, journalContext).catch(() => null);
+        }
+
+        if (video) {
           if (video.result.nativeCaptureId) {
             try {
               await acknowledgeNativeJournalVideoQueued(video.result.nativeCaptureId);
@@ -260,6 +295,8 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
           return next;
         });
         clearDraft(pendingReview.subject, pendingReview.weekIndex);
+        setForcedReview(null);
+        setNativeVideoReviewOwnerId(null);
       } finally {
         setSaving(false);
       }
@@ -269,6 +306,14 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
 
   const dismissPendingReview = useCallback(() => {
     if (!userId || !pendingReview) return;
+    if (
+      forcedReview?.subject === pendingReview.subject &&
+      forcedReview.weekIndex === pendingReview.weekIndex
+    ) {
+      setForcedReview(null);
+      setNativeVideoReviewOwnerId(null);
+      return;
+    }
     const key = lifeWeekReviewDismissKey(pendingReview.subject, pendingReview.weekIndex);
     const nextCount = localIncrementLifeWeekReviewDismissCount(
       userId,
@@ -279,7 +324,7 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
     if (nextCount < LIFE_WEEK_REVIEW_MAX_DISMISSALS) {
       setSessionDismissedKeys((prev) => new Set([...prev, key]));
     }
-  }, [userId, pendingReview]);
+  }, [forcedReview, userId, pendingReview]);
 
   const value = useMemo(
     () => ({
@@ -287,12 +332,14 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       closedWeekIndicesBySubject,
       closedWeekIndices: closedWeekIndicesBySubject.self,
       pendingReview,
-      pendingReviewCount: pendingReviews.length,
+      pendingReviewCount: forcedReview ? Math.max(1, pendingReviews.length) : pendingReviews.length,
       pendingReviewDismissalsLeft,
       getDraft,
       patchDraft,
       completeReview,
       dismissPendingReview,
+      openNativeVideoReview,
+      nativeVideoReviewOwnerId,
       saving,
       refresh,
     }),
@@ -301,11 +348,14 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
       closedWeekIndicesBySubject,
       pendingReview,
       pendingReviews.length,
+      forcedReview,
       pendingReviewDismissalsLeft,
       getDraft,
       patchDraft,
       completeReview,
       dismissPendingReview,
+      openNativeVideoReview,
+      nativeVideoReviewOwnerId,
       saving,
       refresh,
     ],

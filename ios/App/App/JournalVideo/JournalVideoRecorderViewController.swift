@@ -25,6 +25,8 @@ final class JournalVideoPreviewView: UIView {
 final class JournalVideoRecorderViewController: UIViewController {
     weak var delegate: JournalVideoRecorderViewControllerDelegate?
 
+    override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
+
     private let previewView = JournalVideoPreviewView()
     private let closeButton = UIButton(type: .system)
     private let switchButton = UIButton(type: .system)

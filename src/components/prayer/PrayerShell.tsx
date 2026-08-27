@@ -30,15 +30,30 @@ export default function PrayerShell({
   const { pathname } = useLocation();
   const { showHubShell } = useAppShellMode();
   const contentWidth = wide ? "max-w-none" : "max-w-3xl";
-  const contentPad = wide ? "px-4 lg:px-6" : "px-4";
+  const contentPad = wide
+    ? "pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))]"
+    : "pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]";
 
   return (
-    <div className={cn(hubShellPageRoot(showHubShell), "flex min-h-0 flex-1 flex-col")}>
-      <header className="shrink-0 border-b border-border/60 bg-background/95 backdrop-blur-sm">
+    <div
+      className={cn(
+        hubShellPageRoot(
+          showHubShell,
+          "h-[100dvh] min-h-[100dvh] overflow-hidden bg-background",
+        ),
+        "flex min-h-0 flex-1 flex-col",
+      )}
+    >
+      <header
+        className={cn(
+          "shrink-0 border-b border-border/60 bg-background/95 backdrop-blur-sm",
+          !showHubShell && "pt-[var(--safe-area-inset-top)]",
+        )}
+      >
         <div className={cn("mx-auto flex w-full items-center gap-3 py-3", contentWidth, contentPad)}>
           <Link
             to={back}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Back"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -58,7 +73,7 @@ export default function PrayerShell({
                   key={tab.to}
                   to={tab.to}
                   className={cn(
-                    "inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm font-medium transition",
+                    "inline-flex min-h-11 items-center justify-center rounded-full px-3 py-1.5 text-sm font-medium transition",
                     active
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",

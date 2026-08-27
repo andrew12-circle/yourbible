@@ -52,11 +52,16 @@ export default function TodosSidebar({
   return (
     <aside
       className={cn(
-        "md:w-56 shrink-0 border-b md:border-b-0 md:border-r bg-card/50",
-        collapsed && "md:hidden",
+        "shrink-0 border-b bg-card/50 lg:w-56 lg:border-b-0 lg:border-r",
+        collapsed && "lg:hidden",
       )}
     >
-      <div className="flex items-center gap-2 px-3 py-3 border-b md:border-0">
+      <div
+        className={cn(
+          "flex items-center gap-2 border-b pb-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] lg:border-0 lg:pt-3",
+          showHubShell ? "pt-3" : "pt-[max(0.75rem,env(safe-area-inset-top))]",
+        )}
+      >
         {!showHubShell && (
           <Button variant="ghost" size="icon" asChild className="shrink-0">
             <Link to="/home" aria-label="Back to home">
@@ -72,7 +77,7 @@ export default function TodosSidebar({
           type="button"
           variant="ghost"
           size="icon"
-          className="hidden md:inline-flex h-8 w-8 shrink-0"
+          className="hidden h-8 w-8 shrink-0 lg:inline-flex"
           onClick={onToggleCollapse}
           aria-label="Collapse tasks sidebar"
         >
@@ -80,7 +85,7 @@ export default function TodosSidebar({
         </Button>
       </div>
 
-      <nav className="flex md:flex-col gap-1 p-2 overflow-x-auto md:overflow-visible scrollbar-hide">
+      <nav className="flex gap-1 overflow-x-auto py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] scrollbar-hide lg:flex-col lg:overflow-visible">
         <ViewTab
           active={view === "inbox"}
           onClick={() => onViewChange("inbox")}
@@ -149,7 +154,7 @@ export default function TodosSidebar({
         <Button
           variant="ghost"
           size="sm"
-          className="shrink-0 md:w-full justify-start gap-2"
+          className="shrink-0 justify-start gap-2 lg:w-full"
           onClick={onNewList}
         >
           <Plus className="w-4 h-4" />
@@ -162,7 +167,7 @@ export default function TodosSidebar({
 
 function SidebarDivider({ label }: { label: string }) {
   return (
-    <div className="hidden md:flex w-full items-center gap-2 px-2 my-2">
+    <div className="my-2 hidden w-full items-center gap-2 px-2 lg:flex">
       <div className="h-px flex-1 bg-border" />
       <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
       <div className="h-px flex-1 bg-border" />
@@ -190,7 +195,7 @@ function ViewTab({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition shrink-0 md:w-full",
+        "flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition lg:w-full",
         active ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary",
       )}
     >

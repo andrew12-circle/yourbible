@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { homeIndicatorHidden } from "@/lib/shell/homeIndicatorRoutes";
+import { Capacitor } from "@capacitor/core";
 
 /**
  * iOS-style home indicator pill, fixed to the bottom of the screen.
@@ -11,7 +12,7 @@ export default function HomeIndicator() {
   const { pathname } = useLocation();
   const { showHubShell } = useAppShellMode();
 
-  const hidden = homeIndicatorHidden(pathname, showHubShell);
+  const hidden = Capacitor.isNativePlatform() || homeIndicatorHidden(pathname, showHubShell);
 
   if (hidden) return null;
 

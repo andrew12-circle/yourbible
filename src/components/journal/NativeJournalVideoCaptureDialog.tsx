@@ -34,6 +34,7 @@ import {
   type NativeJournalVideoCaptureOwner,
   type NativeJournalVideoCaptureSnapshot,
 } from "@/lib/native/journalVideoNative";
+import { acquireNativeDarkStatusSurface } from "@/lib/native/nativeStatusBar";
 
 type NativeDialogPhase =
   | "starting"
@@ -122,6 +123,11 @@ export function NativeJournalVideoCaptureDialog({
   ]);
   const ownerKey = `${owner?.userId ?? ""}:${owner?.entryId ?? ""}`;
 
+  useEffect(() => {
+    if (!open) return;
+    return acquireNativeDarkStatusSurface();
+  }, [open]);
+
   const closeAndKeepDraft = useCallback(() => {
     abortRef.current?.abort();
     callbacksRef.current.onOpenChange(false);
@@ -157,6 +163,10 @@ export function NativeJournalVideoCaptureDialog({
 
   useEffect(() => {
     if (!open || defaultMode === "screen") return;
+    if (pendingReview) {
+      setPhase("review");
+      return;
+    }
     let disposed = false;
     const controller = new AbortController();
     abortRef.current?.abort();
@@ -232,7 +242,7 @@ export function NativeJournalVideoCaptureDialog({
         if (disposed) return;
         setCapture(ready);
         setPhase("materializing");
-        const video = await readNativeJournalVideoBlob(ready);
+        const video = await readNativeJournalVideoBlob(ready, fetch, controller.signal);
         if (isJournalVideoUploadTooLarge(video.size)) {
           throw new Error(journalVideoUploadTooLargeMessage(ready.durationMs ?? 0, video.size));
         }
@@ -272,6 +282,7 @@ export function NativeJournalVideoCaptureDialog({
     open,
     owner,
     ownerKey,
+    pendingReview,
     recovery?.anchorOffset,
     recovery?.entryId,
     recovery?.userId,
@@ -328,13 +339,13 @@ export function NativeJournalVideoCaptureDialog({
       onOpenChange(true);
       return;
     }
-    if (phase === "review" || phase === "saving" || phase === "materializing") return;
+    if (phase === "saving") return;
     closeAndKeepDraft();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="inset-0 flex h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col rounded-none p-0 sm:left-1/2 sm:top-1/2 sm:h-auto sm:max-h-[90dvh] sm:max-w-3xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg">
+      <DialogContent hideCloseButton className="inset-0 flex h-[100dvh] max-h-none w-full max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none p-0 lg:left-1/2 lg:top-1/2 lg:h-auto lg:max-h-[90dvh] lg:max-w-3xl lg:-translate-x-1/2 lg:-translate-y-1/2 lg:rounded-lg">
         <DialogHeader className="sr-only">
           <DialogTitle>Native video journal</DialogTitle>
           <DialogDescription>Record securely with the iPhone camera.</DialogDescription>
@@ -346,21 +357,21 @@ export function NativeJournalVideoCaptureDialog({
             durationMs={pendingReview.durationMs}
             onRetake={() => void handleRetake()}
             onConfirm={() => void saveResult(pendingReview)}
+            onKeepForLater={closeAndKeepDraft}
             confirming={confirming}
             confirmLabel={confirmLabel}
             reviewHint={reviewHint}
             saveError={saveError}
-            className="h-full sm:h-auto"
+            className="h-full lg:h-auto"
           />
         ) : (
-          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 bg-black px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(4rem,env(safe-area-inset-top))] text-center text-white sm:min-h-[28rem] sm:rounded-lg">
+          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 bg-black px-6 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(4rem,env(safe-area-inset-top))] text-center text-white lg:min-h-[28rem] lg:rounded-lg">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               className="absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] h-11 w-11 rounded-full bg-white/10 text-white hover:bg-white/20 hover:text-white"
               onClick={closeAndKeepDraft}
-              disabled={phase === "materializing"}
               aria-label="Close and keep recording safe"
             >
               <X className="h-5 w-5" />

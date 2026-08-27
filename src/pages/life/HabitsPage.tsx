@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import { readHabitsStatsExpanded, writeHabitsStatsExpanded } from "@/lib/habits/viewMode";
 import { hubShellPageRoot, hubShellScrollMain } from "@/lib/shell/hubShellClasses";
 import { formatSupabaseError as getErrorMessage } from "@/lib/supabase/errors";
+import { cn } from "@/lib/utils";
 import {
   countTotalCompletions,
   evaluateNewBadges,
@@ -289,9 +290,9 @@ export default function HabitsPage() {
 
   return (
     <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] bg-zinc-100 dark:bg-zinc-950 pb-safe-24")}>
-      <header className="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b bg-background/90 backdrop-blur px-3 py-3">
+      <header className={cn("sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b bg-background/90 backdrop-blur px-3 py-3", !showHubShell && "pt-[calc(var(--safe-area-inset-top)+0.75rem)]")}>
         {!showHubShell && (
-        <Button variant="ghost" size="icon" asChild className="shrink-0">
+        <Button variant="ghost" size="icon" asChild className="h-11 w-11 shrink-0">
           <Link to="/home" aria-label="Back to home">
             <ChevronLeft className="w-5 h-5" />
           </Link>

@@ -32,12 +32,13 @@ export interface EntryListData {
 
 interface Props {
   entry: EntryListData;
+  href?: string;
   onPin?: () => void;
   onFlag?: () => void;
   onDelete?: () => void;
 }
 
-export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props) {
+export default function EntryListItem({ entry, href: hrefOverride, onPin, onFlag, onDelete }: Props) {
   const dt = new Date(entry.entry_at_ts);
   const dow = dt.toLocaleDateString(undefined, { weekday: "short" }).toUpperCase();
   const day = dt.getDate();
@@ -48,7 +49,7 @@ export default function EntryListItem({ entry, onPin, onFlag, onDelete }: Props)
     entry.weather_temp_c != null ? formatTemp(entry.weather_temp_c) : null;
   const faithKind = coerceJournalEntryKind(entry.entry_kind);
   const isChat = entry.entry_kind === "chat";
-  const href = journalEntryHref(entry.id, entry.entry_kind);
+  const href = hrefOverride ?? journalEntryHref(entry.id, entry.entry_kind);
 
   const displayTitle = entryDisplayTitle(entry);
   const preview = entryDisplayPreview(entry);

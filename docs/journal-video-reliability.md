@@ -86,6 +86,10 @@ handoff contract is:
    it to JavaScript.
 2. Reuse one stable recovery/recording ID across interruption, queue, storage object, and database
    retries.
+   A brand-new native Video Journal uses a local `journal-draft:*` owner so AVFoundation can open
+   without a network request. As soon as the server entry exists, a user-scoped local receipt binds
+   that owner to the entry before upload work continues; recovery deep-links through the receipt after
+   a WebView or app restart.
 3. Commit the assembled native file to the user-scoped JavaScript upload queue before acknowledging
    that the native file can be deleted.
 4. Upload `video/quicktime` captures with a `.mov` object name. Browser MP4 captures remain `.mp4`;
@@ -109,6 +113,9 @@ Run these on the exact installed iPhone surface before calling a release device-
 - Force-close after at least two checkpoint segments, reopen, and confirm recovery attaches one video
   with one transcript (no duplicate row).
 - Disable connectivity before Stop, close/reopen, restore connectivity, and confirm queued upload.
+- Launch **Video Journal** from Home while fully offline and confirm AVFoundation opens immediately;
+  reconnect, save, force-quit between entry creation and upload, then verify recovery returns to the
+  bound entry without losing the native file.
 - Simulate a transcription provider failure after upload; confirm playback remains available and the
   transcript retries without another video attachment.
 - Rotate during preview, recording, pause, audio check, and review; verify no capture teardown and no

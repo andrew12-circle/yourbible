@@ -144,7 +144,19 @@ async function findExistingLifeWeekReviewEntry(
     .order("updated_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return data?.id ?? null;
+  if (data?.id) return data.id;
+
+  // Older/schema-compat entries may not carry entry_kind, but the deterministic
+  // week tag still makes this upsert idempotent.
+  const { data: tagged } = await supabase
+    .from("journal_entries")
+    .select("id")
+    .eq("user_id", userId)
+    .contains("tags", [tag])
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return tagged?.id ?? null;
 }
 
 /** Upsert a closed week as a journal entry in the Week reviews notebook. */

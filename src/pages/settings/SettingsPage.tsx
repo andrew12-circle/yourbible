@@ -62,22 +62,22 @@ export default function SettingsPage() {
       className={hubShellPageRoot(
         showHubShell,
         "min-h-[100dvh] bg-background flex flex-col pb-[max(1rem,env(safe-area-inset-bottom))]",
-        "bg-background flex flex-col md:flex-row min-h-0 h-full overflow-hidden",
+        "bg-background flex flex-col lg:flex-row min-h-0 h-full overflow-hidden",
       )}
     >
-      <aside className="md:w-56 lg:w-60 shrink-0 border-b md:border-b-0 md:border-r bg-card/40">
-        <div className="hidden md:block border-b px-4 py-4">
+      <aside className="shrink-0 border-b bg-card/40 lg:w-60 lg:border-b-0 lg:border-r">
+        <div className="hidden border-b px-4 py-4 lg:block">
           <SettingsPageHeader showBack={false} activeSection={sectionMeta} />
         </div>
         <div
           className={cn(
-            "md:hidden border-b px-3 py-3",
+            "border-b py-3 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] lg:hidden",
             !showHubShell && "pt-[calc(var(--safe-area-inset-top)+0.75rem)]",
           )}
         >
           <SettingsPageHeader showBack={!showHubShell} activeSection={sectionMeta} />
         </div>
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           <SettingsSectionNav
             active={activeSection}
             onSelect={setSection}
@@ -85,7 +85,7 @@ export default function SettingsPage() {
             saving={settings.saving}
           />
         </div>
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <SettingsSectionNav
             active={activeSection}
             onSelect={setSection}
@@ -96,7 +96,7 @@ export default function SettingsPage() {
       </aside>
 
       <main className="flex min-h-0 flex-1 flex-col min-w-0">
-        <div className="hidden md:flex h-14 shrink-0 items-center border-b px-6">
+        <div className="hidden h-14 shrink-0 items-center border-b px-6 lg:flex">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">{sectionMeta.label}</h2>
             <p className="text-xs text-muted-foreground">{sectionMeta.description}</p>

@@ -24,7 +24,7 @@ export default function PrayerHubPage() {
   const hasAnswered = recentAnswered.length > 0;
 
   return (
-    <PrayerShell title="Prayer" wide>
+    <PrayerShell title="Prayer" back="/home" wide>
       <p className="mb-5 max-w-3xl text-[15px] text-muted-foreground leading-relaxed">
         Write what you need — item, amount, deadline — and record how God provides. Your journal holds
         conversation with God; this ledger builds evidence of answered prayer over years.

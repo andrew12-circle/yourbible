@@ -74,5 +74,18 @@ describe("journal compose keyboard layout", () => {
         viewportHeight: 800,
       }),
     ).toBe(JOURNAL_COMPOSE_DOCKED_PADDING);
+
+    expect(
+      journalComposeMainPaddingBottom({
+        bodyFocused: false,
+        dockHeightPx: 213.2,
+        hideBottomChrome: false,
+        inMiniPhone: false,
+        inlineChatMode: false,
+        isMobile: true,
+        keyboardOpen: false,
+        viewportHeight: 800,
+      }),
+    ).toBe("calc(214px + 0.75rem)");
   });
 });

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
 import { journalVideoBlocksAppRefresh } from "@/lib/pwa/journalVideoRefreshGuard";
 import { stripAppRefreshParam } from "@/lib/pwa/forceAppRefresh";
 
@@ -9,6 +10,10 @@ import { stripAppRefreshParam } from "@/lib/pwa/forceAppRefresh";
  */
 export function PwaUpdatePrompt() {
   useEffect(() => {
+    // A bundled Capacitor build is updated through the App Store, not a web
+    // service worker. Registering one here can surface stale web-update chrome.
+    if (Capacitor.isNativePlatform()) return;
+
     stripAppRefreshParam();
 
     if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;

@@ -17,6 +17,7 @@ type VisualViewportLayoutOptions = {
 
 type MainPaddingOptions = VisualViewportLayoutOptions & {
   bodyFocused: boolean;
+  dockHeightPx?: number;
   hideBottomChrome: boolean;
   inlineChatMode: boolean;
   viewportHeight: number;
@@ -55,6 +56,7 @@ export function journalComposeTypingBufferPx(viewportHeight: number): number {
 
 export function journalComposeMainPaddingBottom({
   bodyFocused,
+  dockHeightPx,
   hideBottomChrome,
   inMiniPhone,
   inlineChatMode,
@@ -62,7 +64,11 @@ export function journalComposeMainPaddingBottom({
   keyboardOpen,
   viewportHeight,
 }: MainPaddingOptions): string {
-  if (!hideBottomChrome) return JOURNAL_COMPOSE_DOCKED_PADDING;
+  if (!hideBottomChrome) {
+    return dockHeightPx && dockHeightPx > 0
+      ? `calc(${Math.ceil(dockHeightPx)}px + 0.75rem)`
+      : JOURNAL_COMPOSE_DOCKED_PADDING;
+  }
 
   const needsTypingBuffer = (isMobile || inMiniPhone) && bodyFocused && !inlineChatMode;
   if (needsTypingBuffer) {

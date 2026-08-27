@@ -37,6 +37,7 @@ type Props = {
   dismissalsLeft: number;
   onComplete: (reflection: string, video?: LifeWeekReviewVideoCapture) => Promise<void>;
   onDismiss: () => void;
+  resumeNativeVideoOwner?: string | null;
 };
 
 function gridLabel(pending: PendingLifeWeekReview): string {
@@ -61,6 +62,7 @@ export function LifeWeekReviewDialog({
   dismissalsLeft,
   onComplete,
   onDismiss,
+  resumeNativeVideoOwner,
 }: Props) {
   const { user, profile } = useAuth();
   const { getDraft, patchDraft } = useLifeWeekReview();
@@ -70,6 +72,8 @@ export function LifeWeekReviewDialog({
   const [dictInterim, setDictInterim] = useState("");
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const reflectionSectionRef = useRef<HTMLDivElement | null>(null);
+  const resumedNativeOwnerRef = useRef<string | null>(null);
+  const launchNativeVideoRef = useRef<() => void>(() => undefined);
 
   const displayReflection = mergeDictatedText(reflection, dictInterim);
   const trimmedLen = displayReflection.trim().length;
@@ -164,10 +168,24 @@ export function LifeWeekReviewDialog({
         setDictInterim("");
         setReflection(text);
       },
-      onReviewReady: saveVideoCapture,
       onComplete: saveVideoCapture,
     });
   };
+  launchNativeVideoRef.current = handleLaunchVideo;
+
+  useEffect(() => {
+    const expectedOwner = `life-week:${pending.subject}:${pending.weekIndex}`;
+    if (!open || resumeNativeVideoOwner !== expectedOwner) {
+      resumedNativeOwnerRef.current = null;
+      return;
+    }
+    if (resumedNativeOwnerRef.current === resumeNativeVideoOwner) {
+      return;
+    }
+    resumedNativeOwnerRef.current = resumeNativeVideoOwner;
+    const frame = window.requestAnimationFrame(() => launchNativeVideoRef.current());
+    return () => window.cancelAnimationFrame(frame);
+  }, [open, pending.subject, pending.weekIndex, resumeNativeVideoOwner]);
 
   return (
     <Dialog open={open}>
@@ -181,7 +199,7 @@ export function LifeWeekReviewDialog({
           type="button"
           variant="ghost"
           size="icon"
-          className="absolute right-4 top-4 h-8 w-8"
+          className="absolute right-2 top-2 h-11 w-11"
           onClick={onDismiss}
           aria-label={
             dismissalsLeft <= 1

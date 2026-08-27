@@ -40,18 +40,32 @@ const infoPlist = readRequired("ios/App/App/Info.plist");
 const pluginSource = readRequired("ios/App/App/HolyParkNativePlugin.swift");
 const journalVideoPluginSource = readRequired("ios/App/App/JournalVideoRecorderPlugin.swift");
 const sceneDelegateSource = readRequired("ios/App/App/SceneDelegate.swift");
+const mainStoryboard = readRequired("ios/App/App/Base.lproj/Main.storyboard");
 const projectFile = readRequired("ios/App/App.xcodeproj/project.pbxproj");
 const packageFile = readRequired("ios/App/CapApp-SPM/Package.swift");
+const appIconCatalog = readRequired("ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json");
+const splashCatalog = readRequired("ios/App/App/Assets.xcassets/Splash.imageset/Contents.json");
+const nativeKeyboardSource = readRequired("src/lib/native/nativeKeyboard.ts");
 
 requireMatch(
   capacitorConfig,
   /appId:\s*["']com\.holypark\.architecture["']/,
   "capacitor.config.ts: expected appId com.holypark.architecture",
 );
+if (/Keyboard\.setScroll\(\{\s*isDisabled:\s*true/.test(nativeKeyboardSource)) {
+  errors.push(
+    "nativeKeyboard.ts: globally disabling WKWebView scrolling strands document-scroll routes",
+  );
+}
 requireMatch(
   capacitorConfig,
   /webDir:\s*["']dist["']/,
   "capacitor.config.ts: expected webDir dist",
+);
+requireMatch(
+  capacitorConfig,
+  /contentInset:\s*["']never["']/,
+  "capacitor.config.ts: CSS safe areas require iOS contentInset never",
 );
 
 for (const privacyKey of ["NSCameraUsageDescription", "NSMicrophoneUsageDescription"]) {
@@ -71,7 +85,7 @@ requireMatch(
   "HolyParkNativePlugin.swift: JavaScript plugin name must be HolyParkNative",
 );
 requireMatch(
-  pluginSource,
+  `${pluginSource}\n${journalVideoPluginSource}`,
   /registerPluginInstance\(HolyParkNativePlugin\(\)\)/,
   "HolyParkNativePlugin.swift: plugin instance is not registered with the Capacitor bridge",
 );
@@ -99,6 +113,11 @@ requireMatch(
   sceneDelegateSource,
   /rootViewController\s*=\s*HolyParkAppBridgeViewController\(\)/,
   "SceneDelegate.swift: the root bridge does not register the journal video plugin",
+);
+requireMatch(
+  mainStoryboard,
+  /customClass=["']HolyParkAppBridgeViewController["']/,
+  "Main.storyboard: expected the plugin-registering HolyParkAppBridgeViewController root",
 );
 requireMatch(
   projectFile,
@@ -138,6 +157,35 @@ requireMatch(
   /platforms:\s*\[\.iOS\(\.v15\)\]/,
   "CapApp-SPM/Package.swift: expected an iOS 15 package platform floor",
 );
+if (/path:\s*["'][^"']*\\[^"']*["']/.test(packageFile)) {
+  errors.push(
+    "CapApp-SPM/Package.swift: plugin paths contain Windows separators; normalize them to forward slashes after Capacitor sync",
+  );
+}
+for (const plugin of ["CapacitorKeyboard", "CapacitorSplashScreen", "CapacitorStatusBar"]) {
+  requireMatch(
+    packageFile,
+    new RegExp(`\\.product\\(name:\\s*["']${plugin}["']`),
+    `CapApp-SPM/Package.swift: ${plugin} is not linked into the native app`,
+  );
+}
+requireMatch(
+  appIconCatalog,
+  /AppIcon-512@2x\.png/,
+  "AppIcon.appiconset: the universal 1024 app icon is missing",
+);
+requireMatch(
+  splashCatalog,
+  /Default@3x~universal~anyany\.png/,
+  "Splash.imageset: the branded launch asset is missing",
+);
+for (const asset of [
+  "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+  "ios/App/App/Assets.xcassets/Splash.imageset/Default@3x~universal~anyany.png",
+  "ios/App/App/Assets.xcassets/Splash.imageset/Default@3x~universal~anyany-dark.png",
+]) {
+  if (!existsSync(resolve(repositoryRoot, asset))) errors.push(`${asset}: required asset is missing`);
+}
 
 if (/<key>\s*UIBackgroundModes\s*<\/key>[\s\S]*?<string>\s*audio\s*<\/string>/.test(infoPlist)) {
   warnings.push(

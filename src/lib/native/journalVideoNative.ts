@@ -69,6 +69,8 @@ export const NATIVE_JOURNAL_VIDEO_EVENTS = [
   "journalVideoStateChanged",
   "journalVideoProgress",
 ] as const;
+export const NATIVE_JOURNAL_VIDEO_PENDING_CHANGED_EVENT =
+  "yourbible:native-journal-video-pending-changed";
 
 export type NativeJournalVideoEventName = (typeof NATIVE_JOURNAL_VIDEO_EVENTS)[number];
 
@@ -139,6 +141,17 @@ export function createNativeJournalVideoSessionId(): string {
   return `native-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+const NATIVE_JOURNAL_DRAFT_OWNER_PATTERN = /^journal-draft:[a-z0-9-]{8,96}$/i;
+
+/** Durable local owner for a native recording created before a server entry exists. */
+export function createNativeJournalVideoDraftOwnerId(): string {
+  return `journal-draft:${createNativeJournalVideoSessionId()}`;
+}
+
+export function isNativeJournalVideoDraftOwnerId(value: string | null | undefined): value is string {
+  return Boolean(value && NATIVE_JOURNAL_DRAFT_OWNER_PATTERN.test(value));
+}
+
 export async function startNativeJournalVideoCapture(
   options: StartNativeJournalVideoCaptureOptions,
 ): Promise<NativeJournalVideoCaptureSnapshot> {
@@ -151,6 +164,7 @@ export async function startNativeJournalVideoCapture(
   if (started.sessionId !== options.sessionId) {
     throw new Error("The native recorder returned a different journal video session id.");
   }
+  notifyPendingNativeJournalVideoChanged();
   return started;
 }
 
@@ -180,22 +194,101 @@ export async function listPendingNativeJournalVideoCaptures(): Promise<
     : [];
 }
 
-export function resumeNativeJournalVideoCapture(
+const NATIVE_JOURNAL_ENTRY_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NATIVE_LIFE_WEEK_OWNER_PATTERN = /^life-week:([^:]+):(\d+)$/;
+const NATIVE_DRAFT_ENTRY_MAP_PREFIX = "yourbible.native-video-draft-entry.v1";
+
+function nativeDraftEntryMapKey(userId: string, ownerId: string): string {
+  return `${NATIVE_DRAFT_ENTRY_MAP_PREFIX}:${encodeURIComponent(userId)}:${encodeURIComponent(ownerId)}`;
+}
+
+export function rememberNativeJournalVideoDraftEntry(
+  userId: string,
+  ownerId: string,
+  entryId: string,
+): boolean {
+  if (!isNativeJournalVideoDraftOwnerId(ownerId) || !NATIVE_JOURNAL_ENTRY_ID_PATTERN.test(entryId)) {
+    return false;
+  }
+  try {
+    localStorage.setItem(nativeDraftEntryMapKey(userId, ownerId), entryId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readNativeJournalVideoDraftEntry(
+  userId: string,
+  ownerId: string,
+): string | null {
+  if (!isNativeJournalVideoDraftOwnerId(ownerId)) return null;
+  try {
+    const entryId = localStorage.getItem(nativeDraftEntryMapKey(userId, ownerId));
+    return entryId && NATIVE_JOURNAL_ENTRY_ID_PATTERN.test(entryId) ? entryId : null;
+  } catch {
+    return null;
+  }
+}
+
+export function parseNativeLifeWeekVideoOwner(
+  entryId: string | null | undefined,
+): { subject: string; weekIndex: number } | null {
+  const match = entryId?.match(NATIVE_LIFE_WEEK_OWNER_PATTERN);
+  if (!match) return null;
+  const weekIndex = Number(match[2]);
+  if (!Number.isSafeInteger(weekIndex) || weekIndex < 0) return null;
+  return { subject: match[1], weekIndex };
+}
+
+/** Deep link an exact-owner native draft back to the editor that can recover it. */
+export function nativeJournalVideoRecoveryHref(
+  capture: NativeJournalVideoCaptureSnapshot,
+  currentUserId: string,
+): string | null {
+  if (capture.userId !== currentUserId || !capture.entryId) return null;
+  if (parseNativeLifeWeekVideoOwner(capture.entryId)) {
+    return `/life-weeks?resumeLifeWeekVideo=${encodeURIComponent(capture.entryId)}`;
+  }
+  if (isNativeJournalVideoDraftOwnerId(capture.entryId)) {
+    const owner = encodeURIComponent(capture.entryId);
+    const mappedEntryId = readNativeJournalVideoDraftEntry(currentUserId, capture.entryId);
+    if (mappedEntryId) {
+      return `/journal/${mappedEntryId}/edit?resumeVideo=1&nativeVideoOwner=${owner}`;
+    }
+    return `/journal/new?resumeVideo=1&nativeVideoOwner=${owner}`;
+  }
+  if (!NATIVE_JOURNAL_ENTRY_ID_PATTERN.test(capture.entryId)) return null;
+  return `/journal/${capture.entryId}/edit?resumeVideo=1`;
+}
+
+export async function resumeNativeJournalVideoCapture(
   sessionId: string,
 ): Promise<NativeJournalVideoCaptureSnapshot> {
-  return nativeRecorder
-    .resumePendingJournalVideoCapture({ sessionId })
-    .then(normalizeNativeJournalVideoCapture);
+  const capture = normalizeNativeJournalVideoCapture(
+    await nativeRecorder.resumePendingJournalVideoCapture({ sessionId }),
+  );
+  notifyPendingNativeJournalVideoChanged();
+  return capture;
+}
+
+function notifyPendingNativeJournalVideoChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(NATIVE_JOURNAL_VIDEO_PENDING_CHANGED_EVENT));
+  }
 }
 
 /** Call only after the browser upload queue has durably accepted the Blob. */
-export function acknowledgeNativeJournalVideoQueued(sessionId: string): Promise<void> {
-  return nativeRecorder.acknowledgePendingJournalVideoCapture({ sessionId });
+export async function acknowledgeNativeJournalVideoQueued(sessionId: string): Promise<void> {
+  await nativeRecorder.acknowledgePendingJournalVideoCapture({ sessionId });
+  notifyPendingNativeJournalVideoChanged();
 }
 
 /** Explicit user discard. Closing, unmounting, and interruption must not call this. */
-export function discardNativeJournalVideoCapture(sessionId: string): Promise<void> {
-  return nativeRecorder.discardPendingJournalVideoCapture({ sessionId });
+export async function discardNativeJournalVideoCapture(sessionId: string): Promise<void> {
+  await nativeRecorder.discardPendingJournalVideoCapture({ sessionId });
+  notifyPendingNativeJournalVideoChanged();
 }
 
 function ownerMatches(
@@ -346,6 +439,7 @@ export async function waitForNativeJournalVideoCaptureReady(
 export async function readNativeJournalVideoBlob(
   capture: NativeJournalVideoCaptureSnapshot,
   fetcher: typeof fetch = fetch,
+  signal?: AbortSignal,
 ): Promise<Blob> {
   if (capture.state !== "pendingHandoff" || !capture.fileUrl) {
     throw new Error("The native journal video is not ready to review.");
@@ -356,7 +450,7 @@ export async function readNativeJournalVideoBlob(
     throw new Error("The native journal video exceeds the upload limit.");
   }
   const convertedUrl = Capacitor.convertFileSrc(capture.fileUrl);
-  const response = await fetcher(convertedUrl);
+  const response = signal ? await fetcher(convertedUrl, { signal }) : await fetcher(convertedUrl);
   if (!response.ok) {
     throw new Error(`Could not read the native journal video (${response.status}).`);
   }

@@ -101,9 +101,9 @@ export default function LifePrioritiesPage() {
 
   return (
     <div className={hubShellPageRoot(showHubShell, "min-h-[100dvh] bg-background pb-safe-24")}>
-      <header className="sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur px-3 py-3">
+      <header className={cn("sticky top-0 z-10 flex shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur px-3 py-3", !showHubShell && "pt-[calc(var(--safe-area-inset-top)+0.75rem)]")}>
         {!showHubShell && (
-        <Button variant="ghost" size="icon" asChild className="shrink-0">
+        <Button variant="ghost" size="icon" asChild className="h-11 w-11 shrink-0">
           <Link to="/home" aria-label="Back to home">
             <ChevronLeft className="w-5 h-5" />
           </Link>

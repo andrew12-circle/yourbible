@@ -14,7 +14,14 @@ import { LISTENING_SECTIONS, type ListeningSectionKey, type ListeningSections } 
 import type { InlineChatTurn } from "@/lib/journal/inlineJournalChat";
 import type { ActiveInlineMarker } from "@/lib/journal/inlineMarkers";
 import type { JournalMarkerSuggestion } from "@/hooks/useJournalBodyMarkers";
-import { useRef, useLayoutEffect, type MutableRefObject, type RefObject } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+  type MutableRefObject,
+  type RefObject,
+} from "react";
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useJournalPrivacyBlurStore } from "@/lib/journal/journalPrivacyBlurStore";
 import { NewJournalEntryPhotoSuggestion } from "@/components/journal/new-entry/NewJournalEntryPhotoSuggestion";
@@ -22,6 +29,20 @@ import { JournalMarkerMenu } from "@/components/journal/JournalMarkerMenu";
 import { cn } from "@/lib/utils";
 
 type PhotoItem = { id: string; storage_path: string; url?: string };
+
+function useFilePreviewUrls(files: File[]): Map<File, string> {
+  const urls = useMemo(
+    () => new Map(files.map((file) => [file, URL.createObjectURL(file)])),
+    [files],
+  );
+  useEffect(
+    () => () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    },
+    [urls],
+  );
+  return urls;
+}
 
 interface NewJournalEntryBodyEditorProps {
   editId?: string;
@@ -121,6 +142,11 @@ export function NewJournalEntryBodyEditor({
   const localBodyRef = useRef<HTMLTextAreaElement>(null);
   const bodyRef = bodyTextareaRef ?? localBodyRef;
   const privacyBlurEnabled = useJournalPrivacyBlurStore((s) => s.journalPrivacyBlurEnabled);
+  const previewFiles = useMemo(
+    () => [...pendingSketches, ...pendingAttachments],
+    [pendingAttachments, pendingSketches],
+  );
+  const previewUrls = useFilePreviewUrls(previewFiles);
   useJournalEntryTextareaAutosize(bodyRef, body);
 
   useLayoutEffect(() => {
@@ -301,7 +327,7 @@ export function NewJournalEntryBodyEditor({
             >
               <button type="button" onClick={onOpenSketch} className="block w-full">
                 <img
-                  src={URL.createObjectURL(f)}
+                  src={previewUrls.get(f)}
                   alt="Handwritten journal note"
                   className="w-full max-h-[min(72vh,640px)] object-contain bg-white"
                 />
@@ -338,7 +364,7 @@ export function NewJournalEntryBodyEditor({
           ))}
           {pendingAttachments.map((f, i) => (
             <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-border group">
-              <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+              <img src={previewUrls.get(f)} alt="" className="w-full h-full object-cover" />
               <button
                 type="button"
                 onClick={() => onRemovePendingFile(f)}

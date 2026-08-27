@@ -148,31 +148,36 @@ export default function JournalNotesPage() {
     );
   }
 
-  if (isDesktop) {
+  if (!isDesktop) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <JournalDeskLayout
-          sidebar={
-            <JournalsRail
-              inDesk
-              journals={journals}
-              activeJournalId={null}
-              onChange={() => {
-                void refreshJournals();
-                setReloadKey((k) => k + 1);
-              }}
-            />
-          }
-          list={listPane}
-          editor={editorPane}
-        />
-      </div>
+      <Navigate
+        to={
+          entryId
+            ? `/journal/${entryId}/edit?returnTo=${encodeURIComponent("/journal/notes")}`
+            : `/journal/j/${notesJournalId}?notes=1`
+        }
+        replace
+      />
     );
   }
 
-  if (entryId) {
-    return <div className="flex min-h-0 flex-1 flex-col">{editorPane}</div>;
-  }
-
-  return <div className="flex min-h-0 flex-1 flex-col">{listPane}</div>;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <JournalDeskLayout
+        sidebar={
+          <JournalsRail
+            inDesk
+            journals={journals}
+            activeJournalId={null}
+            onChange={() => {
+              void refreshJournals();
+              setReloadKey((k) => k + 1);
+            }}
+          />
+        }
+        list={listPane}
+        editor={editorPane}
+      />
+    </div>
+  );
 }

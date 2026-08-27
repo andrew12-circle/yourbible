@@ -8,6 +8,8 @@ import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import { cn } from "@/lib/utils";
+import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { journalEntryHeaderPad } from "@/lib/shell/hubShellClasses";
 
 interface Props {
   journal: Journal | null; // null = aggregate "All Entries"
@@ -36,6 +38,8 @@ export default function JournalCover({
   const inMiniPhone = useMiniPhoneEmbed();
   const isMobile = useIsMobile();
   const isDesktop = useIsDesktop();
+  const { showHubShell } = useAppShellMode();
+  const compact = isMobile || inMiniPhone;
   const color = journal ? `hsl(${journal.color})` : "hsl(220 9% 46%)";
   const title = titleOverride ?? journal?.name ?? "All Entries";
   const { coverUrl, focal, hasPhoto } = useJournalCoverBanner(journal);
@@ -45,12 +49,10 @@ export default function JournalCover({
     ? `radial-gradient(120% 140% at 0% 0%, hsl(${journal.color} / 0.92) 0%, hsl(${journal.color}) 55%, hsl(${journal.color} / 0.78) 100%)`
     : "radial-gradient(120% 140% at 0% 0%, hsl(220 14% 18%) 0%, hsl(220 14% 26%) 60%, hsl(220 14% 32%) 100%)";
 
-  const safeTopPad = inMiniPhone
-    ? "pt-[calc(var(--safe-area-inset-top)+1.25rem)]"
-    : "pt-[calc(var(--safe-area-inset-top)+0.75rem)]";
+  const safeTopPad = journalEntryHeaderPad(showHubShell, inMiniPhone);
 
-  const photoHeroMinH = inMiniPhone
-    ? "min-h-[clamp(200px,32svh,280px)]"
+  const photoHeroMinH = compact
+    ? "min-h-[clamp(164px,26svh,224px)]"
     : "min-h-[clamp(220px,34svh,320px)]";
 
   const controlsRow = (
@@ -59,7 +61,7 @@ export default function JournalCover({
         <button
           onClick={onOpenRail}
           className={cn(
-            "-ml-2 p-2 rounded-full hover:bg-white/15",
+            "-ml-2 flex h-11 w-11 items-center justify-center rounded-full hover:bg-white/15",
             isDesktop ? "hidden" : isMobile ? undefined : "hidden md:flex",
           )}
           aria-label="Journals"
@@ -70,7 +72,7 @@ export default function JournalCover({
           <Link
             to={backTo}
             className={cn(
-              "flex items-center gap-0.5 -ml-1 px-1 h-9 text-white/90 hover:text-white text-[15px]",
+              "flex min-h-11 items-center gap-0.5 -ml-1 px-1 text-white/90 hover:text-white text-[15px]",
               !isDesktop && "md:hidden",
             )}
           >
@@ -81,7 +83,7 @@ export default function JournalCover({
         <Link
           to={backTo ?? "/home"}
           className={cn(
-            "items-center gap-0.5 -ml-2 px-1 h-9 text-white/90 hover:text-white text-[15px]",
+            "min-h-11 items-center gap-0.5 -ml-2 px-1 text-white/90 hover:text-white text-[15px]",
             isMobile ? "hidden" : "hidden md:flex",
           )}
         >
@@ -103,7 +105,7 @@ export default function JournalCover({
       <h1
         className={cn(
           "font-bold tracking-tight text-white drop-shadow-sm",
-          inMiniPhone ? "text-[28px] leading-[1.08]" : "text-[44px] leading-[1.02]",
+          compact ? "text-[28px] leading-[1.08]" : "text-[44px] leading-[1.02]",
         )}
       >
         {title}
@@ -123,7 +125,7 @@ export default function JournalCover({
             : cn(
                 "px-5",
                 safeTopPad,
-                inMiniPhone ? "pb-8" : "pb-12",
+                compact ? "pb-7" : "pb-12",
               ),
         )}
       >
@@ -155,7 +157,7 @@ export default function JournalCover({
             <div
               className={cn(
                 "pointer-events-none absolute inset-x-0 bottom-0 z-10 px-5",
-                inMiniPhone ? "pb-8" : "pb-12",
+                compact ? "pb-7" : "pb-12",
               )}
             >
               {titleBlock}
@@ -177,7 +179,7 @@ export default function JournalCover({
               aria-hidden
             />
             {controlsRow}
-            <div className={cn("relative", inMiniPhone ? "mt-5" : "mt-8")}>{titleBlock}</div>
+            <div className={cn("relative", compact ? "mt-4" : "mt-8")}>{titleBlock}</div>
           </>
         )}
       </div>
@@ -194,7 +196,7 @@ export default function JournalCover({
               <Link
                 key={t.key}
                 to={t.to}
-                className={`relative pb-2.5 text-[14px] font-semibold tracking-tight transition-colors whitespace-nowrap ${
+                className={`relative flex min-h-11 items-center pb-2.5 text-[14px] font-semibold tracking-tight transition-colors whitespace-nowrap ${
                   t.active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
                 }`}
                 style={t.active ? { color } : undefined}

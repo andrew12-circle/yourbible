@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { User } from "lucide-react";
 import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import { LifeWeeksTile } from "@/components/home/LifeWeeksTile";
@@ -11,7 +11,7 @@ import { HomeJournalCards } from "@/components/home/HomeJournalCards";
 import { MorningFormulaHomeCard } from "@/components/home/MorningFormulaHomeCard";
 import { HomeAppButton } from "@/components/home/HomeAppButton";
 import { useHomeDashboardData } from "@/hooks/useHomeDashboardData";
-import { getBibleRoute } from "@/lib/home/homeApps";
+import { getBibleRoute, prioritizeMobileHomeApps } from "@/lib/home/homeApps";
 import {
   IOS_GRID_ICON_PT,
   iosHomeGridGapX,
@@ -22,6 +22,7 @@ import {
 import { readIsCompactViewport } from "@/lib/shell/viewport";
 import { cn } from "@/lib/utils";
 import type { HomeAppIcon } from "@/lib/home/homeApps";
+import { Capacitor } from "@capacitor/core";
 
 type PageDef = { type: "apps"; indexes: number[] } | { type: "widgets" };
 
@@ -55,8 +56,6 @@ export default function IosHomePage() {
   } = useHomeDashboardData();
 
   const [now, setNow] = useState<Date>(new Date());
-  const widgetsRef = useRef<HTMLDivElement>(null);
-  const weeksStripRef = useRef<HTMLDivElement>(null);
   const pagerRef = useRef<HTMLDivElement>(null);
   const gridMeasureRef = useRef<HTMLDivElement>(null);
   const [pages, setPages] = useState<PageDef[]>([
@@ -88,7 +87,9 @@ export default function IosHomePage() {
     return () => clearInterval(t);
   }, []);
 
-  const appCount = apps.length;
+  const launcherApps = useMemo(() => prioritizeMobileHomeApps(apps), [apps]);
+  const appCount = launcherApps.length;
+  const nativeApp = Capacitor.isNativePlatform();
 
   useLayoutEffect(() => {
     const gridColsForWidth = (w: number) => (w < 640 ? 4 : w < 768 ? 5 : 6);
@@ -118,30 +119,23 @@ export default function IosHomePage() {
       setPageHeightPx(Math.floor(availH));
 
       const { cols, rowStride } = measureGrid(gridMeasureRef.current, w);
-      const weeksH = weeksStripRef.current?.offsetHeight ?? 0;
-      const weeksGap = weeksH > 0 ? 12 : 0;
-      const availFirst = Math.max(rowStride, availH - weeksH - weeksGap);
-      const rowsFirst = Math.max(1, Math.floor(availFirst / rowStride));
       const rowsPerPage = Math.max(1, Math.floor(availH / rowStride));
-      const firstPerPage = Math.min(appCount, rowsFirst * cols);
       const perPage = rowsPerPage * cols;
 
       const indices: number[] = Array.from({ length: appCount }, (_, i) => i);
       const result: PageDef[] = [];
-      result.push({ type: "apps", indexes: indices.slice(0, firstPerPage) });
-      result.push({ type: "widgets" });
-      let i = firstPerPage;
+      let i = 0;
       while (i < appCount) {
         result.push({ type: "apps", indexes: indices.slice(i, i + perPage) });
         i += perPage;
       }
+      result.push({ type: "widgets" });
       setPages((prev) => (homePagesEqual(prev, result) ? prev : result));
     };
 
     calc();
     const raf = requestAnimationFrame(calc);
     const ro = new ResizeObserver(calc);
-    if (weeksStripRef.current) ro.observe(weeksStripRef.current);
     if (gridMeasureRef.current) ro.observe(gridMeasureRef.current);
     if (pagerRef.current) ro.observe(pagerRef.current);
     const vv = window.visualViewport;
@@ -221,11 +215,13 @@ export default function IosHomePage() {
         </>
       )}
 
-      <div className="relative z-20 flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-1 text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
-        <div className="flex items-baseline gap-2 text-[15px] font-semibold tracking-tight tabular-nums">
-          <span>{timeStr}</span>
-          <span className="text-[12px] font-medium opacity-90">{dateStr}</span>
-        </div>
+      <div className={cn("relative z-20 flex items-center pb-1 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]", nativeApp ? "justify-end" : "justify-between")}>
+        {!nativeApp ? (
+          <div className="flex items-baseline gap-2 text-[15px] font-semibold tracking-tight tabular-nums">
+            <span>{timeStr}</span>
+            <span className="text-[12px] font-medium opacity-90">{dateStr}</span>
+          </div>
+        ) : null}
         <button
           type="button"
           onClick={() => navigate("/settings")}
@@ -243,7 +239,7 @@ export default function IosHomePage() {
       </div>
 
       <div className="relative z-10 max-w-3xl mx-auto pt-2 pb-[calc(10rem+var(--safe-area-inset-bottom))] sm:pb-[calc(8rem+var(--safe-area-inset-bottom))]">
-        <div className="text-center mt-2 mb-3 sm:mb-4 px-4 sm:px-6">
+        <div className="mb-3 mt-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] text-center sm:mb-4 sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]">
           <p className="text-[13px] font-medium text-white/85 tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{fullDateStr}</p>
           <h1 className="mt-0.5 text-[28px] sm:text-[34px] leading-[1.05] font-bold tracking-[-0.022em] text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
             {greeting}{displayName ? `, ${displayName}` : ""}
@@ -257,17 +253,24 @@ export default function IosHomePage() {
           style={{
             scrollSnapType: "x mandatory",
             overscrollBehaviorX: "contain",
+            touchAction: "pan-x pan-y",
             height: pageHeightPx ?? undefined,
           }}
         >
           {pages.map((page, pageIdx) => (
             <div
               key={pageIdx}
-              className="w-full shrink-0 snap-start px-4 sm:px-6 overflow-hidden"
+              className={cn(
+                "w-full shrink-0 snap-start pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]",
+                page.type === "widgets"
+                  ? "overflow-y-auto overscroll-contain pb-4"
+                  : "overflow-hidden",
+              )}
               style={{ height: pageHeightPx ?? undefined }}
             >
               {page.type === "widgets" ? (
-                <div ref={widgetsRef}>
+                <div className="space-y-3 pb-4">
+                  <LifeWeeksTile />
                   <MorningFormulaHomeCard />
                   <BibleHomeWidgets />
                   <LifePrioritiesPanel />
@@ -278,13 +281,7 @@ export default function IosHomePage() {
                   />
                 </div>
               ) : (
-                <>
-                  {pageIdx === 0 && (
-                    <div ref={weeksStripRef} className="[&_button]:mb-3">
-                      <LifeWeeksTile />
-                    </div>
-                  )}
-                  <div
+                <div
                     ref={pageIdx === 0 ? gridMeasureRef : undefined}
                     className={cn(
                       "grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6",
@@ -294,14 +291,13 @@ export default function IosHomePage() {
                   >
                     {page.indexes.map((i) => (
                       <HomeAppButton
-                        key={apps[i].label}
-                        app={apps[i]}
+                        key={launcherApps[i].label}
+                        app={launcherApps[i]}
                         iconSize={gridIconSize}
-                        onClick={() => openApp(apps[i])}
+                        onClick={() => openApp(launcherApps[i])}
                       />
                     ))}
                   </div>
-                </>
               )}
             </div>
           ))}
@@ -315,12 +311,18 @@ export default function IosHomePage() {
               onClick={() => goToPage(i)}
               aria-label={`Page ${i + 1} of ${pageCount}`}
               aria-current={i === activePage ? "page" : undefined}
-              className={`rounded-full transition-all ${
-                i === activePage
-                  ? "w-2 h-2 bg-white/95 shadow"
-                  : "w-1.5 h-1.5 bg-white/45 hover:bg-white/70"
-              }`}
-            />
+              className="flex h-11 w-11 items-center justify-center rounded-full"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "block rounded-full transition-all",
+                  i === activePage
+                    ? "h-2 w-2 bg-white/95 shadow"
+                    : "h-1.5 w-1.5 bg-white/45",
+                )}
+              />
+            </button>
           ))}
         </div>
 

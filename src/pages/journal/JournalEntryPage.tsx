@@ -18,7 +18,6 @@ import {
   transcribeEntrySketchPaths,
 } from "@/lib/journal/sketchTranscription";
 import EntryMiniMap from "@/components/journal/EntryMiniMap";
-import CurrentLocationMap from "@/components/journal/CurrentLocationMap";
 import { syncEntryWikilinks } from "@/lib/journal/links";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import EntryLinksPanel from "@/components/journal/EntryLinksPanel";
@@ -304,16 +303,6 @@ export default function JournalEntryPage() {
   const bodyEmpty = !entry.body?.trim() && !transcribingSketch && videos.length === 0;
   const canWrite = entry.entry_kind !== "vent";
 
-  const mapFooter = (
-    <div className="px-5 py-3">
-      {entry.lat != null && entry.lng != null ? (
-        <EntryMiniMap lat={entry.lat} lng={entry.lng} height={mapHeight} />
-      ) : (
-        <CurrentLocationMap height={mapHeight} />
-      )}
-    </div>
-  );
-
   return (
     <JournalShell
       journalId={null}
@@ -322,13 +311,12 @@ export default function JournalEntryPage() {
       coverTitle={entryHeading ?? "Entry"}
       backTo="/journal"
       hideComposeFab
-      footer={mapFooter}
       headerRight={
         <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" className="text-white hover:bg-white/15" onClick={() => navigate(`/journal/${entry.id}/edit`)}>
+          <Button size="icon" variant="ghost" className="h-11 w-11 text-white hover:bg-white/15" onClick={() => navigate(`/journal/${entry.id}/edit`)}>
             <Edit className="w-4 h-4" />
           </Button>
-          <Button size="icon" variant="ghost" className="text-white hover:bg-white/15" onClick={() => void remove()}>
+          <Button size="icon" variant="ghost" className="h-11 w-11 text-white hover:bg-white/15" onClick={() => void remove()}>
             <Trash2 className="w-4 h-4 text-red-200" />
           </Button>
         </div>
@@ -364,16 +352,6 @@ export default function JournalEntryPage() {
           <MessageCircle className="h-3 w-3" /> Journaled with AI
         </div>
       )}
-
-      {entryHeading ? (
-        canWrite ? (
-          <button type="button" onClick={openEdit} className="mb-4 block w-full text-left">
-            <h1 className="font-display text-2xl">{entryHeading}</h1>
-          </button>
-        ) : (
-          <h1 className="font-display text-2xl mb-4">{entryHeading}</h1>
-        )
-      ) : null}
 
       {(() => {
         const { sketches, attachments } = partitionJournalPhotos(photos);
@@ -569,6 +547,12 @@ export default function JournalEntryPage() {
           ))}
         </div>
       )}
+
+      {entry.lat != null && entry.lng != null ? (
+        <section className="mb-6 overflow-hidden rounded-xl border border-border/60">
+          <EntryMiniMap lat={entry.lat} lng={entry.lng} height={mapHeight} />
+        </section>
+      ) : null}
 
       <section className="rounded-lg border border-border bg-card p-4">
         <div className="flex items-start gap-3">
