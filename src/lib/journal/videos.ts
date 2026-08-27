@@ -6,6 +6,7 @@ import {
   journalVideoUploadTooLargeMessage,
 } from "@/lib/journal/journalVideoLimits";
 import { fixJournalVideoBlob } from "@/lib/journal/fixJournalVideoBlob";
+import { nativeJournalVideoCaptureSupported } from "@/lib/native/journalVideoNative";
 import type { JournalVideoQuality } from "@/lib/journal/journalVideoCaptureSettings";
 import { qualityDimensions } from "@/lib/journal/journalVideoCaptureSettings";
 import type { CameraFacing } from "@/lib/journal/journalVideoDevices";
@@ -219,6 +220,7 @@ export function stopMediaRecorderWithFlush(recorder: MediaRecorder | null): bool
 }
 
 export function journalVideoCaptureSupported(): boolean {
+  if (nativeJournalVideoCaptureSupported()) return true;
   return (
     typeof navigator !== "undefined" &&
     Boolean(navigator.mediaDevices?.getUserMedia) &&
@@ -362,7 +364,13 @@ export function buildJournalVideoStoragePath(
   mime: string,
   stableRecordingId?: string,
 ): { path: string; idempotent: boolean } {
-  const ext = mime.includes("mp4") ? "mp4" : "webm";
+  const normalizedMime = mime.split(";", 1)[0]?.trim().toLowerCase();
+  const ext =
+    normalizedMime === "video/quicktime"
+      ? "mov"
+      : normalizedMime === "video/mp4"
+        ? "mp4"
+        : "webm";
   const stableObjectName = stableRecordingId
     ?.trim()
     .replace(/[^a-zA-Z0-9_-]+/g, "-")

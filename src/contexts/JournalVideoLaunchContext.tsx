@@ -23,6 +23,14 @@ export type JournalVideoLaunchRequest = {
     entryId: string;
     anchorOffset: number;
   };
+  /** Native draft ownership when the final journal entry does not exist yet. */
+  nativeCaptureContext?: {
+    userId: string;
+    entryId: string;
+    anchorOffset?: number;
+  };
+  /** Defer deletion of the AVFoundation source until a later queue handoff. */
+  retainNativeSourceAfterComplete?: boolean;
   /** Called when recording stops and review begins — before the user taps confirm. */
   onReviewReady?: (result: JournalVideoCaptureResult, durationMs: number) => void;
   /** Override confirm button on the review step. */
@@ -74,6 +82,8 @@ export function JournalVideoLaunchProvider({ children }: { children: ReactNode }
           onRecordingStart={request.onRecordingStart}
           onLiveTranscript={request.onLiveTranscript}
           recovery={request.recovery}
+          nativeCaptureContext={request.nativeCaptureContext}
+          retainNativeSourceAfterComplete={request.retainNativeSourceAfterComplete}
           onReviewReady={request.onReviewReady}
           confirmLabel={request.confirmLabel}
           reviewHint={request.reviewHint}

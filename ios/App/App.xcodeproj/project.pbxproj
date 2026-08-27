@@ -17,6 +17,13 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		A11B22C33D44E55F66778801 /* HolyParkNativePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11B22C33D44E55F66778802 /* HolyParkNativePlugin.swift */; };
+		B10000000000000000000001 /* JournalVideoRecorderPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* JournalVideoRecorderPlugin.swift */; };
+		B10000000000000000000003 /* JournalVideoCaptureModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* JournalVideoCaptureModels.swift */; };
+		B10000000000000000000005 /* JournalVideoCaptureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* JournalVideoCaptureStore.swift */; };
+		B10000000000000000000007 /* JournalVideoCaptureExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* JournalVideoCaptureExporter.swift */; };
+		B10000000000000000000009 /* JournalVideoCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000A /* JournalVideoCaptureSession.swift */; };
+		B1000000000000000000000B /* JournalVideoCaptureCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* JournalVideoCaptureCoordinator.swift */; };
+		B1000000000000000000000D /* JournalVideoRecorderViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000E /* JournalVideoRecorderViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +39,13 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A11B22C33D44E55F66778802 /* HolyParkNativePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HolyParkNativePlugin.swift; sourceTree = "<group>"; };
+		B10000000000000000000002 /* JournalVideoRecorderPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalVideoRecorderPlugin.swift; sourceTree = "<group>"; };
+		B10000000000000000000004 /* JournalVideoCaptureModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalVideoCaptureModels.swift; sourceTree = "<group>"; };
+		B10000000000000000000006 /* JournalVideoCaptureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalVideoCaptureStore.swift; sourceTree = "<group>"; };
+		B10000000000000000000008 /* JournalVideoCaptureExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalVideoCaptureExporter.swift; sourceTree = "<group>"; };
+		B1000000000000000000000A /* JournalVideoCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalVideoCaptureSession.swift; sourceTree = "<group>"; };
+		B1000000000000000000000C /* JournalVideoCaptureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalVideoCaptureCoordinator.swift; sourceTree = "<group>"; };
+		B1000000000000000000000E /* JournalVideoRecorderViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalVideoRecorderViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +82,8 @@
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				A11B22C33D44E55F66778802 /* HolyParkNativePlugin.swift */,
+				B10000000000000000000002 /* JournalVideoRecorderPlugin.swift */,
+				B1000000000000000000000F /* JournalVideo */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -78,6 +94,19 @@
 				50B271D01FEDC1A000F3C39B /* public */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		B1000000000000000000000F /* JournalVideo */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000004 /* JournalVideoCaptureModels.swift */,
+				B10000000000000000000006 /* JournalVideoCaptureStore.swift */,
+				B10000000000000000000008 /* JournalVideoCaptureExporter.swift */,
+				B1000000000000000000000A /* JournalVideoCaptureSession.swift */,
+				B1000000000000000000000C /* JournalVideoCaptureCoordinator.swift */,
+				B1000000000000000000000E /* JournalVideoRecorderViewController.swift */,
+			);
+			path = JournalVideo;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -164,6 +193,13 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A11B22C33D44E55F66778801 /* HolyParkNativePlugin.swift in Sources */,
+				B10000000000000000000001 /* JournalVideoRecorderPlugin.swift in Sources */,
+				B10000000000000000000003 /* JournalVideoCaptureModels.swift in Sources */,
+				B10000000000000000000005 /* JournalVideoCaptureStore.swift in Sources */,
+				B10000000000000000000007 /* JournalVideoCaptureExporter.swift in Sources */,
+				B10000000000000000000009 /* JournalVideoCaptureSession.swift in Sources */,
+				B1000000000000000000000B /* JournalVideoCaptureCoordinator.swift in Sources */,
+				B1000000000000000000000D /* JournalVideoRecorderViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -49,6 +49,8 @@ export type JournalVideoCaptureResult = {
   chapters: JournalVideoChapter[];
   durationMs: number;
   recoveryDraftId?: string | null;
+  /** Opaque AVFoundation draft id. Delete only after upload-queue durability. */
+  nativeCaptureId?: string | null;
 };
 
 export interface UseJournalVideoCaptureOptions {

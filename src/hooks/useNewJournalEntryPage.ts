@@ -1463,8 +1463,7 @@ export function useNewJournalEntryPage() {
       const entryId = editId ?? inlineEntryId;
       if (!user?.id || !entryId) {
         toast({ title: "Save the entry first", variant: "destructive" });
-        setVideoOpen(false);
-        return;
+        throw new Error("Save the journal entry before attaching this recording.");
       }
       const anchorOffset = videoAnchorRef.current;
       const recordedMs = result.durationMs || durationMs;

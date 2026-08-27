@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { JournalVideoCaptureReview } from "@/components/journal/JournalVideoCaptureReview";
+import { NativeJournalVideoCaptureDialog } from "@/components/journal/NativeJournalVideoCaptureDialog";
 import { JournalVideoAudioCheckOverlay } from "@/components/journal/JournalVideoAudioCheckOverlay";
 import { JournalVideoCaptureToolbar } from "@/components/journal/JournalVideoCaptureToolbar";
 import { JournalVideoFloatingShell } from "@/components/journal/JournalVideoFloatingShell";
@@ -38,9 +39,10 @@ import {
   JOURNAL_VIDEO_MAX_UPLOAD_BYTES,
 } from "@/lib/journal/journalVideoLimits";
 import { clearInProgressJournalVideoRecording } from "@/lib/journal/journalVideoRecordingRecovery";
+import { nativeJournalVideoCaptureSupported } from "@/lib/native/journalVideoNative";
 import { cn } from "@/lib/utils";
 
-type Props = {
+export type JournalVideoCaptureDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: (result: JournalVideoCaptureResult, durationMs: number) => void | Promise<void>;
@@ -67,6 +69,14 @@ type Props = {
   stackElevated?: boolean;
   /** Disable floating desktop recorder — use full dialog pane. */
   forceInline?: boolean;
+  /** Keep the AVFoundation source after review (used by deferred Life Week saves). */
+  retainNativeSourceAfterComplete?: boolean;
+  /** Durable native owner used to recover a draft after a WebView/app relaunch. */
+  nativeCaptureContext?: {
+    userId: string;
+    entryId: string;
+    anchorOffset?: number;
+  };
 };
 
 type PendingReview = {
@@ -74,7 +84,7 @@ type PendingReview = {
   durationMs: number;
 };
 
-export default function JournalVideoCaptureDialog({
+function WebJournalVideoCaptureDialog({
   open,
   onOpenChange,
   onComplete,
@@ -92,7 +102,7 @@ export default function JournalVideoCaptureDialog({
   reviewHint,
   stackElevated = false,
   forceInline = false,
-}: Props) {
+}: JournalVideoCaptureDialogProps) {
   const isMobile = useIsMobile();
   const countdownStartedRef = useRef(false);
   const prevPhaseRef = useRef<JournalVideoCapturePhase>("idle");
@@ -657,4 +667,12 @@ export default function JournalVideoCaptureDialog({
       )}
     </Dialog>
   );
+}
+
+/** AVFoundation owns iOS camera capture; web MediaRecorder remains screen/desktop fallback. */
+export default function JournalVideoCaptureDialog(props: JournalVideoCaptureDialogProps) {
+  if (props.defaultMode !== "screen" && nativeJournalVideoCaptureSupported()) {
+    return <NativeJournalVideoCaptureDialog {...props} />;
+  }
+  return <WebJournalVideoCaptureDialog {...props} />;
 }

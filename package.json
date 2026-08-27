@@ -10,6 +10,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "check:file-size": "node scripts/check-max-lines.mjs",
+    "check:ios-project": "node scripts/check-ios-project.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

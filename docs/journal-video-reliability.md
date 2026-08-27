@@ -70,10 +70,33 @@ visible, online, and authenticated again, current-user recovery resumes from tha
 ## Platform boundary
 
 A web/PWA recorder cannot keep the iPhone camera active while iOS backgrounds the app. The web path
-therefore checkpoints and pauses, then validates tracks on return. A true native implementation must
-use an iOS project with AVFoundation file-backed recording, interruption notifications, fragment
-checkpoints, background/privacy handling, and physical-device call/background testing. The repository
-currently contains a future native bridge, but not that iOS implementation.
+therefore checkpoints and pauses, then validates tracks on return. The native path must follow the
+same product rule: iOS does not permit a general-purpose app to continue camera capture after it is
+backgrounded. Declaring `audio` in `UIBackgroundModes` supports eligible audio behavior; it does not
+grant background camera capture. On an interruption or background transition, the native recorder
+must finalize a playable fragment, preserve its manifest, and offer recovery or a new recording after
+the app becomes active.
+
+The repository contains a Capacitor iOS project with separate `HolyParkNative` and
+`JournalVideoRecorder` plugins. Native video capture is implemented with AVFoundation behind
+`JournalVideoRecorder`; the web recorder remains the fallback on non-native surfaces. The native
+handoff contract is:
+
+1. Write each AVFoundation recording fragment and its manifest to app-owned storage before reporting
+   it to JavaScript.
+2. Reuse one stable recovery/recording ID across interruption, queue, storage object, and database
+   retries.
+3. Commit the assembled native file to the user-scoped JavaScript upload queue before acknowledging
+   that the native file can be deleted.
+4. Upload `video/quicktime` captures with a `.mov` object name. Browser MP4 captures remain `.mp4`;
+   browser WebM captures remain `.webm`.
+5. Keep the native file until JavaScript explicitly acknowledges the durable queue handoff. Upload or
+   transcription success alone is not permission to delete the last local copy.
+
+`npm run check:ios-project` performs source-structure checks on Windows, macOS, or Linux. Windows
+cannot compile AVFoundation, run the iOS app, provision a device, sign an archive, or prove interruption
+behavior. Those release gates require Xcode on macOS and a physical iPhone; see
+[`ios-native-validation.md`](./ios-native-validation.md).
 
 ## Manual device acceptance ledger
 
@@ -92,3 +115,16 @@ Run these on the exact installed iPhone surface before calling a release device-
   clipped action below the home indicator.
 - Trigger an available PWA update during recording and confirm Refresh is refused until the recorder is
   durably finished.
+- With the installed native build, accept and decline a real phone call while recording. Confirm the
+  app does not promise background capture, the last finalized fragment survives, and foreground
+  recovery creates exactly one video row.
+- Force-quit the native app after a fragment is durable but before JavaScript acknowledges the upload
+  queue handoff. Relaunch and confirm the same stable recording ID is recovered without duplicating
+  the stored object or journal attachment.
+- Record on the native path, then verify the `.mov` object downloads, plays, and transcribes with
+  `video/quicktime`; repeat on the browser MP4 path and verify its object remains `.mp4`.
+- Deny camera and microphone permissions separately, then grant them in Settings and retry. Confirm no
+  capture session starts without both permissions and no empty draft is treated as saved.
+- Exercise wired/Bluetooth audio route changes, rotation, low-storage failure, and the configured
+  duration/size limit. Confirm every terminal state leaves either a playable queued recording or a
+  clear recoverable error.

@@ -61,8 +61,7 @@ export default function JournalVideoCaptureButton({
   const handleComplete = async (result: JournalVideoCaptureResult, durationMs: number) => {
     if (!userId || !entryId) {
       toast({ title: "Save the entry first", variant: "destructive" });
-      setOpen(false);
-      return;
+      throw new Error("Save the journal entry before attaching this recording.");
     }
     const anchorOffset = anchorRef.current;
     const recordedMs = result.durationMs || durationMs;
@@ -110,7 +109,7 @@ export default function JournalVideoCaptureButton({
         description: e instanceof Error ? e.message : "Please try again.",
         variant: "destructive",
       });
-      setOpen(false);
+      throw e;
     } finally {
       setUploading(false);
       setTranscribing(false);

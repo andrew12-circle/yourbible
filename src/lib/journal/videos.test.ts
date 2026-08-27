@@ -5,6 +5,11 @@ const transcribeJournalVoiceMemoMock = vi.hoisted(() => vi.fn());
 const removeSidecarMock = vi.hoisted(() => vi.fn());
 const createSignedUrlMock = vi.hoisted(() => vi.fn());
 const supabaseFromMock = vi.hoisted(() => vi.fn());
+const nativeCaptureSupportedMock = vi.hoisted(() => vi.fn(() => false));
+
+vi.mock("@/lib/native/journalVideoNative", () => ({
+  nativeJournalVideoCaptureSupported: () => nativeCaptureSupportedMock(),
+}));
 
 vi.mock("@/lib/journal/voiceDictation", () => ({
   uploadJournalVoiceMemo: (...args: unknown[]) => uploadJournalVoiceMemoMock(...args),
@@ -31,6 +36,7 @@ import {
   createJournalVideoRecoveryId,
   deriveJournalVideoRecordingRowId,
   journalVideoRecorderTimesliceMs,
+  journalVideoCaptureSupported,
   journalVideoTranscriptEmptyMessage,
   insertEntryVideo,
   pickJournalAudioMimeType,
@@ -39,6 +45,31 @@ import {
   transcribeJournalVideo,
   tuneJournalVideoStream,
 } from "@/lib/journal/videos";
+
+describe("journalVideoCaptureSupported", () => {
+  beforeEach(() => {
+    nativeCaptureSupportedMock.mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses AVFoundation support in the iOS shell without requiring MediaRecorder", () => {
+    nativeCaptureSupportedMock.mockReturnValue(true);
+    vi.stubGlobal("MediaRecorder", undefined);
+    vi.stubGlobal("navigator", {});
+
+    expect(journalVideoCaptureSupported()).toBe(true);
+  });
+
+  it("still requires the browser recorder stack outside the native iOS shell", () => {
+    vi.stubGlobal("MediaRecorder", undefined);
+    vi.stubGlobal("navigator", {});
+
+    expect(journalVideoCaptureSupported()).toBe(false);
+  });
+});
 
 describe("buildJournalVideoStoragePath", () => {
   afterEach(() => {
@@ -50,6 +81,18 @@ describe("buildJournalVideoStoragePath", () => {
     const retry = buildJournalVideoStoragePath("user", "entry", "video/mp4", " draft/id 42 ");
     expect(first).toEqual({ path: "user/entry/draft-id-42.mp4", idempotent: true });
     expect(retry).toEqual(first);
+  });
+
+  it.each([
+    ["video/quicktime", "mov"],
+    ["video/quicktime; codecs=avc1", "mov"],
+    ["video/mp4", "mp4"],
+    ["video/mp4; codecs=avc1", "mp4"],
+  ])("maps %s to the matching upload container extension", (mime, extension) => {
+    expect(buildJournalVideoStoragePath("user", "entry", mime, "native-recording")).toEqual({
+      path: `user/entry/native-recording.${extension}`,
+      idempotent: true,
+    });
   });
 
   it("keeps one-off uploads random when no durable id exists", () => {

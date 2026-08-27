@@ -150,6 +150,13 @@ export function LifeWeekReviewDialog({
       defaultMode: "camera",
       reviewBeforeUpload: true,
       forceInline: true,
+      retainNativeSourceAfterComplete: true,
+      nativeCaptureContext: user?.id
+        ? {
+            userId: user.id,
+            entryId: `life-week:${pending.subject}:${pending.weekIndex}`,
+          }
+        : undefined,
       confirmLabel: "Use for week close-out",
       reviewHint:
         "Stopping only pauses here — tap the button below to attach this recording to your week review.",

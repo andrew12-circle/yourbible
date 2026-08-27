@@ -22,6 +22,7 @@ import { parseFamilyFromLayout } from "@/lib/lifeWeeksFamily";
 import type { JournalVideoCaptureResult } from "@/hooks/useJournalVideoCapture";
 import { saveJournalVideoCaptureWithQueue } from "@/lib/journal/journalVideoUploadProcessor";
 import { pickBestVideoJournalTranscript } from "@/lib/journal/journalVideoBody";
+import { acknowledgeNativeJournalVideoQueued } from "@/lib/native/journalVideoNative";
 
 export type LifeWeekReviewVideoCapture = {
   result: JournalVideoCaptureResult;
@@ -239,6 +240,15 @@ export function LifeWeekReviewProvider({ children }: { children: ReactNode }) {
             durationMs: video.durationMs,
             anchorOffset: 0,
           });
+          if (video.result.nativeCaptureId) {
+            try {
+              await acknowledgeNativeJournalVideoQueued(video.result.nativeCaptureId);
+            } catch (error) {
+              // The IndexedDB queue is canonical now. A retained native source
+              // is safer than failing an otherwise durable week close-out.
+              console.warn("[life-week-review] native video cleanup failed:", error);
+            }
+          }
         }
 
         setClosedWeekIndicesBySubject((prev) => {
