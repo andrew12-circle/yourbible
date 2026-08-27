@@ -12,6 +12,7 @@ import { MorningGuidedExperience } from "@/components/living-hope/MorningGuidedE
 import { appendWorkbookStory } from "@/components/living-hope/MorningStoryPanel";
 import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
+import { useMorningConversationEntry } from "@/hooks/useMorningConversationEntry";
 import { useMorningScripture } from "@/hooks/useMorningScripture";
 import { useMorningFormulaTimer } from "@/hooks/useMorningFormulaTimer";
 import {
