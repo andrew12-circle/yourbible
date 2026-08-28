@@ -33,6 +33,7 @@ import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbo
 import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
 import { MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
 import type { SessionDurationMin } from "@/lib/livingHope/morningFormulaTimer";
+import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
 function PromptList({ items }: { items: readonly string[] }) {

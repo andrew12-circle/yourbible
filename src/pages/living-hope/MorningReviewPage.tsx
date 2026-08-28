@@ -13,6 +13,7 @@ import { appendWorkbookStory } from "@/components/living-hope/MorningStoryPanel"
 import { useLivingHope } from "@/hooks/useLivingHope";
 import { useLivingHopeWorkbook } from "@/hooks/useLivingHopeWorkbook";
 import { useMorningScripture } from "@/hooks/useMorningScripture";
+import { useMorningConversationEntry } from "@/hooks/useMorningConversationEntry";
 import { useMorningFormulaTimer } from "@/hooks/useMorningFormulaTimer";
 import {
   clearMorningRitualDraftForUser,

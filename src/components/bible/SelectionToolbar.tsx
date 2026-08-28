@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { VerseRange } from "@/lib/bible/verseSelection";
 import { getPalette } from "@/lib/bible/palettes";
 import { readSafeAreaInsetBottom } from "@/lib/deviceSafeArea";
 import { readIsCompactViewport } from "@/lib/shell/viewport";

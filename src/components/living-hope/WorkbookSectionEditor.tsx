@@ -8,6 +8,7 @@ import {
   type WorkbookSection,
 } from "@/lib/livingHope/workbookTypes";
 import { WORSHIP_MUSIC_HINT } from "@/lib/livingHope/worshipMusic";
+import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
 type Props = {
