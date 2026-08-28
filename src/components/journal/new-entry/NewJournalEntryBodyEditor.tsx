@@ -247,8 +247,13 @@ export function NewJournalEntryBodyEditor({
             videos={videos}
             polishResetKey={editId ?? "journal-new"}
             bodyClassName="relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed whitespace-pre-wrap shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            onBodyChange={(next) => onBodyChange(next)}
+            onBodyChange={(next, cursor) => onBodyChange(next, cursor)}
             onCaretChange={onCaretChange}
+            onBodyFocus={onBodyFocus}
+            onBodyBlur={() => {
+              markerMenu?.dismiss();
+              onBodyBlur?.();
+            }}
             onRemoveVideo={onRemoveVideo}
           />
         ) : (

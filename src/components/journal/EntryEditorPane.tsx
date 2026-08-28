@@ -1367,11 +1367,16 @@ export default function EntryEditorPane({
                   videos={videos}
                   polishResetKey={entry.id}
                   bodyClassName={journalPlainWriteFieldClass}
-                  onBodyChange={(next) => handleBodyChange(next)}
+                  onBodyChange={(next, cursor) => handleBodyChange(next, cursor)}
                   onRetranscribeVideo={(video) => void handleRetranscribeVideo(video)}
                   retranscribingVideoId={videoRetranscribingId}
                   onCaretChange={(offset) => {
                     bodyCaretRef.current = offset;
+                  }}
+                  onBodyFocus={() => setBodyFocused(true)}
+                  onBodyBlur={() => {
+                    bodyMarkers.dismissMarkerMenu();
+                    setBodyFocused(false);
                   }}
                   onRemoveVideo={async (id, path) => {
                     try {
