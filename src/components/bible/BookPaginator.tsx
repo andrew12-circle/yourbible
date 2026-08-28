@@ -38,6 +38,8 @@ interface Props {
   /** Two-page spread with two columns per page — paginate as L-col1 → L-col2 → R-col1 → R-col2. */
   spreadMode?: boolean;
   studyLayout?: ResolvedStudyLayout;
+  /** Explicit parent pagination generation; re-arms measurement when ownership changes. */
+  measurementKey?: string;
   onSplitsChange: (splits: number[]) => void;
 }
 
@@ -53,6 +55,7 @@ export function BookPaginator({
   fontSizeStyle,
   spreadMode = false,
   studyLayout = "inline",
+  measurementKey,
   onSplitsChange,
 }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
@@ -265,6 +268,7 @@ export function BookPaginator({
     columnsClassName,
     spreadMode,
     studyLayout,
+    measurementKey,
     fontSizeStyle?.fontSize,
     fontSizeStyle?.fontFamily,
     fontLoadRevision,

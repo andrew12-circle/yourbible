@@ -1,4 +1,5 @@
-import { render, waitFor } from "@testing-library/react";
+import { StrictMode, useMemo } from "react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { PassageVerse } from "@/lib/bible/api";
 import {
@@ -6,7 +7,12 @@ import {
   sliceReaderPage,
   sliceReaderSpreadPane,
   streamPageCount,
+  type ReaderChapterPassage,
 } from "@/lib/bible/readerStream";
+import {
+  useKeyedReaderStreamSplits,
+  useReaderPagination,
+} from "@/hooks/useReaderPagination";
 import { BookPaginator } from "./BookPaginator";
 
 /** Simulates ~8 verse stream units fitting on one 2-column page. */
@@ -37,6 +43,44 @@ function longChapter(verseCount: number) {
       poetryBlocks: [],
     },
   ];
+}
+
+function PaginationLifecycleHarness({
+  chapters,
+  paginationKey,
+}: {
+  chapters: ReaderChapterPassage[];
+  paginationKey: string;
+}) {
+  const readerStream = useMemo(() => buildReaderStream(chapters), [chapters]);
+  const { streamSplits, onStreamSplitsChange } =
+    useKeyedReaderStreamSplits(paginationKey);
+  const { streamSplitsReady } = useReaderPagination({
+    useBookSpread: false,
+    useStreamReader: true,
+    useSpreadDoubleColumn: false,
+    streamSplits,
+    readerStream,
+  });
+
+  return (
+    <>
+      <output
+        data-testid="pagination-state"
+        data-ready={String(streamSplitsReady)}
+        data-last-split={String(streamSplits.at(-1) ?? -1)}
+      />
+      <BookPaginator
+        chapters={chapters}
+        pageWidth={360}
+        pageHeight={520}
+        firstPageHeight={480}
+        footerHeight={76}
+        measurementKey={paginationKey}
+        onSplitsChange={onStreamSplitsChange}
+      />
+    </>
+  );
 }
 
 describe("BookPaginator spread mode", () => {
@@ -160,5 +204,63 @@ describe("BookPaginator spread mode", () => {
     );
 
     await waitFor(() => expect(onSplitsChange).toHaveBeenCalled());
+  });
+
+  it("keeps current pagination ready as adjacent chapters and layout generations change", async () => {
+    const current = longChapter(16);
+    const adjacent = [
+      { ...longChapter(8)[0]!, chapter: 10 },
+      current[0]!,
+      { ...longChapter(9)[0]!, chapter: 12 },
+    ];
+    const { rerender } = render(
+      <StrictMode>
+        <PaginationLifecycleHarness
+          chapters={current}
+          paginationKey="Jos:11|layout-a"
+        />
+      </StrictMode>,
+    );
+
+    const paginationState = screen.getByTestId("pagination-state");
+    await waitFor(() => {
+      expect(paginationState).toHaveAttribute("data-ready", "true");
+      expect(paginationState).toHaveAttribute(
+        "data-last-split",
+        String(buildReaderStream(current).length),
+      );
+    });
+
+    rerender(
+      <StrictMode>
+        <PaginationLifecycleHarness
+          chapters={adjacent}
+          paginationKey="Jos:10|Jos:11|Jos:12|layout-a"
+        />
+      </StrictMode>,
+    );
+    await waitFor(() => {
+      expect(paginationState).toHaveAttribute("data-ready", "true");
+      expect(paginationState).toHaveAttribute(
+        "data-last-split",
+        String(buildReaderStream(adjacent).length),
+      );
+    });
+
+    rerender(
+      <StrictMode>
+        <PaginationLifecycleHarness
+          chapters={adjacent}
+          paginationKey="Jos:10|Jos:11|Jos:12|layout-b"
+        />
+      </StrictMode>,
+    );
+    await waitFor(() => {
+      expect(paginationState).toHaveAttribute("data-ready", "true");
+      expect(paginationState).toHaveAttribute(
+        "data-last-split",
+        String(buildReaderStream(adjacent).length),
+      );
+    });
   });
 });

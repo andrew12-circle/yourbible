@@ -100,14 +100,12 @@ import { continuousReaderPageNumber, readReaderPageStartNumber, withReaderPageSt
 import { getNextChapterRef, getPrevChapterRef } from "@/lib/bible/chapterNav";
 import { buildAdjacentStreamChapters, passageToStreamChapter, streamChapterCompositionKey } from "@/lib/bible/readerStreamChapters";
 import {
-  areSameStreamSplits,
   buildReaderStream,
   READER_PAGINATOR_SPLIT_REVISION,
   sliceReaderPage,
   findSpreadPageForVerse,
   interimSpreadDisplaySplits,
   isSpreadDoubleColumnSplitsReady,
-  isStreamSplitsReady,
   sliceReaderSpreadPane,
   spreadPageForChapterEnd,
   spreadPageForChapterStart,
@@ -163,7 +161,10 @@ import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
 import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock";
 import { ReaderSelectionChrome } from "@/pages/reader/ReaderSelectionChrome";
 import { ReaderPageOverlays } from "@/pages/reader/ReaderPageOverlays";
-import { useReaderPagination } from "@/hooks/useReaderPagination";
+import {
+  useKeyedReaderStreamSplits,
+  useReaderPagination,
+} from "@/hooks/useReaderPagination";
 import { useReaderPageMeasurement } from "@/hooks/useReaderPageMeasurement";
 import { useReaderChapterMedia } from "@/hooks/useReaderChapterMedia";
 import { ReaderShell } from "@/pages/reader/ReaderShell";
@@ -582,12 +583,8 @@ export default function ReaderPage() {
     setStaleLayoutInk(false);
   }, [layoutFingerprint]);
   const [splits, setSplits] = useState<number[]>([0]);
-  const [streamSplits, setStreamSplits] = useState<number[]>([0]);
   const handleSplitsChange = useCallback((next: number[]) => {
     setSplits((prev) => (areSameSplits(prev, next) ? prev : next));
-  }, []);
-  const handleStreamSplitsChange = useCallback((next: number[]) => {
-    setStreamSplits((prev) => (areSameStreamSplits(prev, next) ? prev : next));
   }, []);
   const verses = passage?.verses ?? [];
   const activeStudyLayout = useMemo(
@@ -596,8 +593,7 @@ export default function ReaderPage() {
   );
   useEffect(() => {
     setSplits([0]);
-    setStreamSplits([0]);
-  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, activeStudyLayout, studyLayoutPreference, PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION]);
+  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, activeStudyLayout, PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION]);
   const streamChapters = useMemo(
     () => {
       if (readerSpread) {
@@ -687,6 +683,22 @@ export default function ReaderPage() {
     }),
     [fontChoice, fontScale, scriptureFont, readerFontLayout],
   );
+  const streamPaginationKey = [
+    streamCompositionKey,
+    layoutFingerprint,
+    fontChoice,
+    activeStudyLayout,
+    Math.round(paginatorFirstPageHeight),
+    Math.round(subsequentPageHeight),
+    columnClassName ?? "single-column",
+    readerLayout.useSpreadPaginatorMeasure ? "spread-measure" : "page-measure",
+    PASSAGE_PARSER_REVISION,
+    READER_PAGINATOR_SPLIT_REVISION,
+  ].join("|");
+  const {
+    streamSplits,
+    onStreamSplitsChange: handleStreamSplitsChange,
+  } = useKeyedReaderStreamSplits(streamPaginationKey);
   const paragraphStarts = useMemo(
     () => new Set(passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : [])),
     [passage?.paragraphStarts, verses],
@@ -788,16 +800,8 @@ export default function ReaderPage() {
   useEffect(() => {
     if (lastStreamCompositionKeyRef.current === streamCompositionKey) return;
     lastStreamCompositionKeyRef.current = streamCompositionKey;
-    setStreamSplits([0]);
     lastSpreadAnchorKeyRef.current = "";
   }, [streamCompositionKey]);
-
-  useEffect(() => {
-    if (readerStream.length === 0) return;
-    if (!isStreamSplitsReady(streamSplits, readerStream.length)) {
-      setStreamSplits((prev) => (prev.length === 1 && prev[0] === 0 ? prev : [0]));
-    }
-  }, [readerStream.length, streamCompositionKey, streamSplits]);
 
   useEffect(() => {
     if (!useBookSpread || !streamSplitsReady || !spreadReadingAnchorRef.current) return;
@@ -1875,6 +1879,7 @@ export default function ReaderPage() {
           footerHeight={paginatorFooterHeight}
           spreadMode={readerLayout.useSpreadPaginatorMeasure && useStreamReader}
           studyLayout={activeStudyLayout}
+          measurementKey={streamPaginationKey}
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
