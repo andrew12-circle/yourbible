@@ -39,6 +39,21 @@ const capacitorConfig = readRequired("capacitor.config.ts");
 const infoPlist = readRequired("ios/App/App/Info.plist");
 const pluginSource = readRequired("ios/App/App/HolyParkNativePlugin.swift");
 const journalVideoPluginSource = readRequired("ios/App/App/JournalVideoRecorderPlugin.swift");
+const journalVideoSessionSource = readRequired(
+  "ios/App/App/JournalVideo/JournalVideoCaptureSession.swift",
+);
+const journalVideoControllerSource = readRequired(
+  "ios/App/App/JournalVideo/JournalVideoRecorderViewController.swift",
+);
+const journalVideoModelsSource = readRequired(
+  "ios/App/App/JournalVideo/JournalVideoCaptureModels.swift",
+);
+const journalVideoCoordinatorSource = readRequired(
+  "ios/App/App/JournalVideo/JournalVideoCaptureCoordinator.swift",
+);
+const nativeJournalDialogSource = readRequired(
+  "src/components/journal/NativeJournalVideoCaptureDialog.tsx",
+);
 const sceneDelegateSource = readRequired("ios/App/App/SceneDelegate.swift");
 const mainStoryboard = readRequired("ios/App/App/Base.lproj/Main.storyboard");
 const projectFile = readRequired("ios/App/App.xcodeproj/project.pbxproj");
@@ -123,6 +138,56 @@ requireMatch(
   projectFile,
   /JournalVideoRecorderPlugin\.swift in Sources/,
   "project.pbxproj: JournalVideoRecorderPlugin.swift is not in the app Sources build phase",
+);
+requireMatch(
+  journalVideoSessionSource,
+  /resumeAfterSystemInterruption[\s\S]*restoreCaptureAfterSystemInterruptionOnQueue/,
+  "JournalVideoCaptureSession.swift: foreground restoration must retain active recording intent",
+);
+requireMatch(
+  journalVideoSessionSource,
+  /stopIntent\s*=\s*\.interrupt[\s\S]*requestPauseOnQueue[\s\S]*didStartRecordingTo[\s\S]*interruptionInFlight[\s\S]*stopRecording\(\)/,
+  "JournalVideoCaptureSession.swift: start/background races must stop and preserve the pending fragment",
+);
+requireMatch(
+  journalVideoSessionSource,
+  /try applyRecordingOrientation\(from: manifest\)[\s\S]*allocateActivePart/,
+  "JournalVideoCaptureSession.swift: recording geometry must persist before allocating a fragment",
+);
+requireMatch(
+  journalVideoSessionSource,
+  /captureSession\.isInterrupted[\s\S]*scheduleRestoreRetry\(\)/,
+  "JournalVideoCaptureSession.swift: foreground restore must tolerate transient camera return failures",
+);
+requireMatch(
+  journalVideoSessionSource,
+  /AVAudioSession[\s\S]*setActive\(true\)/,
+  "JournalVideoCaptureSession.swift: interrupted recordings must reactivate the audio session",
+);
+requireMatch(
+  journalVideoSessionSource,
+  /manifest\.parts\.isEmpty[\s\S]*AVCaptureDevice\.RotationCoordinator[\s\S]*videoRotationAngleForHorizonLevelCapture/,
+  "JournalVideoCaptureSession.swift: iOS 17 capture rotation coordination is missing",
+);
+requireMatch(
+  journalVideoControllerSource,
+  /previewRotationDegrees[\s\S]*videoRotationAngle/,
+  "JournalVideoRecorderViewController.swift: preview must restore persisted native rotation",
+);
+requireMatch(
+  journalVideoModelsSource,
+  /captureRotationDegrees[\s\S]*previewRotationDegrees[\s\S]*cameraPosition/,
+  "JournalVideoCaptureModels.swift: native camera geometry is not persisted",
+);
+requireMatch(
+  journalVideoCoordinatorSource,
+  /attachPreviewLayer\(controller\.capturePreviewLayer\)/,
+  "JournalVideoCaptureCoordinator.swift: the rotation coordinator is detached from its preview layer",
+);
+requireMatch(
+  nativeJournalDialogSource,
+  /appStateChange[\s\S]*resumeNativeJournalVideoCapture\(sessionId\)/,
+  "NativeJournalVideoCaptureDialog.tsx: foreground must reattach the exact native session",
 );
 
 const swiftSourceFiles = collectFiles(resolve(repositoryRoot, "ios/App/App"), ".swift");

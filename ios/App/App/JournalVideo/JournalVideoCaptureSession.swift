@@ -45,6 +45,8 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     )
     private let movieOutput = AVCaptureMovieFileOutput()
     private var videoInput: AVCaptureDeviceInput?
+    private weak var previewLayer: AVCaptureVideoPreviewLayer?
+    private var rotationCoordinator: AnyObject?
     private var configured = false
     private var cameraPosition: AVCaptureDevice.Position = .front
     private var desiredOrientation: AVCaptureVideoOrientation = .portrait
@@ -56,6 +58,12 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     private var observers: [NSObjectProtocol] = []
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var isShuttingDown = false
+    private var appIsActive = true
+    private var recordingIntentActive = false
+    private var resumeAfterSystemInterruption = false
+    private var interruptionInFlight = false
+    private var restoreRetryAttempt = 0
+    private var restoreRetryWorkItem: DispatchWorkItem?
 
     init(
         manifest: JournalVideoCaptureManifest,
@@ -68,6 +76,9 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         if let storedOrientation = Self.orientation(from: manifest.captureOrientation) {
             desiredOrientation = storedOrientation
         }
+        if let storedCameraPosition = Self.cameraPosition(from: manifest.cameraPosition) {
+            cameraPosition = storedCameraPosition
+        }
         super.init()
         installObservers()
     }
@@ -75,6 +86,7 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     deinit {
         observers.forEach(NotificationCenter.default.removeObserver)
         progressTimer?.cancel()
+        restoreRetryWorkItem?.cancel()
         endBackgroundTask()
     }
 
@@ -116,43 +128,88 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         }
     }
 
+    func attachPreviewLayer(_ layer: AVCaptureVideoPreviewLayer) {
+        sessionQueue.async { [weak self, weak layer] in
+            guard let self = self else { return }
+            self.previewLayer = layer
+            if let camera = self.videoInput?.device {
+                self.configureRotationCoordinator(for: camera)
+            }
+        }
+    }
+
     func startOrResumeRecording() {
         sessionQueue.async { [weak self] in
             guard let self = self, !self.isShuttingDown else { return }
+            guard !self.interruptionInFlight else { return }
+            self.recordingIntentActive = true
+            self.resumeAfterSystemInterruption = false
+            self.interruptionInFlight = false
+            self.cancelRestoreRetry()
             do {
-                try self.configureSessionIfNeeded()
-                let manifest = try self.store.manifest(sessionId: self.sessionId)
-                guard manifest.committedDurationMs < manifest.maxDurationMs,
-                      manifest.committedBytes < manifest.maxBytes else {
-                    self.finalizeCommittedParts()
-                    return
-                }
-
-                self.stopIntent = .none
-                self.pendingPauseReason = nil
-                if self.movieOutput.isRecording {
-                    if self.movieOutput.isRecordingPaused {
-                        self.movieOutput.resumeRecording()
-                    }
-                    return
-                }
-
-                if !self.captureSession.isRunning {
-                    self.captureSession.startRunning()
-                }
-                let outputURL = try self.store.allocateActivePart(sessionId: self.sessionId)
-                try? FileManager.default.removeItem(at: outputURL)
-                self.configureRecordingLimits(from: manifest)
-                self.applyRecordingOrientation(from: manifest)
-                self.movieOutput.startRecording(to: outputURL, recordingDelegate: self)
+                try self.startOrResumeRecordingOnQueue()
             } catch {
+                self.recordingIntentActive = false
                 self.recordFailure(error)
             }
         }
     }
 
+    private func startOrResumeRecordingOnQueue() throws {
+        try configureSessionIfNeeded()
+        let manifest = try store.manifest(sessionId: sessionId)
+        guard manifest.committedDurationMs < manifest.maxDurationMs,
+              manifest.committedBytes < manifest.maxBytes else {
+            recordingIntentActive = false
+            resumeAfterSystemInterruption = false
+            finalizeCommittedParts()
+            return
+        }
+
+        stopIntent = .none
+        pendingPauseReason = nil
+        if movieOutput.isRecording {
+            if movieOutput.isRecordingPaused {
+                movieOutput.resumeRecording()
+            }
+            return
+        }
+        guard manifest.activeFileName == nil else { return }
+
+        if !captureSession.isRunning {
+            captureSession.startRunning()
+        }
+        guard captureSession.isRunning, !captureSession.isInterrupted else {
+            resumeAfterSystemInterruption = true
+            throw JournalVideoCaptureError.captureUnavailable(
+                "The camera is still returning from an interruption."
+            )
+        }
+        configureRecordingLimits(from: manifest)
+        try applyRecordingOrientation(from: manifest)
+        let starting = try updateManifest { value in
+            value.state = .preparing
+            value.interruptionReason = "Starting your recording…"
+            value.errorMessage = nil
+        }
+        emitUpdate(starting)
+        let outputURL = try store.allocateActivePart(sessionId: sessionId)
+        try? FileManager.default.removeItem(at: outputURL)
+        movieOutput.startRecording(to: outputURL, recordingDelegate: self)
+    }
+
     func pauseManually() {
-        requestPause(state: .paused, reason: "Recording paused.", completion: nil)
+        sessionQueue.async { [weak self] in
+            guard let self = self, !self.isShuttingDown else { return }
+            self.recordingIntentActive = false
+            self.resumeAfterSystemInterruption = false
+            self.cancelRestoreRetry()
+            self.requestPauseOnQueue(
+                state: .paused,
+                reason: "Recording paused.",
+                completion: nil
+            )
+        }
     }
 
     func keepDraftAndClose(completion: @escaping () -> Void) {
@@ -161,6 +218,9 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
                 DispatchQueue.main.async(execute: completion)
                 return
             }
+            self.recordingIntentActive = false
+            self.resumeAfterSystemInterruption = false
+            self.cancelRestoreRetry()
             self.stopIntent = .keepDraft
             self.pendingPauseReason = "Recording saved as a draft to finish later."
             self.pauseCompletion = completion
@@ -184,6 +244,9 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     func stopAndFinalize() {
         sessionQueue.async { [weak self] in
             guard let self = self, !self.isShuttingDown else { return }
+            self.recordingIntentActive = false
+            self.resumeAfterSystemInterruption = false
+            self.cancelRestoreRetry()
             self.stopIntent = .finish
             self.pauseCompletion = nil
             if self.movieOutput.isRecording {
@@ -197,6 +260,9 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     func discard() {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            self.recordingIntentActive = false
+            self.resumeAfterSystemInterruption = false
+            self.cancelRestoreRetry()
             self.stopIntent = .discard
             self.isShuttingDown = true
             self.progressTimer?.cancel()
@@ -214,27 +280,52 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
             guard let self = self,
                   self.configured,
                   !self.movieOutput.isRecording else { return }
-            let nextPosition: AVCaptureDevice.Position = self.cameraPosition == .front ? .back : .front
-            guard let device = AVCaptureDevice.default(
-                .builtInWideAngleCamera,
-                for: .video,
-                position: nextPosition
-            ) else { return }
             do {
+                let manifest = try self.store.manifest(sessionId: self.sessionId)
+                guard manifest.committedBytes == 0,
+                      manifest.activeFileName == nil else { return }
+                let nextPosition: AVCaptureDevice.Position = self.cameraPosition == .front
+                    ? .back
+                    : .front
+                guard let device = AVCaptureDevice.default(
+                    .builtInWideAngleCamera,
+                    for: .video,
+                    position: nextPosition
+                ) else { return }
                 let nextInput = try AVCaptureDeviceInput(device: device)
+                let currentInput = self.videoInput
                 self.captureSession.beginConfiguration()
-                if let current = self.videoInput {
+                defer { self.captureSession.commitConfiguration() }
+                if let current = currentInput {
                     self.captureSession.removeInput(current)
                 }
-                if self.captureSession.canAddInput(nextInput) {
-                    self.captureSession.addInput(nextInput)
-                    self.videoInput = nextInput
-                    self.cameraPosition = nextPosition
-                } else if let current = self.videoInput,
-                          self.captureSession.canAddInput(current) {
-                    self.captureSession.addInput(current)
+                guard self.captureSession.canAddInput(nextInput) else {
+                    if let current = currentInput,
+                       self.captureSession.canAddInput(current) {
+                        self.captureSession.addInput(current)
+                    }
+                    return
                 }
-                self.captureSession.commitConfiguration()
+                self.captureSession.addInput(nextInput)
+                let updated: JournalVideoCaptureManifest
+                do {
+                    updated = try self.updateManifest { value in
+                        value.cameraPosition = Self.name(for: nextPosition)
+                        value.captureRotationDegrees = nil
+                        value.previewRotationDegrees = nil
+                    }
+                } catch {
+                    self.captureSession.removeInput(nextInput)
+                    if let current = currentInput,
+                       self.captureSession.canAddInput(current) {
+                        self.captureSession.addInput(current)
+                    }
+                    throw error
+                }
+                self.videoInput = nextInput
+                self.cameraPosition = nextPosition
+                self.configureRotationCoordinator(for: device)
+                self.emitUpdate(updated)
             } catch {
                 self.recordFailure(error)
             }
@@ -256,6 +347,9 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             self.isShuttingDown = true
+            self.recordingIntentActive = false
+            self.resumeAfterSystemInterruption = false
+            self.cancelRestoreRetry()
             self.progressTimer?.cancel()
             self.progressTimer = nil
             if self.captureSession.isRunning {
@@ -284,14 +378,9 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     }
 
     private func configureSessionIfNeeded() throws {
+        try activateAudioSession()
         guard !configured else { return }
-        let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(
-            .playAndRecord,
-            mode: .videoRecording,
-            options: [.defaultToSpeaker, .allowBluetoothHFP]
-        )
-        try audioSession.setActive(true)
+        rotationCoordinator = nil
 
         captureSession.beginConfiguration()
         defer { captureSession.commitConfiguration() }
@@ -320,6 +409,10 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         captureSession.addInput(cameraInput)
         videoInput = cameraInput
         cameraPosition = camera.position
+        configureRotationCoordinator(for: camera)
+        _ = try updateManifest { value in
+            value.cameraPosition = Self.name(for: camera.position)
+        }
 
         guard let microphone = AVCaptureDevice.default(for: .audio) else {
             throw JournalVideoCaptureError.captureUnavailable("No microphone is available.")
@@ -338,6 +431,27 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         movieOutput.minFreeDiskSpaceLimit = 8 * 1_024 * 1_024
         configureOutputEncoding()
         configured = true
+    }
+
+    private func activateAudioSession() throws {
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(
+            .playAndRecord,
+            mode: .videoRecording,
+            options: [.defaultToSpeaker, .allowBluetoothHFP]
+        )
+        try audioSession.setActive(true)
+    }
+
+    private func configureRotationCoordinator(for camera: AVCaptureDevice) {
+        if #available(iOS 17.0, *) {
+            rotationCoordinator = AVCaptureDevice.RotationCoordinator(
+                device: camera,
+                previewLayer: previewLayer
+            )
+        } else {
+            rotationCoordinator = nil
+        }
     }
 
     private func configureOutputEncoding() {
@@ -394,58 +508,110 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         movieOutput.maxRecordedFileSize = remainingBytes
     }
 
-    private func applyRecordingOrientation(from manifest: JournalVideoCaptureManifest) {
+    private func applyRecordingOrientation(
+        from manifest: JournalVideoCaptureManifest
+    ) throws {
         let orientation = Self.orientation(from: manifest.captureOrientation) ?? desiredOrientation
-        if let connection = movieOutput.connection(with: .video),
-           connection.isVideoOrientationSupported {
-            connection.videoOrientation = orientation
+        var rotationDegrees = manifest.captureRotationDegrees
+        var previewRotationDegrees = manifest.previewRotationDegrees
+        if #available(iOS 17.0, *), rotationDegrees == nil,
+           manifest.parts.isEmpty,
+           let coordinator = rotationCoordinator as? AVCaptureDevice.RotationCoordinator {
+            rotationDegrees = Double(coordinator.videoRotationAngleForHorizonLevelCapture)
+            previewRotationDegrees = Double(
+                coordinator.videoRotationAngleForHorizonLevelPreview
+            )
         }
-        if manifest.captureOrientation == nil {
+        if let connection = movieOutput.connection(with: .video) {
+            if #available(iOS 17.0, *), let rotationDegrees = rotationDegrees,
+               connection.isVideoRotationAngleSupported(CGFloat(rotationDegrees)) {
+                connection.videoRotationAngle = CGFloat(rotationDegrees)
+            } else if connection.isVideoOrientationSupported {
+                connection.videoOrientation = orientation
+            }
+        }
+        let needsRotationPersistence = rotationDegrees != nil
+            && manifest.captureRotationDegrees == nil
+        let needsPreviewRotationPersistence = previewRotationDegrees != nil
+            && manifest.previewRotationDegrees == nil
+        if manifest.captureOrientation == nil
+            || needsRotationPersistence
+            || needsPreviewRotationPersistence {
             let name = Self.name(for: orientation)
-            _ = try? updateManifest { value in value.captureOrientation = name }
+            let updated = try updateManifest { value in
+                if value.captureOrientation == nil { value.captureOrientation = name }
+                if value.captureRotationDegrees == nil {
+                    value.captureRotationDegrees = rotationDegrees
+                }
+                if value.previewRotationDegrees == nil {
+                    value.previewRotationDegrees = previewRotationDegrees
+                }
+            }
+            emitUpdate(updated)
         }
     }
 
-    private func requestPause(
+    private func requestPauseOnQueue(
         state: JournalVideoCaptureState,
         reason: String,
         completion: (() -> Void)?
     ) {
-        sessionQueue.async { [weak self] in
-            guard let self = self, !self.isShuttingDown else {
-                completion?()
-                return
-            }
-            self.pendingPauseState = state
-            self.pendingPauseReason = reason
-            self.pauseCompletion = completion
-            guard self.movieOutput.isRecording else {
-                do {
-                    let manifest = try self.updateManifest { value in
-                        value.state = state
-                        value.interruptionReason = reason
-                    }
-                    self.emitUpdate(manifest)
-                    if state == .interrupted { self.emitInterruption(reason) }
-                } catch {
-                    self.recordFailure(error)
+        pendingPauseState = state
+        pendingPauseReason = reason
+        pauseCompletion = completion
+        guard movieOutput.isRecording else {
+            do {
+                let manifest = try updateManifest { value in
+                    value.state = state
+                    value.interruptionReason = reason
                 }
-                self.finishPauseCompletion()
-                return
+                emitUpdate(manifest)
+                if state == .interrupted { emitInterruption(reason) }
+            } catch {
+                recordFailure(error)
             }
-            if state == .interrupted {
-                self.stopIntent = .interrupt
-                self.beginBackgroundTaskIfNeeded()
-                self.movieOutput.stopRecording()
-                return
-            }
-            if self.movieOutput.isRecordingPaused {
-                self.finishPause(state: state, reason: reason)
-            } else {
-                self.beginBackgroundTaskIfNeeded()
-                self.movieOutput.pauseRecording()
-            }
+            finishPauseCompletion()
+            return
         }
+        if state == .interrupted {
+            stopIntent = .interrupt
+            beginBackgroundTaskIfNeeded()
+            movieOutput.stopRecording()
+            return
+        }
+        if movieOutput.isRecordingPaused {
+            finishPause(state: state, reason: reason)
+        } else {
+            beginBackgroundTaskIfNeeded()
+            movieOutput.pauseRecording()
+        }
+    }
+
+    private func requestSystemInterruption(reason: String) {
+        sessionQueue.async { [weak self] in
+            guard let self = self, !self.isShuttingDown else { return }
+            self.requestSystemInterruptionOnQueue(reason: reason)
+        }
+    }
+
+    private func requestSystemInterruptionOnQueue(reason: String) {
+        guard stopIntent != .finish,
+              stopIntent != .discard,
+              stopIntent != .keepDraft else { return }
+        let wasActivelyRecording = recordingIntentActive
+        guard wasActivelyRecording || movieOutput.isRecording else { return }
+        if wasActivelyRecording {
+            resumeAfterSystemInterruption = true
+        }
+        guard !interruptionInFlight else { return }
+        cancelRestoreRetry()
+        interruptionInFlight = true
+        stopIntent = .interrupt
+        requestPauseOnQueue(
+            state: .interrupted,
+            reason: reason,
+            completion: nil
+        )
     }
 
     private func finishPause(state: JournalVideoCaptureState, reason: String) {
@@ -503,6 +669,8 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
             let durationReached = totalDuration >= manifest.maxDurationMs - 250
             let bytesReached = totalBytes >= manifest.maxBytes - 64 * 1_024
             if (durationReached || bytesReached), stopIntent == .none {
+                recordingIntentActive = false
+                resumeAfterSystemInterruption = false
                 stopIntent = .finish
                 movieOutput.stopRecording()
             }
@@ -512,6 +680,10 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     }
 
     private func finalizeCommittedParts() {
+        recordingIntentActive = false
+        resumeAfterSystemInterruption = false
+        interruptionInFlight = false
+        cancelRestoreRetry()
         do {
             let current = try store.manifest(sessionId: sessionId)
             guard !current.parts.isEmpty else {
@@ -563,6 +735,10 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     }
 
     private func recordFailure(_ error: Error) {
+        recordingIntentActive = false
+        resumeAfterSystemInterruption = false
+        interruptionInFlight = false
+        cancelRestoreRetry()
         let message = error.localizedDescription
         let manifest = try? updateManifest { value in
             value.state = value.committedBytes > 0 ? .interrupted : .failed
@@ -639,30 +815,36 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
             queue: nil
         ) { [weak self] notification in
             guard let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  AVAudioSession.InterruptionType(rawValue: raw) == .began else { return }
-            self?.requestPause(
-                state: .interrupted,
-                reason: "Audio was interrupted by a call or another app.",
-                completion: nil
-            )
+                  let interruption = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+            switch interruption {
+            case .began:
+                self?.requestSystemInterruption(
+                    reason: "Audio was interrupted by a call or another app."
+                )
+            case .ended:
+                let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey]
+                    as? UInt ?? 0
+                let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+                if options.contains(.shouldResume) {
+                    self?.restoreCaptureAfterSystemInterruption()
+                }
+            @unknown default:
+                break
+            }
         })
         observers.append(center.addObserver(
             forName: UIApplication.willResignActiveNotification,
             object: nil,
             queue: nil
         ) { [weak self] _ in
-            self?.requestPause(
-                state: .interrupted,
-                reason: "Recording paused when the app left the foreground.",
-                completion: nil
-            )
+            self?.handleAppWillResignActive()
         })
         observers.append(center.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
             queue: nil
         ) { [weak self] _ in
-            self?.restartPreviewAfterInterruption()
+            self?.handleAppDidBecomeActive()
         })
     }
 
@@ -687,23 +869,25 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         } else {
             reason = "The camera session was interrupted."
         }
-        requestPause(state: .interrupted, reason: reason, completion: nil)
+        requestSystemInterruption(reason: reason)
     }
 
     private func handleInterruptionEnded() {
-        restartPreviewAfterInterruption()
+        restoreCaptureAfterSystemInterruption()
     }
 
     private func handleRuntimeError(_ notification: Notification) {
         let error = notification.userInfo?[AVCaptureSessionErrorKey] as? Error
             ?? JournalVideoCaptureError.captureUnavailable("The camera session stopped unexpectedly.")
-        requestPause(
-            state: .interrupted,
-            reason: "The camera session stopped unexpectedly. Your saved portion is retained.",
-            completion: nil
-        )
         sessionQueue.async { [weak self] in
-            self?.configured = false
+            guard let self = self else { return }
+            self.configured = false
+            if self.recordingIntentActive {
+                self.resumeAfterSystemInterruption = true
+            }
+            self.requestSystemInterruptionOnQueue(
+                reason: "The camera session stopped unexpectedly. Your saved portion is retained."
+            )
         }
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -711,13 +895,110 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         }
     }
 
-    private func restartPreviewAfterInterruption() {
+    private func handleAppWillResignActive() {
         sessionQueue.async { [weak self] in
-            guard let self = self, self.configured, !self.isShuttingDown else { return }
-            if !self.captureSession.isRunning {
-                self.captureSession.startRunning()
+            guard let self = self, !self.isShuttingDown else { return }
+            self.appIsActive = false
+            self.requestSystemInterruptionOnQueue(
+                reason: "Recording paused when the app left the foreground."
+            )
+        }
+    }
+
+    private func handleAppDidBecomeActive() {
+        sessionQueue.async { [weak self] in
+            guard let self = self, !self.isShuttingDown else { return }
+            self.appIsActive = true
+            self.restoreCaptureAfterSystemInterruptionOnQueue()
+        }
+    }
+
+    private func restoreCaptureAfterSystemInterruption() {
+        sessionQueue.async { [weak self] in
+            self?.restoreCaptureAfterSystemInterruptionOnQueue()
+        }
+    }
+
+    private func restoreCaptureAfterSystemInterruptionOnQueue() {
+        guard appIsActive, !isShuttingDown else { return }
+        // stopRecording() completes asynchronously. The delegate retries after
+        // the durable fragment has been committed, preventing duplicate parts.
+        guard !movieOutput.isRecording else { return }
+        guard !captureSession.isInterrupted else { return }
+        do {
+            try configureSessionIfNeeded()
+            if !captureSession.isRunning {
+                captureSession.startRunning()
+            }
+            guard captureSession.isRunning, !captureSession.isInterrupted else {
+                scheduleRestoreRetry()
+                return
+            }
+            guard resumeAfterSystemInterruption, recordingIntentActive else {
+                interruptionInFlight = false
+                cancelRestoreRetry()
+                return
+            }
+            let resuming = try updateManifest { value in
+                value.state = .preparing
+                value.interruptionReason = "Restoring your recording…"
+                value.errorMessage = nil
+            }
+            emitUpdate(resuming)
+            try startOrResumeRecordingOnQueue()
+            resumeAfterSystemInterruption = false
+            interruptionInFlight = false
+            cancelRestoreRetry()
+        } catch {
+            if resumeAfterSystemInterruption && recordingIntentActive {
+                let waiting = try? updateManifest { value in
+                    value.state = .preparing
+                    value.interruptionReason = "Waiting for the camera to return…"
+                    value.errorMessage = nil
+                }
+                if let waiting = waiting { emitUpdate(waiting) }
+                scheduleRestoreRetry()
+            } else {
+                recordFailure(error)
             }
         }
+    }
+
+    private func scheduleRestoreRetry() {
+        guard appIsActive,
+              !isShuttingDown,
+              resumeAfterSystemInterruption,
+              recordingIntentActive else { return }
+        restoreRetryWorkItem?.cancel()
+        guard restoreRetryAttempt < 3 else {
+            recordingIntentActive = false
+            resumeAfterSystemInterruption = false
+            interruptionInFlight = false
+            let reason = "The camera needs another tap to resume. Your recorded portion is safe."
+            if let interrupted = try? updateManifest({ value in
+                value.state = .interrupted
+                value.interruptionReason = reason
+                value.errorMessage = nil
+            }) {
+                emitUpdate(interrupted)
+                emitInterruption(reason)
+            }
+            cancelRestoreRetry()
+            return
+        }
+        restoreRetryAttempt += 1
+        let delay = min(1.5, 0.35 * Double(restoreRetryAttempt))
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.restoreCaptureAfterSystemInterruptionOnQueue()
+        }
+        restoreRetryWorkItem = workItem
+        sessionQueue.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func cancelRestoreRetry() {
+        restoreRetryWorkItem?.cancel()
+        restoreRetryWorkItem = nil
+        restoreRetryAttempt = 0
     }
 
     private func beginBackgroundTaskIfNeeded() {
@@ -746,12 +1027,35 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
     ) {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            if self.stopIntent == .finish
+                || self.stopIntent == .discard
+                || self.stopIntent == .keepDraft {
+                self.beginBackgroundTaskIfNeeded()
+                if self.movieOutput.isRecording {
+                    self.movieOutput.stopRecording()
+                }
+                return
+            }
+            let canBeSystemInterrupted = self.stopIntent == .none
+                || self.stopIntent == .interrupt
+            if canBeSystemInterrupted
+                && (self.interruptionInFlight || !self.appIsActive) {
+                self.stopIntent = .interrupt
+                self.resumeAfterSystemInterruption = self.recordingIntentActive
+                self.interruptionInFlight = true
+                self.beginBackgroundTaskIfNeeded()
+                if self.movieOutput.isRecording {
+                    self.movieOutput.stopRecording()
+                }
+                return
+            }
             do {
                 let manifest = try self.updateManifest { value in
                     value.state = .recording
                     value.interruptionReason = nil
                     value.errorMessage = nil
                 }
+                self.recordingIntentActive = true
                 self.emitUpdate(manifest)
                 self.startProgressTimer()
             } catch {
@@ -806,7 +1110,12 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
             self.progressTimer?.cancel()
             self.progressTimer = nil
             self.endBackgroundTask()
-            let intent = self.stopIntent
+            var intent = self.stopIntent
+            if intent == .none && self.recordingIntentActive {
+                intent = .interrupt
+                self.resumeAfterSystemInterruption = true
+                self.interruptionInFlight = true
+            }
             self.stopIntent = .none
 
             do {
@@ -826,7 +1135,23 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
                 let reachedLimit = committed.committedDurationMs >= committed.maxDurationMs - 500
                     || committed.committedBytes >= committed.maxBytes - 128 * 1_024
                 if intent == .finish || reachedLimit {
+                    self.recordingIntentActive = false
+                    self.resumeAfterSystemInterruption = false
                     self.finalizeCommittedParts()
+                    return
+                }
+
+                if intent == .interrupt,
+                   self.resumeAfterSystemInterruption,
+                   self.recordingIntentActive {
+                    let resuming = try self.updateManifest { value in
+                        value.state = .preparing
+                        value.interruptionReason = "Restoring your recording…"
+                        value.errorMessage = nil
+                    }
+                    self.emitUpdate(resuming)
+                    self.finishPauseCompletion()
+                    self.restoreCaptureAfterSystemInterruptionOnQueue()
                     return
                 }
 
@@ -842,6 +1167,9 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
                 }
                 self.emitUpdate(interrupted)
                 self.emitInterruption(reason)
+                self.recordingIntentActive = false
+                self.resumeAfterSystemInterruption = false
+                self.interruptionInFlight = false
                 self.finishPauseCompletion()
             } catch {
                 self.recordFailure(error)
@@ -877,6 +1205,23 @@ final class JournalVideoCaptureSession: NSObject, AVCaptureFileOutputRecordingDe
         case "portraitUpsideDown": return .portraitUpsideDown
         case "landscapeLeft": return .landscapeLeft
         case "landscapeRight": return .landscapeRight
+        default: return nil
+        }
+    }
+
+    private static func name(for position: AVCaptureDevice.Position) -> String {
+        switch position {
+        case .front: return "front"
+        case .back: return "back"
+        case .unspecified: return "unspecified"
+        @unknown default: return "unspecified"
+        }
+    }
+
+    private static func cameraPosition(from value: String?) -> AVCaptureDevice.Position? {
+        switch value {
+        case "front": return .front
+        case "back": return .back
         default: return nil
         }
     }

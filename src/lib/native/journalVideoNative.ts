@@ -37,6 +37,7 @@ export type NativeJournalVideoCaptureSnapshot = {
   hasAudio?: boolean;
   canResume?: boolean;
   hasPendingResult?: boolean;
+  isActiveSession?: boolean;
   userId?: string;
   entryId?: string;
   anchorOffset?: number;

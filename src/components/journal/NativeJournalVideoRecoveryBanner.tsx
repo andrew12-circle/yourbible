@@ -34,7 +34,7 @@ export function NativeJournalVideoRecoveryBanner() {
     }
     try {
       const owned = (await listPendingNativeJournalVideoCaptures())
-        .filter((item) => item.userId === user.id)
+        .filter((item) => item.userId === user.id && !item.isActiveSession)
         .sort((a, b) => updatedAt(b) - updatedAt(a));
       setCapture(
         owned.find((item) => nativeJournalVideoRecoveryHref(item, user.id) != null) ?? null,

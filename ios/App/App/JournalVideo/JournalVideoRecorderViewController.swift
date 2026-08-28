@@ -24,6 +24,7 @@ final class JournalVideoPreviewView: UIView {
 
 final class JournalVideoRecorderViewController: UIViewController {
     weak var delegate: JournalVideoRecorderViewControllerDelegate?
+    var capturePreviewLayer: AVCaptureVideoPreviewLayer { previewView.previewLayer }
 
     override var preferredStatusBarStyle: UIStatusBarStyle { .lightContent }
 
@@ -62,19 +63,21 @@ final class JournalVideoRecorderViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         guard let orientation = view.window?.windowScene?.interfaceOrientation else { return }
-        if let connection = previewView.previewLayer.connection,
-           connection.isVideoOrientationSupported,
-           let captureOrientation = Self.captureOrientation(from: orientation) {
-            connection.videoOrientation = captureOrientation
-        }
+        applyPreviewGeometry(interfaceOrientation: orientation)
         delegate?.journalVideoRecorder(self, didChange: orientation)
     }
 
     override var prefersStatusBarHidden: Bool { true }
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .allButUpsideDown }
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
+        Self.orientationMask(from: manifest.captureOrientation) ?? .allButUpsideDown
+    }
 
     func apply(manifest: JournalVideoCaptureManifest) {
         self.manifest = manifest
+        if #available(iOS 16.0, *) {
+            setNeedsUpdateOfSupportedInterfaceOrientations()
+        }
+        view.setNeedsLayout()
         updateProgress(durationMs: manifest.durationMs, bytes: manifest.bytes)
         spinner.stopAnimating()
         primaryButton.isHidden = false
@@ -333,6 +336,42 @@ final class JournalVideoRecorderViewController: UIViewController {
         case .portraitUpsideDown: return .portraitUpsideDown
         case .landscapeLeft: return .landscapeLeft
         case .landscapeRight: return .landscapeRight
+        default: return nil
+        }
+    }
+
+    private func applyPreviewGeometry(interfaceOrientation: UIInterfaceOrientation) {
+        guard let connection = previewView.previewLayer.connection else { return }
+        if #available(iOS 17.0, *),
+           let rotationDegrees = manifest.previewRotationDegrees
+                ?? manifest.captureRotationDegrees,
+           connection.isVideoRotationAngleSupported(CGFloat(rotationDegrees)) {
+            connection.videoRotationAngle = CGFloat(rotationDegrees)
+            return
+        }
+        let orientation = Self.captureOrientation(from: manifest.captureOrientation)
+            ?? Self.captureOrientation(from: interfaceOrientation)
+        if let orientation = orientation, connection.isVideoOrientationSupported {
+            connection.videoOrientation = orientation
+        }
+    }
+
+    private static func captureOrientation(from value: String?) -> AVCaptureVideoOrientation? {
+        switch value {
+        case "portrait": return .portrait
+        case "portraitUpsideDown": return .portraitUpsideDown
+        case "landscapeLeft": return .landscapeLeft
+        case "landscapeRight": return .landscapeRight
+        default: return nil
+        }
+    }
+
+    private static func orientationMask(from value: String?) -> UIInterfaceOrientationMask? {
+        switch value {
+        case "portrait": return .portrait
+        case "portraitUpsideDown": return .portraitUpsideDown
+        case "landscapeLeft": return .landscapeLeft
+        case "landscapeRight": return .landscapeRight
         default: return nil
         }
     }

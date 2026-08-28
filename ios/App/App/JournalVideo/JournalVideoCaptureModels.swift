@@ -49,6 +49,9 @@ struct JournalVideoCaptureManifest: Codable {
     var finalFileName: String?
     var mimeType: String?
     var captureOrientation: String?
+    var captureRotationDegrees: Double?
+    var previewRotationDegrees: Double?
+    var cameraPosition: String?
     var interruptionReason: String?
     var errorMessage: String?
 
@@ -80,6 +83,9 @@ struct JournalVideoCaptureManifest: Codable {
         finalFileName = nil
         mimeType = nil
         captureOrientation = nil
+        captureRotationDegrees = nil
+        previewRotationDegrees = nil
+        cameraPosition = nil
         interruptionReason = nil
         errorMessage = nil
     }

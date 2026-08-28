@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { App as CapacitorApp } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
 import { AlertTriangle, Loader2, RotateCcw, Video, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -89,6 +91,7 @@ export function NativeJournalVideoCaptureDialog({
   const recordingStartSessionRef = useRef<string | null>(null);
   const bootstrapRef = useRef<Promise<NativeJournalVideoCaptureSnapshot> | null>(null);
   const bootstrapOwnerKeyRef = useRef("");
+  const activeSessionIdRef = useRef<string | null>(null);
   const callbacksRef = useRef({
     onComplete,
     onOpenChange,
@@ -183,6 +186,7 @@ export function NativeJournalVideoCaptureDialog({
 
     const observeCapture = (update: NativeJournalVideoCaptureSnapshot) => {
       if (disposed) return;
+      activeSessionIdRef.current = update.sessionId;
       setCapture(update);
       setPhase(phaseForCapture(update));
       if (
@@ -209,6 +213,9 @@ export function NativeJournalVideoCaptureDialog({
           throw new Error("A signed-in journal entry is required for native video recovery.");
         }
         const pending = await findPendingNativeJournalVideoCapture(owner);
+        if (pending?.isActiveSession) {
+          return resumeNativeJournalVideoCapture(pending.sessionId);
+        }
         if (pending) return pending;
 
         const sessionId = createNativeJournalVideoSessionId();
@@ -291,6 +298,37 @@ export function NativeJournalVideoCaptureDialog({
     teleprompter,
   ]);
 
+  useEffect(() => {
+    if (!open || defaultMode === "screen") return;
+    let handle: PluginListenerHandle | undefined;
+    let disposed = false;
+    void CapacitorApp.addListener("appStateChange", ({ isActive }) => {
+      const sessionId = activeSessionIdRef.current;
+      if (!isActive || !sessionId) return;
+      void resumeNativeJournalVideoCapture(sessionId)
+        .then((resumed) => {
+          if (disposed || activeSessionIdRef.current !== resumed.sessionId) return;
+          setCapture(resumed);
+          setPhase(phaseForCapture(resumed));
+        })
+        .catch((resumeError) => {
+          if (!disposed) {
+            console.warn("[journal-video-native] foreground reattachment failed:", resumeError);
+          }
+        });
+    }).then((registered) => {
+      if (disposed) {
+        void registered.remove();
+        return;
+      }
+      handle = registered;
+    });
+    return () => {
+      disposed = true;
+      void handle?.remove();
+    };
+  }, [defaultMode, open]);
+
   const handleResume = async () => {
     if (!capture?.sessionId) return;
     setError(null);
@@ -315,6 +353,7 @@ export function NativeJournalVideoCaptureDialog({
       abortRef.current?.abort();
       await discardNativeJournalVideoCapture(sessionId);
       bootstrapRef.current = null;
+      activeSessionIdRef.current = null;
       setCapture(null);
       setPendingReview(null);
       setRestartKey((value) => value + 1);

@@ -61,8 +61,20 @@ final class JournalVideoCaptureCoordinator: NSObject {
         try store.manifest(sessionId: sessionId)
     }
 
-    func recoverableCaptures() -> [JournalVideoCaptureManifest] {
-        store.listRecoverable()
+    func recoverableCaptures() -> [(
+        manifest: JournalVideoCaptureManifest,
+        isActiveSession: Bool
+    )] {
+        dispatchPrecondition(condition: .onQueue(DispatchQueue.main))
+        var captures = store.listRecoverable()
+        if let activeSessionId = activeSessionId,
+           !captures.contains(where: { $0.sessionId == activeSessionId }),
+           let activeManifest = try? store.manifest(sessionId: activeSessionId) {
+            captures.insert(activeManifest, at: 0)
+        }
+        return captures.map { manifest in
+            (manifest, manifest.sessionId == activeSessionId)
+        }
     }
 
     func pendingResult(sessionId: String) throws -> JournalVideoPendingResult {
@@ -123,6 +135,7 @@ final class JournalVideoCaptureCoordinator: NSObject {
             manifest: manifest,
             captureSession: session.captureSession
         )
+        session.attachPreviewLayer(controller.capturePreviewLayer)
         session.delegate = self
         controller.delegate = self
         activeSession = session

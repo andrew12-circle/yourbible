@@ -13,6 +13,17 @@ const nativeMocks = vi.hoisted(() => ({
   waitReady: vi.fn(),
 }));
 
+const appMocks = vi.hoisted(() => ({
+  addListener: vi.fn(),
+  listeners: new Set<(state: { isActive: boolean }) => void>(),
+}));
+
+vi.mock("@capacitor/app", () => ({
+  App: {
+    addListener: (...args: unknown[]) => appMocks.addListener(...args),
+  },
+}));
+
 vi.mock("@/lib/native/journalVideoNative", () => ({
   acknowledgeNativeJournalVideoQueued: (...args: unknown[]) => nativeMocks.acknowledge(...args),
   buildNativeJournalVideoCaptureResult: (...args: unknown[]) => nativeMocks.buildResult(...args),
@@ -102,6 +113,18 @@ function renderDialog(
 
 beforeEach(() => {
   for (const mock of Object.values(nativeMocks)) mock.mockReset();
+  appMocks.listeners.clear();
+  appMocks.addListener.mockReset();
+  appMocks.addListener.mockImplementation(
+    async (_event: string, listener: (state: { isActive: boolean }) => void) => {
+      appMocks.listeners.add(listener);
+      return {
+        remove: vi.fn(async () => {
+          appMocks.listeners.delete(listener);
+        }),
+      };
+    },
+  );
   nativeMocks.createSessionId.mockReturnValue("session-1");
   nativeMocks.findPending.mockResolvedValue(null);
   nativeMocks.start.mockResolvedValue(preview);
@@ -213,6 +236,40 @@ describe("NativeJournalVideoCaptureDialog", () => {
       entryId: "entry-1",
     });
     expect(nativeMocks.start).not.toHaveBeenCalled();
+  });
+
+  it("re-presents an active owner session after a WebView reload", async () => {
+    nativeMocks.findPending.mockResolvedValue({ ...preview, isActiveSession: true });
+    renderDialog();
+
+    expect(await screen.findByTestId("native-review")).toBeInTheDocument();
+    expect(nativeMocks.resume).toHaveBeenCalledWith("session-1");
+    expect(nativeMocks.start).not.toHaveBeenCalled();
+  });
+
+  it("reattaches the same native session on foreground without starting another capture", async () => {
+    nativeMocks.waitReady.mockImplementation(
+      (_sessionId, options) =>
+        new Promise((_resolve, reject) => {
+          options?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+    renderDialog();
+
+    await screen.findByText("Recording in the iPhone camera");
+    await waitFor(() => expect(appMocks.listeners.size).toBe(1));
+
+    await act(async () => {
+      for (const listener of appMocks.listeners) {
+        listener({ isActive: false });
+        listener({ isActive: true });
+      }
+    });
+
+    await waitFor(() => expect(nativeMocks.resume).toHaveBeenCalledWith("session-1"));
+    expect(nativeMocks.start).toHaveBeenCalledTimes(1);
   });
 
   it("closes an interrupted wait without acknowledging or discarding the draft", async () => {

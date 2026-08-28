@@ -58,18 +58,23 @@ public final class JournalVideoRecorderPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc public func listPendingJournalVideoCaptures(_ call: CAPPluginCall) {
         do {
-            let captures = try requireCoordinator().recoverableCaptures().map { manifest -> [String: Any] in
-                var descriptor = manifest.stateDictionary()
-                descriptor["userId"] = manifest.userId
-                descriptor["entryId"] = manifest.entryId
-                descriptor["anchorOffset"] = manifest.anchorOffset
-                if manifest.state == .pendingHandoff,
-                   let result = try? requireCoordinator().pendingResult(sessionId: manifest.sessionId) {
-                    descriptor.merge(result.dictionary()) { _, resultValue in resultValue }
+            let coordinator = try requireCoordinator()
+            DispatchQueue.main.async {
+                let captures = coordinator.recoverableCaptures().map { capture -> [String: Any] in
+                    let manifest = capture.manifest
+                    var descriptor = manifest.stateDictionary()
+                    descriptor["userId"] = manifest.userId
+                    descriptor["entryId"] = manifest.entryId
+                    descriptor["anchorOffset"] = manifest.anchorOffset
+                    descriptor["isActiveSession"] = capture.isActiveSession
+                    if manifest.state == .pendingHandoff,
+                       let result = try? coordinator.pendingResult(sessionId: manifest.sessionId) {
+                        descriptor.merge(result.dictionary()) { _, resultValue in resultValue }
+                    }
+                    return descriptor
                 }
-                return descriptor
+                call.resolve(["captures": captures])
             }
-            call.resolve(["captures": captures])
         } catch {
             call.reject(error.localizedDescription, nil, error)
         }
