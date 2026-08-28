@@ -6,8 +6,8 @@ const config: CapacitorConfig = {
   webDir: "dist",
   backgroundColor: "#FFFFFF",
   ios: {
-    // CSS owns the safe-area contract while the status bar overlays the WebView.
-    // Automatic UIKit insets would add a second notch / home-indicator gutter.
+    // The status bar reserves its own space; disabling UIKit's automatic
+    // content inset prevents that space from being added a second time.
     contentInset: "never",
     preferredContentMode: "mobile",
     backgroundColor: "#FFFFFF",
@@ -17,11 +17,13 @@ const config: CapacitorConfig = {
       // Keep the branded native surface visible until React paints its first frame.
       launchShowDuration: 500,
       launchAutoHide: false,
-      backgroundColor: "#0f172a",
+      backgroundColor: "#FFFFFF",
       showSpinner: false,
     },
     StatusBar: {
-      overlaysWebView: true,
+      // Keep system chrome separate from the WebView so it is always a clean
+      // white/light or black/dark surface instead of inheriting page artwork.
+      overlaysWebView: false,
       style: "DEFAULT",
       backgroundColor: "#FFFFFF",
     },

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta id="apple-status-bar-style" name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Belief Architecture</title>
     <meta name="description" content="Map beliefs, journal, study scripture, and grow your personal faith framework.">
     <meta name="author" content="Belief Architecture" />
@@ -14,8 +14,7 @@
     <link rel="icon" href="/app-icon-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/app-icon-180.png" sizes="180x180" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta id="app-theme-color" name="theme-color" content="#ffffff" />
     <script>
       (function () {
         try {
@@ -24,6 +23,10 @@
           var dark = stored === "dark" || ((stored === "system" || stored == null) && prefersDark);
           if (dark) document.documentElement.classList.add("dark");
           else document.documentElement.classList.remove("dark");
+          var themeColor = document.getElementById("app-theme-color");
+          var statusBarStyle = document.getElementById("apple-status-bar-style");
+          if (themeColor) themeColor.setAttribute("content", dark ? "#000000" : "#ffffff");
+          if (statusBarStyle) statusBarStyle.setAttribute("content", dark ? "black" : "default");
         } catch (e) {}
       })();
     </script>
@@ -53,15 +56,20 @@
         min-height: 100dvh;
         align-items: center;
         justify-content: center;
-        background: #070b13;
+        background: #ffffff;
       }
       #boot-loading span {
         width: 2rem;
         height: 2rem;
-        border: 2px solid rgba(255, 255, 255, 0.16);
-        border-top-color: #5aa9ff;
+        border: 2px solid rgba(15, 23, 42, 0.14);
+        border-top-color: #1688ff;
         border-radius: 9999px;
         animation: boot-spin 0.7s linear infinite;
+      }
+      html.dark #boot-loading { background: #000000; }
+      html.dark #boot-loading span {
+        border-color: rgba(255, 255, 255, 0.16);
+        border-top-color: #5aa9ff;
       }
       @keyframes boot-spin { to { transform: rotate(360deg); } }
     </style>

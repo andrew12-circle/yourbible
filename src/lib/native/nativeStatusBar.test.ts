@@ -1,45 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { nativeStatusBarNeedsLightIcons } from "@/lib/native/nativeStatusBar";
+import { resolveNativeStatusBarAppearance } from "@/lib/native/nativeStatusBar";
 
-describe("nativeStatusBarNeedsLightIcons", () => {
-  it("uses light icons on dark native surfaces and journal covers", () => {
+describe("resolveNativeStatusBarAppearance", () => {
+  it("uses light icons when the app theme or an active surface is dark", () => {
     expect(
-      nativeStatusBarNeedsLightIcons({
-        pathname: "/journal",
-        resolvedTheme: "light",
+      resolveNativeStatusBarAppearance({
+        resolvedTheme: "dark",
         darkSurfaceActive: false,
       }),
-    ).toBe(true);
+    ).toEqual({ backgroundColor: "#000000", lightIcons: true });
     expect(
-      nativeStatusBarNeedsLightIcons({
-        pathname: "/journal/new",
+      resolveNativeStatusBarAppearance({
         resolvedTheme: "light",
         darkSurfaceActive: true,
       }),
-    ).toBe(true);
+    ).toEqual({ backgroundColor: "#000000", lightIcons: true });
   });
 
-  it("uses dark icons on light compose surfaces", () => {
+  it("uses dark icons throughout the light app, regardless of route", () => {
     expect(
-      nativeStatusBarNeedsLightIcons({
-        pathname: "/journal/6cd9c431-adca-489a-a564-328a2cc4f0dd/edit",
+      resolveNativeStatusBarAppearance({
         resolvedTheme: "light",
         darkSurfaceActive: false,
       }),
-    ).toBe(false);
+    ).toEqual({ backgroundColor: "#FFFFFF", lightIcons: false });
     expect(
-      nativeStatusBarNeedsLightIcons({
-        pathname: "/journal/chat",
-        resolvedTheme: "light",
+      resolveNativeStatusBarAppearance({
+        resolvedTheme: undefined,
         darkSurfaceActive: false,
       }),
-    ).toBe(false);
-    expect(
-      nativeStatusBarNeedsLightIcons({
-        pathname: "/music",
-        resolvedTheme: "light",
-        darkSurfaceActive: false,
-      }),
-    ).toBe(false);
+    ).toEqual({ backgroundColor: "#FFFFFF", lightIcons: false });
   });
 });

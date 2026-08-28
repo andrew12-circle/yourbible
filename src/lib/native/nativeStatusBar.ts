@@ -27,19 +27,18 @@ export function acquireNativeDarkStatusSurface(): () => void {
   };
 }
 
-export function nativeStatusBarNeedsLightIcons(options: {
-  pathname: string;
+export type NativeStatusBarAppearance = {
+  backgroundColor: "#000000" | "#FFFFFF";
+  lightIcons: boolean;
+};
+
+export function resolveNativeStatusBarAppearance(options: {
   resolvedTheme?: string;
   darkSurfaceActive: boolean;
-}): boolean {
-  if (options.darkSurfaceActive || options.resolvedTheme === "dark") return true;
-  if (options.pathname === "/home" || options.pathname === "/sleep") {
-    return true;
-  }
-  return (
-    options.pathname.startsWith("/journal") &&
-    options.pathname !== "/journal/new" &&
-    !options.pathname.startsWith("/journal/chat") &&
-    !options.pathname.endsWith("/edit")
-  );
+}): NativeStatusBarAppearance {
+  const dark = options.darkSurfaceActive || options.resolvedTheme === "dark";
+  return {
+    backgroundColor: dark ? "#000000" : "#FFFFFF",
+    lightIcons: dark,
+  };
 }

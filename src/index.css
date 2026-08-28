@@ -116,6 +116,11 @@
     --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
   }
 
+  /* A non-overlaid native status bar already reserves the iPhone top inset. */
+  :root.native-app {
+    --safe-area-inset-top: 0px;
+  }
+
   /* Dark / night-reading mode (html.dark or nested .dark) */
   .dark {
     --background: 24 14% 8%;

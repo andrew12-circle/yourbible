@@ -20,7 +20,7 @@ export function HubPageLayout({ children, title, description, mainClassName }: H
           className={cn(
             "flex shrink-0 items-center gap-4 border-b bg-background px-4",
             isMobile
-              ? "h-[calc(3.5rem+var(--safe-area-inset-top))] pt-[var(--safe-area-inset-top)]"
+              ? "h-[calc(3rem+var(--safe-area-inset-top))] pt-[var(--safe-area-inset-top)]"
               : "h-14",
           )}
         >

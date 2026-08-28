@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { Capacitor } from "@capacitor/core";
 import ConfigError from "@/components/ConfigError";
 import { hasSupabaseEnv } from "@/lib/env";
 import { initSentry } from "@/lib/sentry";
@@ -8,6 +9,11 @@ import {
   hideNativeSplashAfterPaint,
 } from "@/lib/native/nativeSplash";
 import "./index.css";
+
+if (Capacitor.isNativePlatform()) {
+  // The native status bar owns the top inset outside the WebView.
+  document.documentElement.classList.add("native-app");
+}
 
 const root = document.getElementById("root")!;
 
