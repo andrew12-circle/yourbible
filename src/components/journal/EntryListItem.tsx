@@ -76,10 +76,10 @@ export default function EntryListItem({ entry, href: hrefOverride, onPin, onFlag
             <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-500 mt-1 flex-shrink-0" />
           )}
           <h3
-            className={`tracking-tight flex-1 leading-snug ${
+            className={`flex-1 font-sans leading-snug tracking-tight ${
               textOnly
                 ? "text-[15px] font-medium line-clamp-4"
-                : "text-[16px] font-semibold truncate leading-snug"
+                : "text-[16px] font-semibold line-clamp-2 leading-snug"
             } ${untitled && !displayTitle ? "italic font-normal text-muted-foreground" : ""}`}
           >
             {displayTitle || "No title"}

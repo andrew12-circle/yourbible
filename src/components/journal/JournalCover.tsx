@@ -7,8 +7,9 @@ import { useJournalCoverBanner } from "@/hooks/useJournalCoverBanner";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useIsDesktop } from "@/hooks/use-desktop";
-import { cn } from "@/lib/utils";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 import { journalEntryHeaderPad } from "@/lib/shell/hubShellClasses";
 
 interface Props {
@@ -58,6 +59,12 @@ export default function JournalCover({
   const controlsRow = (
     <div className="relative flex items-center justify-between text-white">
       <div className="flex items-center gap-1">
+        {showHubShell && isMobile ? (
+          <SidebarTrigger
+            className="h-9 w-9 rounded-full text-white hover:bg-white/15 hover:text-white"
+            aria-label="Open app navigation"
+          />
+        ) : null}
         <button
           onClick={onOpenRail}
           className={cn(
@@ -104,7 +111,7 @@ export default function JournalCover({
       )}
       <h1
         className={cn(
-          "font-bold tracking-tight text-white drop-shadow-sm",
+          "font-sans font-bold tracking-tight text-white drop-shadow-sm",
           compact ? "text-[28px] leading-[1.08]" : "text-[44px] leading-[1.02]",
         )}
       >

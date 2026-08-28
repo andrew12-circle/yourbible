@@ -509,7 +509,7 @@ export default function MyAiComposer({
         </div>
 
         {welcomeQuickPrompts?.length && onWelcomeQuickPrompt ? (
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+          <div className="scrollbar-hide mt-3 flex w-full items-center gap-2 overflow-x-auto px-1 pb-1 [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:justify-center sm:overflow-visible">
             {welcomeQuickPrompts.map((prompt) => (
               <button
                 key={prompt}
@@ -517,7 +517,7 @@ export default function MyAiComposer({
                 disabled={sending}
                 onClick={() => onWelcomeQuickPrompt(prompt)}
                 className={cn(
-                  "rounded-full border border-border/80 bg-background px-3.5 py-2 text-[13px] font-normal text-foreground",
+                  "shrink-0 whitespace-nowrap rounded-full border border-border/80 bg-background px-3.5 py-2 text-[13px] font-normal text-foreground",
                   "transition-colors hover:bg-muted/60 disabled:opacity-50",
                 )}
               >

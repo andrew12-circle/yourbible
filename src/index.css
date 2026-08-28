@@ -1254,6 +1254,14 @@
     --gold-deep: 42 48% 58%;
     --gold-bright: 46 62% 68%;
   }
+  .reader-theme-dark .font-scripture,
+  .reader-theme-dark .ink-text,
+  .reader-theme-dark .reader-sf-body {
+    color: hsl(var(--foreground));
+    text-shadow:
+      0 0 0.3px hsl(40 18% 96% / 0.24),
+      0 0.35px 0 hsl(220 20% 4% / 0.45);
+  }
   .reader-theme-dark .red-letter {
     color: hsl(0 62% 58%);
   }
@@ -2386,8 +2394,8 @@ body:has(.hub-shell),
   margin-left: 0 !important;
 }
 
-/* Mobile hub — card flush to bottom; grey fabric stays on left/right only. */
-@media (max-width: 767px) {
+/* Compact hub — app surfaces own their safe-area padding; the outer desktop card disappears. */
+@media (max-width: 767px), (hover: none) and (max-height: 767px) {
   html:has(.hub-shell),
   body:has(.hub-shell),
   #root:has(.hub-shell) {
@@ -2400,17 +2408,26 @@ body:has(.hub-shell),
     height: 100lvh !important;
   }
 
+  .hub-shell {
+    --hub-safe-top: 0px;
+    --hub-edge: 0px;
+    --hub-card-gap: 0px;
+    --hub-card-height: 100%;
+  }
+
   .hub-shell .hub-content-card {
-    --hub-card-height: calc(100% - var(--hub-safe-top)) !important;
-    margin-bottom: 0 !important;
-    border-bottom-left-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .hub-shell .peer[data-state="collapsed"] ~ .hub-content-card {
-    margin-left: var(--hub-edge);
-    margin-right: var(--hub-edge);
+    margin: 0 !important;
   }
 }
 

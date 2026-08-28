@@ -486,7 +486,7 @@ function MobileJournalList({
 
       {pinned.length > 0 && (
         <section className="mb-1">
-          <h2 className="sticky top-0 z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
+          <h2 className="sticky top-[var(--journal-sticky-list-top)] z-10 px-5 py-1.5 font-sans text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
             Pinned
           </h2>
           <div className="divide-y divide-border/40">
@@ -510,7 +510,7 @@ function MobileJournalList({
 
       {grouped.map(([month, list]) => (
         <section key={month}>
-          <h2 className="sticky top-0 z-10 px-5 py-1.5 text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
+          <h2 className="sticky top-[var(--journal-sticky-list-top)] z-10 px-5 py-1.5 font-sans text-[13px] font-semibold tracking-tight text-foreground/90 bg-background/85 backdrop-blur-xl border-b border-border/40">
             {formatMonth(month)}
           </h2>
           <div className="divide-y divide-border/40">

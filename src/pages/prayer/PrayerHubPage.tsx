@@ -25,12 +25,15 @@ export default function PrayerHubPage() {
 
   return (
     <PrayerShell title="Prayer" back="/home" wide>
-      <p className="mb-5 max-w-3xl text-[15px] text-muted-foreground leading-relaxed">
-        Write what you need — item, amount, deadline — and record how God provides. Your journal holds
-        conversation with God; this ledger builds evidence of answered prayer over years.
+      <p className="mb-4 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:mb-5 sm:text-[15px]">
+        <span className="sm:hidden">Record what you are asking God for, then remember how He provides.</span>
+        <span className="hidden sm:inline">
+          Write what you need — item, amount, deadline — and record how God provides. Your journal holds
+          conversation with God; this ledger builds evidence of answered prayer over years.
+        </span>
       </p>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         <Button asChild>
           <Link to="/prayer/requests/new">
             <Plus className="mr-1.5 h-4 w-4" />
@@ -43,7 +46,7 @@ export default function PrayerHubPage() {
             Open ledger
           </Link>
         </Button>
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="hidden sm:inline-flex">
           <Link to="/journal">
             <NotebookPen className="mr-1.5 h-4 w-4" />
             Prayer journal
@@ -52,7 +55,7 @@ export default function PrayerHubPage() {
       </div>
 
       <section className="mb-8">
-        <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <h2 className="mb-3 font-sans text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
           Faithfulness over time
         </h2>
         <PrayerStatsPanel stats={stats} />
@@ -61,7 +64,7 @@ export default function PrayerHubPage() {
       <div className={hasAnswered ? "grid gap-8 xl:grid-cols-2" : ""}>
         <section>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <h2 className="font-sans text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
               Waiting on God
             </h2>
             <Link to="/prayer/requests?status=waiting" className="text-xs font-medium text-primary">
@@ -87,7 +90,7 @@ export default function PrayerHubPage() {
         {hasAnswered ? (
           <section>
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <h2 className="font-sans text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Recently answered
               </h2>
               <Link to="/prayer/praise" className="text-xs font-medium text-primary">

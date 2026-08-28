@@ -7,6 +7,7 @@ import {
   Database,
   Loader2,
   Menu,
+  MessagesSquare,
   PanelLeft,
   Settings2,
 } from "lucide-react";
@@ -19,6 +20,7 @@ import { useIsTabletPortrait } from "@/hooks/use-reader-layout";
 import { useMobileComposerDock } from "@/hooks/useMobileComposerDock";
 import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -839,11 +841,18 @@ export default function MyAiPage() {
           <header
             className={cn(
               "sticky top-0 z-20 flex shrink-0 items-center justify-between gap-2 bg-background/90 px-2 pb-2 backdrop-blur-md sm:px-3",
-              showHubShell ? "pt-2" : "pt-[calc(var(--safe-area-inset-top)+0.5rem)]",
+              isMobile ? "pt-[max(0.5rem,var(--safe-area-inset-top))]" : "pt-2",
             )}
             style={headerOffsetStyle}
           >
             <div className="flex min-w-0 items-center gap-0.5">
+              {showHubShell && isMobile ? (
+                <SidebarTrigger
+                  className="h-9 w-9 shrink-0"
+                  aria-label="Open app navigation"
+                />
+              ) : null}
+
               {!showHubShell && (
                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigate("/home")} aria-label="Back home">
                   <ArrowLeft className="h-5 w-5" />
@@ -859,7 +868,7 @@ export default function MyAiPage() {
                       className="h-11 w-11 shrink-0 touch-manipulation [&_svg]:size-7"
                       aria-label="Open chats"
                     >
-                      <Menu />
+                      {showHubShell && isMobile ? <MessagesSquare /> : <Menu />}
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="left" className="w-[min(100%,320px)] p-0">
@@ -983,43 +992,43 @@ export default function MyAiPage() {
           {showWelcome ? (
             <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 pb-safe sm:px-4">
               <div className={cn(myAiComposerColumn, "relative flex w-full flex-col")}>
-                <div className="relative flex min-h-[min(420px,48lvh)] flex-col justify-center">
+                <div className="relative flex min-h-[min(330px,42lvh)] flex-col justify-center">
                   <MyAiWelcomeHero displayName={welcomeDisplayName} className="relative z-10 mb-5" />
                   <MyAiComposer
-                  layout="center"
-                  input={input}
-                  onInputChange={setInput}
-                  onSend={() => void send()}
-                  onResearchScope={handleResearchScope}
-                  onStop={sending ? stopGeneration : undefined}
-                  sending={sending}
-                  editingMessageId={editingMessageId}
-                  onCancelEdit={() => {
-                    setEditingMessageId(null);
-                    setInput("");
-                  }}
-                  userId={user.id}
-                  textareaRef={taRef}
-                  responseDepth={responseDepth}
-                  onResponseDepthChange={setResponseDepth}
-                  companionMode={companionMode}
-                  onCompanionModeChange={setCompanionMode}
-                  includeGeneral={includeGeneral}
-                  onIncludeGeneralChange={setIncludeGeneral}
-                  suggestedPrompts={SUGGESTED_PROMPTS}
-                  onSuggestedPrompt={(prompt) => void send(prompt)}
-                  canSaveJournal={Boolean(routeChatId && visibleMessages.length > 0)}
-                  onSaveJournal={() => void saveAsJournalEntry()}
-                  savingJournal={savingJournal}
-                  onNewChat={newChat}
-                  onOpenCognitiveState={() => setStateOpen(true)}
-                  voiceReplies={voiceReplies}
-                  onVoiceRepliesChange={setVoiceReplies}
-                  welcomeQuickPrompts={SUGGESTED_PROMPTS.slice(0, 3)}
-                  onWelcomeQuickPrompt={(prompt) => void send(prompt)}
-                />
+                    layout="center"
+                    input={input}
+                    onInputChange={setInput}
+                    onSend={() => void send()}
+                    onResearchScope={handleResearchScope}
+                    onStop={sending ? stopGeneration : undefined}
+                    sending={sending}
+                    editingMessageId={editingMessageId}
+                    onCancelEdit={() => {
+                      setEditingMessageId(null);
+                      setInput("");
+                    }}
+                    userId={user.id}
+                    textareaRef={taRef}
+                    responseDepth={responseDepth}
+                    onResponseDepthChange={setResponseDepth}
+                    companionMode={companionMode}
+                    onCompanionModeChange={setCompanionMode}
+                    includeGeneral={includeGeneral}
+                    onIncludeGeneralChange={setIncludeGeneral}
+                    suggestedPrompts={SUGGESTED_PROMPTS}
+                    onSuggestedPrompt={(prompt) => void send(prompt)}
+                    canSaveJournal={Boolean(routeChatId && visibleMessages.length > 0)}
+                    onSaveJournal={() => void saveAsJournalEntry()}
+                    savingJournal={savingJournal}
+                    onNewChat={newChat}
+                    onOpenCognitiveState={() => setStateOpen(true)}
+                    voiceReplies={voiceReplies}
+                    onVoiceRepliesChange={setVoiceReplies}
+                    welcomeQuickPrompts={SUGGESTED_PROMPTS.slice(0, 3)}
+                    onWelcomeQuickPrompt={(prompt) => void send(prompt)}
+                  />
                 </div>
-                <MyAiWelcomeExplainer className="relative z-10 mt-8 pb-2" />
+                <MyAiWelcomeExplainer className="relative z-10 mt-5 pb-2" />
               </div>
             </div>
           ) : (

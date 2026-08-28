@@ -11,7 +11,7 @@ export const myAiWelcomeGlowShell =
   "pointer-events-none absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2";
 
 export const myAiWelcomeGlowOrb =
-  "h-[min(300px,38vh)] w-[min(480px,92vw)] shrink-0 rounded-full " +
+  "h-[min(220px,28vh)] w-[min(330px,84vw)] shrink-0 rounded-full sm:h-[min(300px,38vh)] sm:w-[min(480px,92vw)] " +
   "bg-[radial-gradient(ellipse_at_center,hsl(43_96%_78%_/_0.50)_0%,hsl(45_88%_84%_/_0.28)_32%,hsl(45_85%_88%_/_0.10)_52%,transparent_72%)] " +
   "blur-[0.5px] " +
   "dark:bg-[radial-gradient(ellipse_at_center,hsl(43_75%_58%_/_0.30)_0%,hsl(45_65%_48%_/_0.16)_35%,transparent_72%)]";

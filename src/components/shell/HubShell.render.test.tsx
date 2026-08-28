@@ -1,7 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { HubShell } from "@/components/shell/HubShell";
+
+const mockUseIsMobile = vi.hoisted(() => vi.fn(() => false));
+
+vi.mock("@/hooks/use-mobile", () => ({
+  useIsMobile: mockUseIsMobile,
+}));
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({
@@ -44,6 +50,10 @@ describe("HubShell", () => {
     );
   }
 
+  beforeEach(() => {
+    mockUseIsMobile.mockReturnValue(false);
+  });
+
   it("renders without throwing when hub children are provided", () => {
     expect(() => renderHubShell()).not.toThrow();
 
@@ -61,5 +71,13 @@ describe("HubShell", () => {
     renderHubShell("/children-books/lilly-how-mommy-daddy-met");
 
     expect(screen.queryByLabelText("Toggle phone")).not.toBeInTheDocument();
+  });
+
+  it("hides desktop edge overlays on compact viewports", () => {
+    mockUseIsMobile.mockReturnValue(true);
+    const { container } = renderHubShell("/journal");
+
+    expect(screen.queryByLabelText("Toggle phone")).not.toBeInTheDocument();
+    expect(container.querySelector("[data-sidebar-peek]")).not.toBeInTheDocument();
   });
 });

@@ -58,13 +58,17 @@ export function readerMobilePageTurnBottomClass(
   return compactChrome ? "bottom-[max(1rem,env(safe-area-inset-bottom,0px))]" : "bottom-safe-16";
 }
 
-/** Pull handle / header safe inset — hub card already reserves the status bar. */
+/** Pull handle / header safe inset — the compact hub surface can extend under the status bar. */
 export function readerChromeTopClass(hubInline: boolean): string {
-  return hubInline ? "top-2" : "top-[calc(var(--safe-area-inset-top)+0.35rem)]";
+  return hubInline
+    ? "top-[max(0.5rem,var(--safe-area-inset-top))]"
+    : "top-[calc(var(--safe-area-inset-top)+0.35rem)]";
 }
 
 export function readerHeaderSafePaddingClass(hubInline: boolean): string {
-  return hubInline ? "pt-2" : "pt-[var(--safe-area-inset-top)]";
+  return hubInline
+    ? "pt-[max(0.5rem,var(--safe-area-inset-top))]"
+    : "pt-[var(--safe-area-inset-top)]";
 }
 
 /** Hub card embed (sidebar visible). False in hub fullscreen or standalone reader. */

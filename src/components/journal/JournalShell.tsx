@@ -183,6 +183,9 @@ export default function JournalShell({
       className={cn(
         "bg-background",
         fillViewport
+          ? "[--journal-sticky-list-top:0px]"
+          : "[--journal-sticky-list-top:var(--safe-area-inset-top)]",
+        fillViewport
           ? "relative flex h-full min-h-0 flex-col overflow-hidden"
           : "min-h-[100dvh]",
       )}
@@ -199,7 +202,11 @@ export default function JournalShell({
         )}
         {/* Mobile rail in sheet */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-          <SheetContent side="left" className="w-72 p-0 [&>button]:hidden">
+          <SheetContent
+            side="left"
+            className="w-[min(20rem,calc(100vw_-_3rem))] p-0 [&>button]:hidden"
+            style={{ padding: 0 }}
+          >
             <JournalsRail
               journals={journals}
               activeJournalId={journalId}
