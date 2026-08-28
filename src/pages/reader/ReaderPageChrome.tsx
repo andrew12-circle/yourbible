@@ -73,7 +73,7 @@ export function ReaderPageHeader({
 type PlaceholderProps = {
   pageLoading: boolean;
   showMeasureArticle: boolean;
-  measureRestRef: Ref<HTMLElement>;
+  measureRef?: Ref<HTMLElement>;
   scriptureTypoClass: string;
   articleStyle: CSSProperties;
 };
@@ -82,26 +82,31 @@ type PlaceholderProps = {
 export function ReaderPageBodyPlaceholder({
   pageLoading,
   showMeasureArticle,
-  measureRestRef,
+  measureRef,
   scriptureTypoClass,
   articleStyle,
 }: PlaceholderProps) {
+  if (showMeasureArticle && measureRef) {
+    return (
+      <div className="relative flex flex-1 min-h-0 min-w-0" aria-hidden>
+        <article
+          ref={measureRef}
+          data-reading-area
+          className={cn("absolute inset-0 h-full w-full overflow-hidden", scriptureTypoClass)}
+          style={articleStyle}
+        />
+        {pageLoading ? (
+          <div className="absolute inset-0 z-[1] flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
   if (pageLoading) {
     return (
       <div className="flex flex-1 justify-center items-center">
         <Loader2 className="w-6 h-6 animate-spin text-leather/60" />
-      </div>
-    );
-  }
-  if (showMeasureArticle) {
-    return (
-      <div className="flex flex-1 min-h-0 min-w-0" aria-hidden>
-        <article
-          ref={measureRestRef}
-          data-reading-area
-          className={cn("h-full min-h-0 w-full overflow-hidden", scriptureTypoClass)}
-          style={articleStyle}
-        />
       </div>
     );
   }

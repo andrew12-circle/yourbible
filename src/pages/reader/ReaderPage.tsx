@@ -1502,8 +1502,8 @@ export default function ReaderPage() {
         {showPagePlaceholder ? (
           <ReaderPageBodyPlaceholder
             pageLoading={pageLoading || pageWaitingForPagination}
-            showMeasureArticle={effectiveSpread && measuresRestPage}
-            measureRestRef={onMeasureRestRef}
+            showMeasureArticle={attachMeasureRef != null}
+            measureRef={attachMeasureRef}
             scriptureTypoClass={scriptureTypoClass}
             articleStyle={articleStyle}
           />
