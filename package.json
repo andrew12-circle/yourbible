@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "worker:dev": "powershell -ExecutionPolicy Bypass -File scripts/run-transcript-worker.ps1",
-    "build": "node scripts/check-vite-env.mjs && vite build",
+    "build": "node scripts/check-vite-env.mjs && vite build && node scripts/strip-bible-bundle-from-dist.mjs && node scripts/verify-release-bible-artifact.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "check:file-size": "node scripts/check-max-lines.mjs",
@@ -26,6 +26,7 @@
     "download:bible-plates": "node scripts/download-bible-plates.mjs",
     "verify:bible-plate-bundle": "node scripts/verify-bible-plate-bundle.mjs",
     "verify:authorized-bible": "node scripts/verify-authorized-bible.mjs",
+    "verify:release-bible": "node scripts/verify-release-bible-artifact.mjs",
     "generate:bible-search-index": "node scripts/generate-bible-search-index.mjs",
     "discover:tissot-plates": "node scripts/discover-tissot-plates.mjs",
     "generate:tissot-plates": "node scripts/gen-tissot-plates.mjs",

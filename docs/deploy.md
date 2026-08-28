@@ -52,15 +52,24 @@ Or copy the workflow file aside, commit the removal temporarily, push, restore t
 
 Build settings live in [`vercel.json`](../vercel.json): Vite app, `npm run build`, output `dist`, SPA rewrites to `index.html`.
 
-### Bundled Bible authorization gate
+### Bible release authorization gate
 
-Before releasing any build that includes a full-text Bible bundle, run:
+The current production build excludes `public/bibles`. `npm run build` finishes
+by verifying the actual `dist` artifact. You can also run that artifact check
+directly:
+
+```bash
+npm run verify:release-bible
+```
+
+Before intentionally releasing any build that includes a full-text Bible
+bundle, run the stricter source authorization gate:
 
 ```bash
 npm run verify:authorized-bible
 ```
 
-This is intentionally fail-closed until the private publisher/license attestation described in [authorized-bible-attestation.md](./authorized-bible-attestation.md) is present. Do not deploy a new or changed bundled edition if this check fails.
+This is intentionally fail-closed until the private publisher/license attestation described in [authorized-bible-attestation.md](./authorized-bible-attestation.md) is present. Do not deploy a new or changed bundled edition if this check fails. A production build with no bundled Bible files remains releasable; CSB chapter reading uses the existing API-backed passage function, while bundled full-text search is unavailable.
 
 ---
 

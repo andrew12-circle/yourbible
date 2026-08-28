@@ -23,14 +23,10 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["app-icon-192.png", "app-icon-512.png", "site.webmanifest"],
       manifest: false,
       workbox: {
-        // The complete CSB corpus and its full-text search index are public
-        // JSON assets. Precache them with the app so reader navigation and
-        // search remain offline and never need an API.Bible fallback.
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,json}"],
-        // Children's-book illustrations are a separate, nearly 500 MB library.
-        // Precaching them alongside the Bible can make the reader's offline
-        // install exceed browser storage quotas on phones.
-        globIgnores: ["children-books/**/*"],
+        // Production does not ship the unattested full-text CSB cache. Keeping
+        // it out of the precache also lets activation clean older corpus caches.
+        globIgnores: ["children-books/**/*", ...(mode === "production" ? ["bibles/**/*"] : [])],
         navigateFallback: "/index.html",
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },

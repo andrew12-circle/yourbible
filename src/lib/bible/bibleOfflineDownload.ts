@@ -1,6 +1,6 @@
 import { BOOKS } from "@/data/books";
 import { fetchPassage } from "@/lib/bible/api";
-import { isBundledBibleId } from "@/lib/bible/bibleEditions";
+import { isBundledBibleId, isRemoteReaderBibleId } from "@/lib/bible/bibleEditions";
 import { getCachedPassage, setCachedPassage } from "@/lib/bible/passageCache";
 
 export const LS_OFFLINE_BIBLE_KEY = "yb.offlineBible";
@@ -40,6 +40,9 @@ export function writeOfflineBibleId(bibleId: string | null): void {
 
 export async function countCachedChapters(bibleId: string): Promise<number> {
   if (isBundledBibleId(bibleId)) return totalChapterCount();
+  // Production CSB deliberately bypasses the legacy passage cache. Avoid
+  // scanning 1,189 IndexedDB keys merely to report the expected zero.
+  if (isRemoteReaderBibleId(bibleId)) return 0;
 
   let n = 0;
   for (const { book, chapter } of CHAPTER_REFS) {
@@ -62,6 +65,12 @@ export async function downloadBibleForOffline(
   };
 
   report("running");
+
+  if (isRemoteReaderBibleId(bibleId)) {
+    const error = "Offline download is unavailable for the API-backed CSB edition.";
+    report("error", error);
+    throw new Error(error);
+  }
 
   // The full CSB corpus is part of the application bundle and is precached by
   // the service worker. Never turn a local-edition setting into 1,189 API

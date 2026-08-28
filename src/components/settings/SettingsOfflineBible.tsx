@@ -10,7 +10,7 @@ import {
   totalChapterCount,
   type OfflineDownloadProgress,
 } from "@/lib/bible/bibleOfflineDownload";
-import { isBundledBibleId } from "@/lib/bible/bibleEditions";
+import { isBundledBibleId, isRemoteReaderBibleId } from "@/lib/bible/bibleEditions";
 import { SettingsCard } from "@/components/settings/SettingsSectionPanel";
 
 type Props = {
@@ -52,6 +52,7 @@ export function SettingsOfflineBible({ bibleId }: Props) {
 
   const offlineId = readOfflineBibleId();
   const bundledEdition = isBundledBibleId(bibleId);
+  const remoteReaderEdition = isRemoteReaderBibleId(bibleId);
   const pct = progress?.status === "running" ? Math.round((progress.done / total) * 100) : 0;
 
   return (
@@ -66,6 +67,8 @@ export function SettingsOfflineBible({ bibleId }: Props) {
             <p className="text-xs text-muted-foreground">
               {bundledEdition
                 ? `All ${total} CSB chapters are included with the app for offline reading.`
+                : remoteReaderEdition
+                  ? "CSB is read online through API.Bible in this production build."
                 : `Download all ${total} chapters for reading without internet.`}
               {cached > 0 ? ` ${cached} chapters cached.` : ""}
               {(bundledEdition || (offlineId === bibleId && cached > 0)) ? " Ready for offline use." : ""}
@@ -85,7 +88,7 @@ export function SettingsOfflineBible({ bibleId }: Props) {
             </p>
           </div>
         ) : null}
-        {!bundledEdition ? (
+        {!bundledEdition && !remoteReaderEdition ? (
           <Button
             type="button"
             variant="secondary"

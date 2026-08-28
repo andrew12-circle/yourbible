@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { listBibles, type BibleEntry } from "@/lib/bible/api";
 import { EOTC_BIBLE_ID, readCanon } from "@/lib/bible/canon";
-import { isBundledBibleId } from "@/lib/bible/bibleEditions";
+import { isSupportedReaderBibleId } from "@/lib/bible/bibleEditions";
 
 export const BIBLES_QUERY_KEY = ["bibles"] as const;
 export const LS_BIBLE_LANGUAGE_KEY = "yb.bibleLanguage";
@@ -12,8 +12,8 @@ export function readBibleLanguage(): string {
     const stored = localStorage.getItem(LS_BIBLE_LANGUAGE_KEY);
     if (!stored || stored === BUNDLED_READER_LANGUAGE) return BUNDLED_READER_LANGUAGE;
 
-    // The reader no longer has remote translation fallbacks. Normalize legacy
-    // language selections rather than leaving the selector with no local text.
+    // The reader supports one stable English CSB identity. Normalize legacy
+    // language selections rather than leaving the selector without text.
     localStorage.setItem(LS_BIBLE_LANGUAGE_KEY, BUNDLED_READER_LANGUAGE);
     return BUNDLED_READER_LANGUAGE;
   } catch {
@@ -36,9 +36,9 @@ export function readerBibleOptions(list: BibleEntry[]): BibleEntry[] {
     return list.filter((bible) => bible.id === EOTC_BIBLE_ID);
   }
 
-  // Do not let a legacy/API-only entry become the Protestant default. The
-  // reader's guaranteed local editions are the only reliable choices here.
-  return list.filter((bible) => isBundledBibleId(bible.id));
+  // Do not let an arbitrary legacy/API entry become the Protestant default.
+  // Only editions with an explicit bundled or production API delivery path qualify.
+  return list.filter((bible) => isSupportedReaderBibleId(bible.id));
 }
 
 export function pickDefaultBibleId(list: BibleEntry[], storedId: string | null): string {
