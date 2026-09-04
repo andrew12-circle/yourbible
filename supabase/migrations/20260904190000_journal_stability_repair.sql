@@ -92,7 +92,7 @@ begin
     select coalesce(nullif(p.journal_timezone, ''), 'America/Chicago')
       into tz
       from public.profiles p
-      where p.id = new.user_id;
+      where p.user_id = new.user_id;
     tz := coalesce(tz, 'America/Chicago');
   end if;
 
