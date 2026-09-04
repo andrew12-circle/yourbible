@@ -1,19 +1,6 @@
--- Private notebook: entries must be E2E-encrypted client-side before sync.
-alter table public.journals
-  add column if not exists e2e_required boolean not null default false;
-
-comment on column public.journals.e2e_required is
-  'When true, entries in this journal must be saved with e2e_encrypted=true (client-side AES-GCM).';
-
-alter table public.journals
-  drop constraint if exists journals_source_kind_check;
-
-alter table public.journals
-  add constraint journals_source_kind_check
-  check (source_kind in (
-    'manual', 'belief_layer', 'book', 'theme', 'verse_capture', 'daily', 'chat', 'private'
-  ));
-
-create index if not exists idx_journals_e2e_required
-  on public.journals (user_id)
-  where e2e_required = true;
+-- Deprecated standalone private-notebook migration retained for history.
+-- Production E2E/private notebook schema is reconciled by:
+--   20260904190000_journal_stability_repair.sql
+--
+-- Keeping this file as a no-op prevents a fresh migration run from reintroducing
+-- a source_kind constraint that omits the Notes notebook.
