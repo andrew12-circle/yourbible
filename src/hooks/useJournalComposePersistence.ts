@@ -17,6 +17,7 @@ import {
 } from "@/lib/journal/journalEntryAutosave";
 import { maybeEncryptJournalPayload } from "@/lib/journal/journalEntryCrypto";
 import type { ListeningSections } from "@/lib/journal/listeningEntry";
+import { localDateKey } from "@/lib/journal/localDate";
 
 export type ComposePersistenceSnapshot = {
   title: string;
@@ -71,11 +72,9 @@ export function useJournalComposePersistence({
   const localTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingServerRef = useRef<JournalAutosavePatch>({});
-  const serverGenerationRef = useRef(0);
   const ensuringDraftRef = useRef(false);
   const restoredLocalRef = useRef(false);
-
-  const serverEntryId = editId ?? inlineEntryId ?? null;
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     if (!userId) {
@@ -125,59 +124,10 @@ export function useJournalComposePersistence({
       weather_icon: snap.weatherIcon,
       analyze_for_mirror: snap.entryKind === "vent" ? false : snap.analyzeForMirror,
       entry_at_ts: ts.toISOString(),
-      entry_at: ts.toISOString().slice(0, 10),
+      entry_at: localDateKey(ts),
       entry_kind: snap.entryKind,
     };
   }, []);
-
-  const flushServerSave = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      if (!userId) return;
-      if (serverTimerRef.current) {
-        clearTimeout(serverTimerRef.current);
-        serverTimerRef.current = null;
-      }
-
-      const entryId = editId ?? inlineEntryId;
-      if (!entryId) return;
-
-      const pending = pendingServerRef.current;
-      if (Object.keys(pending).length === 0) return;
-
-      pendingServerRef.current = {};
-      serverGenerationRef.current += 1;
-
-      const snap = getSnapshotRef.current();
-      let payload: Record<string, unknown>;
-      try {
-        payload = await maybeEncryptJournalPayload(
-          buildFlushPayload(pending, buildServerPayload(snap)),
-          { journalId: snap.journalId },
-        );
-      } catch (err) {
-        pendingServerRef.current = mergePendingPatches(pendingServerRef.current, pending);
-        if (!opts?.silent) {
-          toast({
-            title: "Couldn't save entry",
-            description: err instanceof Error ? err.message : "Journal encryption required",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      const { error } = await supabase
-        .from("journal_entries")
-        .update(payload)
-        .eq("id", entryId)
-        .eq("user_id", userId);
-
-      if (error && !opts?.silent) {
-        toast({ title: "Autosave failed", description: error.message, variant: "destructive" });
-      }
-    },
-    [userId, editId, inlineEntryId, buildServerPayload],
-  );
 
   const ensureDraftEntry = useCallback(async (): Promise<string | null> => {
     if (!userId) return null;
@@ -230,6 +180,65 @@ export function useJournalComposePersistence({
     }
   }, [userId, editId, inlineEntryId, setInlineEntryId, buildServerPayload, entryKind]);
 
+  const flushServerSave = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (!userId) return;
+      if (serverTimerRef.current) {
+        clearTimeout(serverTimerRef.current);
+        serverTimerRef.current = null;
+      }
+
+      const run = async () => {
+        let entryId = editId ?? inlineEntryId;
+        if (!entryId) {
+          entryId = await ensureDraftEntry();
+          if (!entryId) return;
+        }
+
+        const pending = { ...pendingServerRef.current };
+        if (Object.keys(pending).length === 0) return;
+        pendingServerRef.current = {};
+
+        const snap = getSnapshotRef.current();
+        let payload: Record<string, unknown>;
+        try {
+          payload = await maybeEncryptJournalPayload(
+            buildFlushPayload(pending, buildServerPayload(snap)),
+            { journalId: snap.journalId },
+          );
+        } catch (err) {
+          pendingServerRef.current = mergePendingPatches(pendingServerRef.current, pending);
+          if (!opts?.silent) {
+            toast({
+              title: "Couldn't save entry",
+              description: err instanceof Error ? err.message : "Journal encryption required",
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+
+        const { error } = await supabase
+          .from("journal_entries")
+          .update(payload)
+          .eq("id", entryId)
+          .eq("user_id", userId);
+
+        if (error) {
+          pendingServerRef.current = mergePendingPatches(pendingServerRef.current, pending);
+          if (!opts?.silent) {
+            toast({ title: "Autosave failed", description: error.message, variant: "destructive" });
+          }
+        }
+      };
+
+      const queued = saveChainRef.current.catch(() => {}).then(run);
+      saveChainRef.current = queued;
+      await queued;
+    },
+    [userId, editId, inlineEntryId, ensureDraftEntry, buildServerPayload],
+  );
+
   const scheduleServerSave = useCallback(() => {
     if (!userId) return;
 
@@ -237,52 +246,20 @@ export function useJournalComposePersistence({
     if (!hasMeaningfulComposeContent(snap)) return;
 
     scheduleLocalDraft();
-
     pendingServerRef.current = mergePendingPatches(
       pendingServerRef.current,
       buildServerPayload(snap),
     );
 
     if (serverTimerRef.current) clearTimeout(serverTimerRef.current);
-    const generation = ++serverGenerationRef.current;
-
-    serverTimerRef.current = setTimeout(async () => {
-      if (generation !== serverGenerationRef.current) return;
-
-      let entryId = editId ?? inlineEntryId;
-      if (!entryId) {
-        entryId = await ensureDraftEntry();
-        if (!entryId) return;
-      }
-
-      const pending = { ...pendingServerRef.current };
-      pendingServerRef.current = {};
-      const latestSnap = getSnapshotRef.current();
-      const payload = buildFlushPayload(pending, buildServerPayload(latestSnap));
-
-      const { error } = await supabase
-        .from("journal_entries")
-        .update(payload)
-        .eq("id", entryId)
-        .eq("user_id", userId);
-
-      if (generation !== serverGenerationRef.current) return;
-      if (error) {
-        pendingServerRef.current = mergePendingPatches(pendingServerRef.current, pending);
-        toast({ title: "Autosave failed", description: error.message, variant: "destructive" });
-      }
+    serverTimerRef.current = setTimeout(() => {
+      serverTimerRef.current = null;
+      void flushServerSave();
     }, SERVER_DEBOUNCE_MS);
-  }, [
-    userId,
-    editId,
-    inlineEntryId,
-    scheduleLocalDraft,
-    buildServerPayload,
-    ensureDraftEntry,
-  ]);
+  }, [userId, scheduleLocalDraft, buildServerPayload, flushServerSave]);
 
   const restoreLocalDraft = useCallback(() => {
-    if (restoredLocalRef.current || skipLocalRestore || editId) return;
+    if (restoredLocalRef.current || skipLocalRestore) return;
     const key = draftKeyRef.current;
     if (!key) return;
     restoredLocalRef.current = true;
@@ -292,7 +269,7 @@ export function useJournalComposePersistence({
     if (!draft.body.trim() && !draft.title.trim()) return;
 
     return draft;
-  }, [skipLocalRestore, editId]);
+  }, [skipLocalRestore]);
 
   const clearDraft = useCallback(() => {
     const key = draftKeyRef.current;
@@ -316,6 +293,7 @@ export function useJournalComposePersistence({
   useEffect(() => {
     return () => {
       if (localTimerRef.current) clearTimeout(localTimerRef.current);
+      if (serverTimerRef.current) clearTimeout(serverTimerRef.current);
       persistLocalDraft();
       void flushServerSave({ silent: true });
     };
