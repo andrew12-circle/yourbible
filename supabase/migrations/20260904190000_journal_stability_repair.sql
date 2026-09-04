@@ -128,12 +128,11 @@ create trigger trg_journal_entries_revision
   before update on public.journal_entries
   for each row execute function public.bump_journal_entry_revision();
 
--- Recompute existing calendar dates using the stored journal timezone.
-update public.journal_entries e
-set entry_at = (e.entry_at_ts at time zone coalesce(nullif(p.journal_timezone, ''), 'America/Chicago'))::date
-from public.profiles p
-where p.id = e.user_id
-  and e.entry_at is distinct from (e.entry_at_ts at time zone coalesce(nullif(p.journal_timezone, ''), 'America/Chicago'))::date;
+-- Recompute existing calendar dates with the current app default timezone.
+-- The trigger above uses a per-profile timezone whenever profile identity is available.
+update public.journal_entries
+set entry_at = (entry_at_ts at time zone 'America/Chicago')::date
+where entry_at is distinct from (entry_at_ts at time zone 'America/Chicago')::date;
 
 -- Server embeddings must never inspect ciphertext.
 create or replace function public.trg_enqueue_journal_embedding()
