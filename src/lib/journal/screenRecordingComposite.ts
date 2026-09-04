@@ -32,8 +32,9 @@ export type ScreenCompositeSession = {
   setBubbleLayout: (layout: Partial<ScreenBubbleLayout>) => void;
   /** Hot-swap the webcam bubble feed (preview or during recording). */
   replaceCameraInput: (cameraOptions?: JournalVideoConstraintOptions) => Promise<void>;
-  /** Hot-swap mic when composite uses camera audio (not system audio). */
+  /** Hot-swap microphone input while preserving mixed system/tab audio. */
   replaceAudioInput: (audioDeviceId: string) => Promise<void>;
+  /** True when a microphone track is part of the composite audio mix. */
   usesCameraAudio: boolean;
 };
 
@@ -102,7 +103,14 @@ export function bubbleLayout(
   return { x, y, bubbleW, bubbleH };
 }
 
-/** Screen recording with a Loom-style webcam bubble. */
+function audioContextCtor(): typeof AudioContext | null {
+  if (typeof AudioContext !== "undefined") return AudioContext;
+  const webkit = (globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext })
+    .webkitAudioContext;
+  return webkit ?? null;
+}
+
+/** Screen recording with a Loom-style webcam bubble and mixed mic + system/tab audio. */
 export async function createScreenCompositeSession(
   options: CreateScreenCompositeOptions = {},
 ): Promise<ScreenCompositeSession> {
@@ -112,10 +120,9 @@ export async function createScreenCompositeSession(
     audio: includeSystemAudio,
   });
 
-  const screenHasAudio = includeSystemAudio && screenStream.getAudioTracks().length > 0;
   const cameraStream = await navigator.mediaDevices.getUserMedia({
     video: buildJournalVideoConstraints(options.cameraOptions ?? {}).video ?? true,
-    audio: !screenHasAudio,
+    audio: true,
   });
   await tuneJournalVideoStream(cameraStream, options.cameraOptions?.quality);
 
@@ -205,10 +212,40 @@ export async function createScreenCompositeSession(
   drawFrame();
 
   const compositeStream = canvas.captureStream(30);
-  const audioTracks = screenHasAudio ? screenStream.getAudioTracks() : cameraStream.getAudioTracks();
-  for (const track of audioTracks) {
-    compositeStream.addTrack(track);
-  }
+  const AudioCtor = audioContextCtor();
+  let audioContext: AudioContext | null = null;
+  let audioDestination: MediaStreamAudioDestinationNode | null = null;
+  let screenAudioSource: MediaStreamAudioSourceNode | null = null;
+  let micAudioSource: MediaStreamAudioSourceNode | null = null;
+
+  const connectAudioMix = async () => {
+    const micTrack = cameraStream.getAudioTracks()[0];
+    const screenTracks = screenStream.getAudioTracks();
+    if (!micTrack && screenTracks.length === 0) return;
+
+    if (!AudioCtor) {
+      const fallback = micTrack ?? screenTracks[0];
+      if (fallback) compositeStream.addTrack(fallback);
+      return;
+    }
+
+    audioContext = new AudioCtor();
+    if (audioContext.state === "suspended") await audioContext.resume().catch(() => {});
+    audioDestination = audioContext.createMediaStreamDestination();
+
+    if (screenTracks.length > 0) {
+      screenAudioSource = audioContext.createMediaStreamSource(new MediaStream(screenTracks));
+      screenAudioSource.connect(audioDestination);
+    }
+    if (micTrack) {
+      micAudioSource = audioContext.createMediaStreamSource(new MediaStream([micTrack]));
+      micAudioSource.connect(audioDestination);
+    }
+
+    const mixedTrack = audioDestination.stream.getAudioTracks()[0];
+    if (mixedTrack) compositeStream.addTrack(mixedTrack);
+  };
+  await connectAudioMix();
 
   const screenTrack = screenStream.getVideoTracks()[0];
   const onScreenEnded = () => options.onScreenShareEnded?.();
@@ -219,24 +256,19 @@ export async function createScreenCompositeSession(
     stopped = true;
     cancelAnimationFrame(raf);
     screenTrack?.removeEventListener("ended", onScreenEnded);
+    screenAudioSource?.disconnect();
+    micAudioSource?.disconnect();
     screenStream.getTracks().forEach((t) => t.stop());
     cameraStream.getTracks().forEach((t) => t.stop());
     compositeStream.getTracks().forEach((t) => t.stop());
+    void audioContext?.close().catch(() => {});
     screenVideo.srcObject = null;
     cameraVideo.srcObject = null;
   };
 
-  const replaceCompositeAudioTrack = (nextTrack: MediaStreamTrack) => {
-    for (const track of compositeStream.getAudioTracks()) {
-      compositeStream.removeTrack(track);
-      track.stop();
-    }
-    compositeStream.addTrack(nextTrack);
-  };
-
   return {
     compositeStream,
-    usesCameraAudio: !screenHasAudio,
+    usesCameraAudio: cameraStream.getAudioTracks().length > 0,
     stop,
     setBubbleLayout: (patch) => {
       bubbleLayoutState = { ...bubbleLayoutState, ...patch };
@@ -251,14 +283,16 @@ export async function createScreenCompositeSession(
       await cameraVideo.play().catch(() => {});
     },
     replaceAudioInput: async (audioDeviceId: string) => {
-      if (screenHasAudio) return;
       const next = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: { exact: audioDeviceId } },
         video: false,
       });
       replaceMediaStreamTracks(cameraStream, next, ["audio"]);
-      const audioTrack = cameraStream.getAudioTracks()[0];
-      if (audioTrack) replaceCompositeAudioTrack(audioTrack);
+      const micTrack = cameraStream.getAudioTracks()[0];
+      if (!micTrack || !audioContext || !audioDestination) return;
+      micAudioSource?.disconnect();
+      micAudioSource = audioContext.createMediaStreamSource(new MediaStream([micTrack]));
+      micAudioSource.connect(audioDestination);
     },
   };
 }
