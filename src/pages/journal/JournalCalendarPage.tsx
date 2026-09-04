@@ -7,6 +7,7 @@ import JournalShell from "@/components/journal/JournalShell";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { journalEntryHref } from "@/lib/journal/entryNavigation";
 import { entryDisplayTitle } from "@/lib/journal/entryDisplay";
+import { localDateKey, localMonthBounds } from "@/lib/journal/localDate";
 
 interface Row {
   id: string;
@@ -31,8 +32,7 @@ export default function JournalCalendarPage() {
 
   useEffect(() => {
     if (!user) return;
-    const start = new Date(cursor.getFullYear(), cursor.getMonth(), 1).toISOString().slice(0, 10);
-    const end = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const { start, end } = localMonthBounds(cursor.getFullYear(), cursor.getMonth());
     let query = supabase
       .from("journal_entries")
       .select("id,entry_at,title,body,mood,entry_kind")
@@ -66,7 +66,7 @@ export default function JournalCalendarPage() {
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(cursor.getFullYear(), cursor.getMonth(), d));
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = localDateKey(new Date());
 
   const openDay = (dayRows: Row[]) => {
     if (dayRows.length === 1) {
@@ -108,7 +108,7 @@ export default function JournalCalendarPage() {
         <div className="grid grid-cols-7 gap-1 pb-4">
           {cells.map((d, i) => {
             if (!d) return <div key={i} />;
-            const key = d.toISOString().slice(0, 10);
+            const key = localDateKey(d);
             const dayRows = byDay.get(key) ?? [];
             const isToday = key === todayStr;
             if (dayRows.length === 0) {
