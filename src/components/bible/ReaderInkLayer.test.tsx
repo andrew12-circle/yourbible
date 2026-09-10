@@ -70,7 +70,7 @@ class ResizeObserverMock {
 }
 
 beforeAll(() => {
-  globalThis.ResizeObserver = ResizeObserverMock as typeof ResizeObserver;
+  globalThis.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
 });
 
 describe("ReaderInkLayer", () => {

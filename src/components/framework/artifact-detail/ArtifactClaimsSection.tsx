@@ -6,6 +6,7 @@ import ArtifactStudySectionHeader from "@/components/framework/artifact-detail/A
 import {
   renderArtifactDetailClaimCard,
   type RenderClaimCardContext,
+  type RenderClaimCardClaim,
 } from "@/components/framework/artifact-detail/renderArtifactDetailClaimCard";
 import ClaimsGlossary, { type ClaimsGlossaryEntry } from "@/components/framework/ClaimsGlossary";
 import ClaimsPlaybackToolbar from "@/components/framework/artifact-detail/ClaimsPlaybackToolbar";
@@ -21,7 +22,7 @@ import { scrollArtifactClaimIntoView } from "@/lib/framework/scrollArtifactClaim
 import { formatTranscriptClock } from "@/lib/transcriptSplit";
 import { cn } from "@/lib/utils";
 
-type ClaimLike = { id: string; claim: string; verdict: string | null };
+type ClaimLike = RenderClaimCardClaim;
 
 type Props<T extends ClaimLike> = {
   /** Hash scroll target (e.g. `claims`). Omit when a parent section already owns the anchor. */
@@ -30,7 +31,7 @@ type Props<T extends ClaimLike> = {
   claimChapterLayout: { grouped: boolean; groups: ClaimChapterGroup<T>[] };
   glossaryEntries: ClaimsGlossaryEntry[];
   youTubeVideoId: string | null;
-  onJumpToClaim: (claimId: string) => void;
+  onJumpToClaim: (claimNumber: number) => void;
   onSeekChapter: (seconds: number) => void;
   claimCardContext: RenderClaimCardContext;
   /** Mobile: one claim open at a time; first claim open by default. */

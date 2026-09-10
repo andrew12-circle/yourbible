@@ -47,6 +47,109 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_events: {
+        Row: {
+          artifact_id: string | null
+          audio_seconds: number | null
+          batch_size: number
+          chat_id: string | null
+          completion_tokens: number | null
+          created_at: string
+          duration_ms: number | null
+          embedding_dims: number | null
+          error_message: string | null
+          estimated_usd: number | null
+          function_name: string
+          http_status: number | null
+          id: string
+          input_chars: number | null
+          journal_entry_id: string | null
+          metadata: Json
+          model: string | null
+          operation: string
+          output_chars: number | null
+          prompt_tokens: number | null
+          provider: string
+          status: string
+          total_tokens: number | null
+          user_id: string | null
+        }
+        Insert: {
+          artifact_id?: string | null
+          audio_seconds?: number | null
+          batch_size?: number
+          chat_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          embedding_dims?: number | null
+          error_message?: string | null
+          estimated_usd?: number | null
+          function_name: string
+          http_status?: number | null
+          id?: string
+          input_chars?: number | null
+          journal_entry_id?: string | null
+          metadata?: Json
+          model?: string | null
+          operation: string
+          output_chars?: number | null
+          prompt_tokens?: number | null
+          provider: string
+          status: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          artifact_id?: string | null
+          audio_seconds?: number | null
+          batch_size?: number
+          chat_id?: string | null
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          embedding_dims?: number | null
+          error_message?: string | null
+          estimated_usd?: number | null
+          function_name?: string
+          http_status?: number | null
+          id?: string
+          input_chars?: number | null
+          journal_entry_id?: string | null
+          metadata?: Json
+          model?: string | null
+          operation?: string
+          output_chars?: number | null
+          prompt_tokens?: number | null
+          provider?: string
+          status?: string
+          total_tokens?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_chat_id_fkey"
+            columns: ["chat_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_chats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_usage_events_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifact_claim_research_runs: {
         Row: {
           artifact_claim_id: string
@@ -96,37 +199,22 @@ export type Database = {
           verdict?: string | null
           verdict_at?: string | null
         }
-        Relationships: []
-      }
-      claim_research_events: {
-        Row: {
-          artifact_claim_id: string
-          artifact_id: string | null
-          created_at: string
-          event_type: string
-          id: string
-          metadata: Json
-          user_id: string
-        }
-        Insert: {
-          artifact_claim_id: string
-          artifact_id?: string | null
-          created_at?: string
-          event_type: string
-          id?: string
-          metadata?: Json
-          user_id: string
-        }
-        Update: {
-          artifact_claim_id?: string
-          artifact_id?: string | null
-          created_at?: string
-          event_type?: string
-          id?: string
-          metadata?: Json
-          user_id?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "artifact_claim_research_runs_artifact_claim_id_fkey"
+            columns: ["artifact_claim_id"]
+            isOneToOne: false
+            referencedRelation: "artifact_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artifact_claim_research_runs_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       artifact_claims: {
         Row: {
@@ -134,8 +222,10 @@ export type Database = {
           bias_flags: string[]
           claim: string
           created_at: string
+          deferred_at: string | null
           doctrine_tags: string[]
           embedding: string | null
+          epistemology: Json
           id: string
           match_relation: string | null
           matched_belief_id: string | null
@@ -151,8 +241,10 @@ export type Database = {
           bias_flags?: string[]
           claim: string
           created_at?: string
+          deferred_at?: string | null
           doctrine_tags?: string[]
           embedding?: string | null
+          epistemology?: Json
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -168,8 +260,10 @@ export type Database = {
           bias_flags?: string[]
           claim?: string
           created_at?: string
+          deferred_at?: string | null
           doctrine_tags?: string[]
           embedding?: string | null
+          epistemology?: Json
           id?: string
           match_relation?: string | null
           matched_belief_id?: string | null
@@ -260,6 +354,129 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "artifact_moments_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifact_playback_progress: {
+        Row: {
+          artifact_id: string
+          playback_seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          playback_seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          playback_seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_playback_progress_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifact_transcript_chunks: {
+        Row: {
+          artifact_id: string
+          created_at: string
+          embedding: string | null
+          end_seconds: number | null
+          id: string
+          metadata: Json
+          start_seconds: number
+          text: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          created_at?: string
+          embedding?: string | null
+          end_seconds?: number | null
+          id?: string
+          metadata?: Json
+          start_seconds?: number
+          text: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          created_at?: string
+          embedding?: string | null
+          end_seconds?: number | null
+          id?: string
+          metadata?: Json
+          start_seconds?: number
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_transcript_chunks_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifact_transcript_segments: {
+        Row: {
+          artifact_id: string
+          confidence: number | null
+          created_at: string
+          end_seconds: number | null
+          id: string
+          seq: number
+          source: Database["public"]["Enums"]["transcript_segment_source"]
+          speaker: string | null
+          start_seconds: number
+          text: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          confidence?: number | null
+          created_at?: string
+          end_seconds?: number | null
+          id?: string
+          seq: number
+          source?: Database["public"]["Enums"]["transcript_segment_source"]
+          speaker?: string | null
+          start_seconds?: number
+          text: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          confidence?: number | null
+          created_at?: string
+          end_seconds?: number | null
+          id?: string
+          seq?: number
+          source?: Database["public"]["Enums"]["transcript_segment_source"]
+          speaker?: string | null
+          start_seconds?: number
+          text?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_transcript_segments_artifact_id_fkey"
             columns: ["artifact_id"]
             isOneToOne: false
             referencedRelation: "artifacts"
@@ -665,6 +882,51 @@ export type Database = {
         }
         Relationships: []
       }
+      claim_research_events: {
+        Row: {
+          artifact_claim_id: string
+          artifact_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          artifact_claim_id: string
+          artifact_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          artifact_claim_id?: string
+          artifact_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_research_events_artifact_claim_id_fkey"
+            columns: ["artifact_claim_id"]
+            isOneToOne: false
+            referencedRelation: "artifact_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_research_events_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_readings: {
         Row: {
           belief_id: string | null
@@ -898,6 +1160,318 @@ export type Database = {
         }
         Relationships: []
       }
+      google_drive_oauth_connections: {
+        Row: {
+          access_token: string | null
+          access_token_expires_at: string | null
+          created_at: string
+          drive_folder_id: string | null
+          google_email: string | null
+          last_sync_at: string | null
+          last_sync_error: string | null
+          refresh_token: string
+          scopes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          google_email?: string | null
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          refresh_token: string
+          scopes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          google_email?: string | null
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          refresh_token?: string
+          scopes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_drive_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          return_path: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_drive_synced_objects: {
+        Row: {
+          bucket_id: string
+          drive_file_id: string
+          size_bytes: number
+          storage_path: string
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          bucket_id: string
+          drive_file_id: string
+          size_bytes?: number
+          storage_path: string
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          bucket_id?: string
+          drive_file_id?: string
+          size_bytes?: number
+          storage_path?: string
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      habit_badges: {
+        Row: {
+          badge_id: string
+          habit_id: string | null
+          id: string
+          unlocked_at: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          habit_id?: string | null
+          id?: string
+          unlocked_at?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          habit_id?: string | null
+          id?: string
+          unlocked_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_badges_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_bills: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          due_date: string | null
+          id: string
+          name: string
+          paid: boolean
+          sort_order: number
+          updated_at: string
+          user_id: string
+          year_month: string
+        }
+        Insert: {
+          amount_cents?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          name: string
+          paid?: boolean
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+          year_month: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          name?: string
+          paid?: boolean
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
+      habit_completions: {
+        Row: {
+          completion_date: string
+          created_at: string
+          habit_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          completion_date: string
+          created_at?: string
+          habit_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          completion_date?: string
+          created_at?: string
+          habit_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_completions_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_goals: {
+        Row: {
+          created_at: string
+          done: boolean
+          event_date: string | null
+          goal_type: string
+          id: string
+          sort_order: number
+          title: string
+          updated_at: string
+          user_id: string
+          week_number: number | null
+          year_month: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          event_date?: string | null
+          goal_type: string
+          id?: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          user_id: string
+          week_number?: number | null
+          year_month: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          event_date?: string | null
+          goal_type?: string
+          id?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week_number?: number | null
+          year_month?: string
+        }
+        Relationships: []
+      }
+      habit_notes: {
+        Row: {
+          body: string
+          habit_id: string | null
+          id: string
+          updated_at: string
+          user_id: string
+          year_month: string
+        }
+        Insert: {
+          body?: string
+          habit_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          year_month: string
+        }
+        Update: {
+          body?: string
+          habit_id?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          year_month?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_notes_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          archived_at: string | null
+          category: string | null
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       hard_question_research_runs: {
         Row: {
           brief_summary: string | null
@@ -944,7 +1518,15 @@ export type Database = {
           verdict?: string | null
           verdict_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hard_question_research_runs_hard_question_id_fkey"
+            columns: ["hard_question_id"]
+            isOneToOne: false
+            referencedRelation: "framework_hard_questions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hard_question_sources: {
         Row: {
@@ -980,44 +1562,71 @@ export type Database = {
           url?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hard_question_sources_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_question_sources_hard_question_id_fkey"
+            columns: ["hard_question_id"]
+            isOneToOne: false
+            referencedRelation: "framework_hard_questions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       highlights: {
         Row: {
+          bible_id: string | null
           book: string
           chapter: number
           color: string
           created_at: string
+          end_offset: number | null
           id: string
           kind: string
           label: string | null
+          start_offset: number | null
           updated_at: string
           user_id: string
           verse: number
+          verse_id: string | null
         }
         Insert: {
+          bible_id?: string | null
           book: string
           chapter: number
           color: string
           created_at?: string
+          end_offset?: number | null
           id?: string
           kind?: string
           label?: string | null
+          start_offset?: number | null
           updated_at?: string
           user_id: string
           verse: number
+          verse_id?: string | null
         }
         Update: {
+          bible_id?: string | null
           book?: string
           chapter?: number
           color?: string
           created_at?: string
+          end_offset?: number | null
           id?: string
           kind?: string
           label?: string | null
+          start_offset?: number | null
           updated_at?: string
           user_id?: string
           verse?: number
+          verse_id?: string | null
         }
         Relationships: []
       }
@@ -1040,6 +1649,7 @@ export type Database = {
           mood: number | null
           pinned: boolean
           prompt_id: string | null
+          revision: number
           summary: string | null
           tags: string[]
           title: string | null
@@ -1068,6 +1678,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          revision?: number
           summary?: string | null
           tags?: string[]
           title?: string | null
@@ -1096,6 +1707,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          revision?: number
           summary?: string | null
           tags?: string[]
           title?: string | null
@@ -1106,37 +1718,15 @@ export type Database = {
           weather_icon?: string | null
           weather_temp_c?: number | null
         }
-        Relationships: []
-      }
-      user_journal_crypto: {
-        Row: {
-          created_at: string
-          key_version: number
-          recovery_wrapped_dek: string
-          salt: string
-          updated_at: string
-          user_id: string
-          wrapped_dek: string
-        }
-        Insert: {
-          created_at?: string
-          key_version?: number
-          recovery_wrapped_dek: string
-          salt: string
-          updated_at?: string
-          user_id: string
-          wrapped_dek: string
-        }
-        Update: {
-          created_at?: string
-          key_version?: number
-          recovery_wrapped_dek?: string
-          salt?: string
-          updated_at?: string
-          user_id?: string
-          wrapped_dek?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       journal_entry_links: {
         Row: {
@@ -1282,6 +1872,33 @@ export type Database = {
           },
         ]
       }
+      journal_prompts: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          locale: string
+          text: string
+          user_id: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          text: string
+          user_id?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          locale?: string
+          text?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       journal_videos: {
         Row: {
           anchor_offset: number
@@ -1325,33 +1942,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      journal_prompts: {
-        Row: {
-          category: string
-          created_at: string
-          id: string
-          locale: string
-          text: string
-          user_id: string | null
-        }
-        Insert: {
-          category?: string
-          created_at?: string
-          id?: string
-          locale?: string
-          text: string
-          user_id?: string | null
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          id?: string
-          locale?: string
-          text?: string
-          user_id?: string | null
-        }
-        Relationships: []
       }
       journals: {
         Row: {
@@ -1455,6 +2045,119 @@ export type Database = {
           title?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      life_priorities: {
+        Row: {
+          archived_at: string | null
+          color: string | null
+          created_at: string
+          daily_target_minutes: number
+          id: string
+          intention: string | null
+          key: string
+          label: string
+          rank: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          daily_target_minutes?: number
+          id?: string
+          intention?: string | null
+          key: string
+          label: string
+          rank?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          daily_target_minutes?: number
+          id?: string
+          intention?: string | null
+          key?: string
+          label?: string
+          rank?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      life_priority_logs: {
+        Row: {
+          created_at: string
+          id: string
+          log_date: string
+          minutes: number
+          note: string | null
+          priority_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          log_date: string
+          minutes?: number
+          note?: string | null
+          priority_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          log_date?: string
+          minutes?: number
+          note?: string | null
+          priority_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "life_priority_logs_priority_id_fkey"
+            columns: ["priority_id"]
+            isOneToOne: false
+            referencedRelation: "life_priorities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      life_week_reviews: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          reflection: string
+          subject: string
+          user_id: string
+          week_index: number
+          week_start: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          reflection: string
+          subject?: string
+          user_id: string
+          week_index: number
+          week_start: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          reflection?: string
+          subject?: string
+          user_id?: string
+          week_index?: number
+          week_start?: string
         }
         Relationships: []
       }
@@ -1636,25 +2339,15 @@ export type Database = {
           user_id?: string
           vision_recall?: string | null
         }
-        Relationships: []
-      }
-      living_hope_workbook: {
-        Row: {
-          content: Json
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          content?: Json
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          content?: Json
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "living_hope_reviews_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       living_hope_weekly_reviews: {
         Row: {
@@ -1683,118 +2376,23 @@ export type Database = {
         }
         Relationships: []
       }
-      life_week_reviews: {
+      living_hope_workbook: {
         Row: {
-          completed_at: string
-          created_at: string
-          id: string
-          reflection: string
-          subject: string
-          user_id: string
-          week_index: number
-          week_start: string
-        }
-        Insert: {
-          completed_at?: string
-          created_at?: string
-          id?: string
-          reflection: string
-          subject?: string
-          user_id: string
-          week_index: number
-          week_start: string
-        }
-        Update: {
-          completed_at?: string
-          created_at?: string
-          id?: string
-          reflection?: string
-          subject?: string
-          user_id?: string
-          week_index?: number
-          week_start?: string
-        }
-        Relationships: []
-      }
-      life_priorities: {
-        Row: {
-          archived_at: string | null
-          color: string | null
-          created_at: string
-          daily_target_minutes: number
-          id: string
-          intention: string | null
-          key: string
-          label: string
-          rank: number
+          content: Json
           updated_at: string
           user_id: string
         }
         Insert: {
-          archived_at?: string | null
-          color?: string | null
-          created_at?: string
-          daily_target_minutes?: number
-          id?: string
-          intention?: string | null
-          key: string
-          label: string
-          rank?: number
+          content?: Json
           updated_at?: string
           user_id: string
         }
         Update: {
-          archived_at?: string | null
-          color?: string | null
-          created_at?: string
-          daily_target_minutes?: number
-          id?: string
-          intention?: string | null
-          key?: string
-          label?: string
-          rank?: number
+          content?: Json
           updated_at?: string
           user_id?: string
         }
         Relationships: []
-      }
-      life_priority_logs: {
-        Row: {
-          created_at: string
-          id: string
-          log_date: string
-          minutes: number
-          note: string | null
-          priority_id: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          log_date: string
-          minutes?: number
-          note?: string | null
-          priority_id: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          log_date?: string
-          minutes?: number
-          note?: string | null
-          priority_id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "life_priority_logs_priority_id_fkey"
-            columns: ["priority_id"]
-            isOneToOne: false
-            referencedRelation: "life_priorities"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       my_ai_chats: {
         Row: {
@@ -1824,34 +2422,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
-      }
-      my_ai_projects: {
-        Row: {
-          created_at: string
-          id: string
-          name: string
-          sort_order: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          name: string
-          sort_order?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          name?: string
-          sort_order?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "my_ai_chats_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       my_ai_message_candidates: {
         Row: {
@@ -1957,8 +2536,36 @@ export type Database = {
           },
         ]
       }
+      my_ai_projects: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
+          bible_id: string | null
           body: string
           book: string
           chapter: number
@@ -1967,8 +2574,10 @@ export type Database = {
           updated_at: string
           user_id: string
           verse: number
+          verse_id: string | null
         }
         Insert: {
+          bible_id?: string | null
           body: string
           book: string
           chapter: number
@@ -1977,8 +2586,10 @@ export type Database = {
           updated_at?: string
           user_id: string
           verse: number
+          verse_id?: string | null
         }
         Update: {
+          bible_id?: string | null
           body?: string
           book?: string
           chapter?: number
@@ -1987,6 +2598,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verse?: number
+          verse_id?: string | null
         }
         Relationships: []
       }
@@ -2100,124 +2712,6 @@ export type Database = {
           },
         ]
       }
-      prayer_request_timeline_events: {
-        Row: {
-          body: string | null
-          created_at: string
-          event_kind: string
-          id: string
-          link_ref: Json
-          occurred_at: string
-          prayer_request_id: string
-          title: string
-          user_id: string
-        }
-        Insert: {
-          body?: string | null
-          created_at?: string
-          event_kind: string
-          id?: string
-          link_ref?: Json
-          occurred_at?: string
-          prayer_request_id: string
-          title: string
-          user_id: string
-        }
-        Update: {
-          body?: string | null
-          created_at?: string
-          event_kind?: string
-          id?: string
-          link_ref?: Json
-          occurred_at?: string
-          prayer_request_id?: string
-          title?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prayer_request_timeline_events_prayer_request_id_fkey"
-            columns: ["prayer_request_id"]
-            isOneToOne: false
-            referencedRelation: "prayer_requests"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      prayer_requests: {
-        Row: {
-          amount_provided: number | null
-          amount_requested: number | null
-          answer_text: string | null
-          answered_at: string | null
-          category: string
-          created_at: string
-          deadline: string | null
-          id: string
-          prayer_text: string
-          praise_report_entry_id: string | null
-          private_notes: string
-          purpose: string
-          requested_at: string
-          scripture_refs: Json
-          sort_order: number
-          status: string
-          title: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          amount_provided?: number | null
-          amount_requested?: number | null
-          answer_text?: string | null
-          answered_at?: string | null
-          category?: string
-          created_at?: string
-          deadline?: string | null
-          id?: string
-          prayer_text?: string
-          praise_report_entry_id?: string | null
-          private_notes?: string
-          purpose?: string
-          requested_at?: string
-          scripture_refs?: Json
-          sort_order?: number
-          status?: string
-          title: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          amount_provided?: number | null
-          amount_requested?: number | null
-          answer_text?: string | null
-          answered_at?: string | null
-          category?: string
-          created_at?: string
-          deadline?: string | null
-          id?: string
-          prayer_text?: string
-          praise_report_entry_id?: string | null
-          private_notes?: string
-          purpose?: string
-          requested_at?: string
-          scripture_refs?: Json
-          sort_order?: number
-          status?: string
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "prayer_requests_praise_report_entry_id_fkey"
-            columns: ["praise_report_entry_id"]
-            isOneToOne: false
-            referencedRelation: "journal_entries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       partner_summaries: {
         Row: {
           connection_id: string
@@ -2321,6 +2815,124 @@ export type Database = {
           },
         ]
       }
+      prayer_request_timeline_events: {
+        Row: {
+          body: string | null
+          created_at: string
+          event_kind: string
+          id: string
+          link_ref: Json
+          occurred_at: string
+          prayer_request_id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          event_kind: string
+          id?: string
+          link_ref?: Json
+          occurred_at?: string
+          prayer_request_id: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          event_kind?: string
+          id?: string
+          link_ref?: Json
+          occurred_at?: string
+          prayer_request_id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prayer_request_timeline_events_prayer_request_id_fkey"
+            columns: ["prayer_request_id"]
+            isOneToOne: false
+            referencedRelation: "prayer_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prayer_requests: {
+        Row: {
+          amount_provided: number | null
+          amount_requested: number | null
+          answer_text: string | null
+          answered_at: string | null
+          category: string
+          created_at: string
+          deadline: string | null
+          id: string
+          praise_report_entry_id: string | null
+          prayer_text: string
+          private_notes: string
+          purpose: string
+          requested_at: string
+          scripture_refs: Json
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_provided?: number | null
+          amount_requested?: number | null
+          answer_text?: string | null
+          answered_at?: string | null
+          category?: string
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          praise_report_entry_id?: string | null
+          prayer_text?: string
+          private_notes?: string
+          purpose?: string
+          requested_at?: string
+          scripture_refs?: Json
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_provided?: number | null
+          amount_requested?: number | null
+          answer_text?: string | null
+          answered_at?: string | null
+          category?: string
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          praise_report_entry_id?: string | null
+          prayer_text?: string
+          private_notes?: string
+          purpose?: string
+          requested_at?: string
+          scripture_refs?: Json
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prayer_requests_praise_report_entry_id_fkey"
+            columns: ["praise_report_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           all_entries_cover_focal_x: number
@@ -2337,6 +2949,7 @@ export type Database = {
           identity_generated_at: string | null
           identity_summary: Json | null
           journal_e2e_enabled: boolean
+          journal_timezone: string
           layout: string
           onboarded: boolean
           page_tone: string
@@ -2358,6 +2971,7 @@ export type Database = {
           identity_generated_at?: string | null
           identity_summary?: Json | null
           journal_e2e_enabled?: boolean
+          journal_timezone?: string
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -2379,6 +2993,7 @@ export type Database = {
           identity_generated_at?: string | null
           identity_summary?: Json | null
           journal_e2e_enabled?: boolean
+          journal_timezone?: string
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -2461,6 +3076,51 @@ export type Database = {
           side?: string
           strokes?: Json
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reading_activity: {
+        Row: {
+          activity_date: string
+          chapters_read: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          chapters_read?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          chapters_read?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reading_plan_progress: {
+        Row: {
+          completed_at: string
+          day_index: number
+          id: string
+          plan_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          day_index: number
+          id?: string
+          plan_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          day_index?: number
+          id?: string
+          plan_id?: string
           user_id?: string
         }
         Relationships: []
@@ -2557,6 +3217,123 @@ export type Database = {
           },
         ]
       }
+      todo_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          done: boolean
+          due_date: string | null
+          end_date: string | null
+          id: string
+          list_id: string | null
+          notes: string | null
+          parent_id: string | null
+          pinned_for_date: string | null
+          priority: number
+          sort_order: number
+          start_date: string | null
+          status: string
+          task_type: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          done?: boolean
+          due_date?: string | null
+          end_date?: string | null
+          id?: string
+          list_id?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          pinned_for_date?: string | null
+          priority?: number
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          task_type?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          done?: boolean
+          due_date?: string | null
+          end_date?: string | null
+          id?: string
+          list_id?: string | null
+          notes?: string | null
+          parent_id?: string | null
+          pinned_for_date?: string | null
+          priority?: number
+          sort_order?: number
+          start_date?: string | null
+          status?: string
+          task_type?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todo_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "todo_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "todo_items_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "todo_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      todo_lists: {
+        Row: {
+          archived_at: string | null
+          color: string | null
+          created_at: string
+          id: string
+          kind: string | null
+          name: string
+          slug: string | null
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          kind?: string | null
+          name: string
+          slug?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          kind?: string | null
+          name?: string
+          slug?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tradition_views: {
         Row: {
           belief_id: string
@@ -2579,134 +3356,6 @@ export type Database = {
           created_at?: string
           id?: string
           traditions?: Json
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      vision_boards: {
-        Row: {
-          background_key: string
-          created_at: string
-          id: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          background_key?: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          background_key?: string
-          created_at?: string
-          id?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      vision_board_items: {
-        Row: {
-          board_id: string
-          created_at: string
-          height: number
-          id: string
-          note_color: string | null
-          rotation: number
-          storage_path: string | null
-          text: string | null
-          type: string
-          updated_at: string
-          user_id: string
-          width: number
-          x: number
-          y: number
-          z_index: number
-        }
-        Insert: {
-          board_id: string
-          created_at?: string
-          height?: number
-          id?: string
-          note_color?: string | null
-          rotation?: number
-          storage_path?: string | null
-          text?: string | null
-          type: string
-          updated_at?: string
-          user_id: string
-          width?: number
-          x?: number
-          y?: number
-          z_index?: number
-        }
-        Update: {
-          board_id?: string
-          created_at?: string
-          height?: number
-          id?: string
-          note_color?: string | null
-          rotation?: number
-          storage_path?: string | null
-          text?: string | null
-          type?: string
-          updated_at?: string
-          user_id?: string
-          width?: number
-          x?: number
-          y?: number
-          z_index?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vision_board_items_board_id_fkey"
-            columns: ["board_id"]
-            isOneToOne: false
-            referencedRelation: "vision_boards"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      youtube_channel_subscriptions: {
-        Row: {
-          auto_import: boolean
-          channel_handle: string | null
-          channel_id: string
-          channel_thumbnail_url: string | null
-          channel_title: string | null
-          created_at: string
-          id: string
-          last_synced_at: string | null
-          last_video_published_at: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          auto_import?: boolean
-          channel_handle?: string | null
-          channel_id: string
-          channel_thumbnail_url?: string | null
-          channel_title?: string | null
-          created_at?: string
-          id?: string
-          last_synced_at?: string | null
-          last_video_published_at?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          auto_import?: boolean
-          channel_handle?: string | null
-          channel_id?: string
-          channel_thumbnail_url?: string | null
-          channel_title?: string | null
-          created_at?: string
-          id?: string
-          last_synced_at?: string | null
-          last_video_published_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2781,6 +3430,254 @@ export type Database = {
         }
         Relationships: []
       }
+      user_journal_crypto: {
+        Row: {
+          created_at: string
+          key_version: number
+          recovery_wrapped_dek: string
+          salt: string
+          updated_at: string
+          user_id: string
+          wrapped_dek: string
+        }
+        Insert: {
+          created_at?: string
+          key_version?: number
+          recovery_wrapped_dek: string
+          salt: string
+          updated_at?: string
+          user_id: string
+          wrapped_dek: string
+        }
+        Update: {
+          created_at?: string
+          key_version?: number
+          recovery_wrapped_dek?: string
+          salt?: string
+          updated_at?: string
+          user_id?: string
+          wrapped_dek?: string
+        }
+        Relationships: []
+      }
+      vision_board_items: {
+        Row: {
+          board_id: string
+          created_at: string
+          height: number
+          id: string
+          note_color: string | null
+          rotation: number
+          storage_path: string | null
+          text: string | null
+          type: string
+          updated_at: string
+          user_id: string
+          width: number
+          x: number
+          y: number
+          z_index: number
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          height?: number
+          id?: string
+          note_color?: string | null
+          rotation?: number
+          storage_path?: string | null
+          text?: string | null
+          type: string
+          updated_at?: string
+          user_id: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          height?: number
+          id?: string
+          note_color?: string | null
+          rotation?: number
+          storage_path?: string | null
+          text?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vision_board_items_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "vision_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vision_boards: {
+        Row: {
+          background_key: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          background_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          background_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_channel_subscriptions: {
+        Row: {
+          auto_import: boolean
+          channel_handle: string | null
+          channel_id: string
+          channel_thumbnail_url: string | null
+          channel_title: string | null
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          last_video_published_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_import?: boolean
+          channel_handle?: string | null
+          channel_id: string
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          last_video_published_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_import?: boolean
+          channel_handle?: string | null
+          channel_id?: string
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          last_video_published_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_oauth_connections: {
+        Row: {
+          access_token: string | null
+          access_token_expires_at: string | null
+          channel_id: string | null
+          channel_title: string | null
+          created_at: string
+          refresh_token: string
+          scopes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          created_at?: string
+          refresh_token: string
+          scopes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          created_at?: string
+          refresh_token?: string
+          scopes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          return_path: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_transcript_cache: {
+        Row: {
+          created_at: string
+          expires_at: string
+          provider: string
+          raw_text: string
+          source: Database["public"]["Enums"]["transcript_segment_source"]
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          provider: string
+          raw_text: string
+          source?: Database["public"]["Enums"]["transcript_segment_source"]
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          provider?: string
+          raw_text?: string
+          source?: Database["public"]["Enums"]["transcript_segment_source"]
+          video_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2792,38 +3689,55 @@ export type Database = {
         Returns: undefined
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
-      get_library_corpus_stats: {
-        Args: Record<PropertyKey, never>
+      ensure_default_todo_lists: { Args: never; Returns: undefined }
+      get_ai_usage_by_function: {
+        Args: { p_days?: number }
         Returns: {
-          artifact_id: string
-          title: string | null
-          kind: string
-          created_at: string
-          claim_count: number
-          agree_count: number
-          disagree_count: number
-          new_count: number
-          peer_library_count: number
+          call_count: number
+          estimated_usd: number
+          function_name: string
         }[]
       }
-      get_my_storage_usage: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      match_corpus_peers_for_artifact: {
-        Args: {
-          match_count?: number
-          min_similarity?: number
-          p_artifact_id: string
-        }
+      get_ai_usage_daily: {
+        Args: { p_days?: number }
         Returns: {
-          avg_similarity: number
-          compared_claim_count: number
-          peer_artifact_id: string
-          strong_match_count: number
-          top_peer_claim: string
-          top_similarity: number
-          top_source_claim: string
+          call_count: number
+          day: string
+          estimated_usd: number
+          total_tokens: number
+        }[]
+      }
+      get_ai_usage_totals: {
+        Args: { p_days?: number }
+        Returns: {
+          call_count: number
+          estimated_usd: number
+          operation: string
+          provider: string
+          total_tokens: number
+        }[]
+      }
+      get_library_corpus_stats: {
+        Args: never
+        Returns: {
+          agree_count: number
+          artifact_id: string
+          claim_count: number
+          created_at: string
+          disagree_count: number
+          kind: string
+          new_count: number
+          peer_library_count: number
+          title: string
+        }[]
+      }
+      get_my_storage_usage: { Args: never; Returns: Json }
+      list_user_storage_objects_for_backup: {
+        Args: { p_user_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
+          size_bytes: number
         }[]
       }
       match_artifact_claims: {
@@ -2835,6 +3749,22 @@ export type Database = {
           id: string
           similarity: number
           verdict: string
+        }[]
+      }
+      match_artifact_transcript: {
+        Args: {
+          filter_artifact_id?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          artifact_id: string
+          end_seconds: number
+          id: string
+          metadata: Json
+          similarity: number
+          start_seconds: number
+          text: string
         }[]
       }
       match_assistant_messages: {
@@ -2862,6 +3792,22 @@ export type Database = {
           statement: string
           topic: string
           updated_at: string
+        }[]
+      }
+      match_corpus_peers_for_artifact: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          p_artifact_id: string
+        }
+        Returns: {
+          avg_similarity: number
+          compared_claim_count: number
+          peer_artifact_id: string
+          strong_match_count: number
+          top_peer_claim: string
+          top_similarity: number
+          top_source_claim: string
         }[]
       }
       match_entities: {
@@ -2910,9 +3856,15 @@ export type Database = {
           peer_user_id: string
         }[]
       }
+      sync_habit_framework_template: { Args: never; Returns: undefined }
     }
     Enums: {
-      [_ in never]: never
+      transcript_segment_source:
+        | "caption"
+        | "third_party"
+        | "deepgram"
+        | "gemini"
+        | "paste"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2928,12 +3880,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2957,11 +3909,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -2982,11 +3934,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3007,11 +3959,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3024,11 +3976,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -3039,6 +3991,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      transcript_segment_source: [
+        "caption",
+        "third_party",
+        "deepgram",
+        "gemini",
+        "paste",
+      ],
+    },
   },
 } as const

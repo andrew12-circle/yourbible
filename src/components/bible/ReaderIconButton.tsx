@@ -26,14 +26,28 @@ export const ReaderIconButton = forwardRef<HTMLButtonElement, Props>(function Re
   },
   ref,
 ) {
-  const Comp = asChild ? Slot : Button;
+  if (asChild) {
+    return (
+      <Slot
+        ref={ref}
+        onClick={onClick}
+        title={title}
+        aria-label={rest["aria-label"] ?? title}
+        aria-pressed={ariaPressed}
+        className={cn(readerIconButton, active && readerIconButtonActive, className)}
+        {...rest}
+      >
+        {children}
+      </Slot>
+    );
+  }
 
   return (
-    <Comp
+    <Button
       ref={ref}
-      type={asChild ? undefined : "button"}
-      variant={asChild ? undefined : "ghost"}
-      size={asChild ? undefined : "icon"}
+      type="button"
+      variant="ghost"
+      size="icon"
       onClick={onClick}
       title={title}
       aria-label={rest["aria-label"] ?? title}
@@ -43,6 +57,6 @@ export const ReaderIconButton = forwardRef<HTMLButtonElement, Props>(function Re
       {...rest}
     >
       {children}
-    </Comp>
+    </Button>
   );
 });
