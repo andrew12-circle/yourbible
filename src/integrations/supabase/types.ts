@@ -1160,6 +1160,102 @@ export type Database = {
         }
         Relationships: []
       }
+      google_drive_oauth_connections: {
+        Row: {
+          access_token: string | null
+          access_token_expires_at: string | null
+          created_at: string
+          drive_folder_id: string | null
+          google_email: string | null
+          last_sync_at: string | null
+          last_sync_error: string | null
+          refresh_token: string
+          scopes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          google_email?: string | null
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          refresh_token: string
+          scopes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          created_at?: string
+          drive_folder_id?: string | null
+          google_email?: string | null
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          refresh_token?: string
+          scopes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_drive_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          return_path: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_drive_synced_objects: {
+        Row: {
+          bucket_id: string
+          drive_file_id: string
+          size_bytes: number
+          storage_path: string
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          bucket_id: string
+          drive_file_id: string
+          size_bytes?: number
+          storage_path: string
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          bucket_id?: string
+          drive_file_id?: string
+          size_bytes?: number
+          storage_path?: string
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       habit_badges: {
         Row: {
           badge_id: string
@@ -1485,6 +1581,7 @@ export type Database = {
       }
       highlights: {
         Row: {
+          bible_id: string | null
           book: string
           chapter: number
           color: string
@@ -1497,8 +1594,10 @@ export type Database = {
           updated_at: string
           user_id: string
           verse: number
+          verse_id: string | null
         }
         Insert: {
+          bible_id?: string | null
           book: string
           chapter: number
           color: string
@@ -1511,8 +1610,10 @@ export type Database = {
           updated_at?: string
           user_id: string
           verse: number
+          verse_id?: string | null
         }
         Update: {
+          bible_id?: string | null
           book?: string
           chapter?: number
           color?: string
@@ -1525,6 +1626,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verse?: number
+          verse_id?: string | null
         }
         Relationships: []
       }
@@ -1534,6 +1636,7 @@ export type Database = {
           belief_id: string | null
           body: string
           created_at: string
+          e2e_encrypted: boolean
           embedding: string | null
           entry_at: string
           entry_at_ts: string
@@ -1546,6 +1649,7 @@ export type Database = {
           mood: number | null
           pinned: boolean
           prompt_id: string | null
+          revision: number
           summary: string | null
           tags: string[]
           title: string | null
@@ -1561,6 +1665,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          e2e_encrypted?: boolean
           embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
@@ -1573,6 +1678,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          revision?: number
           summary?: string | null
           tags?: string[]
           title?: string | null
@@ -1588,6 +1694,7 @@ export type Database = {
           belief_id?: string | null
           body?: string
           created_at?: string
+          e2e_encrypted?: boolean
           embedding?: string | null
           entry_at?: string
           entry_at_ts?: string
@@ -1600,6 +1707,7 @@ export type Database = {
           mood?: number | null
           pinned?: boolean
           prompt_id?: string | null
+          revision?: number
           summary?: string | null
           tags?: string[]
           title?: string | null
@@ -1610,7 +1718,15 @@ export type Database = {
           weather_icon?: string | null
           weather_temp_c?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       journal_entry_links: {
         Row: {
@@ -1835,6 +1951,7 @@ export type Database = {
           cover_kind: string
           cover_value: string | null
           created_at: string
+          e2e_required: boolean
           icon: string
           id: string
           is_default: boolean
@@ -1852,6 +1969,7 @@ export type Database = {
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
+          e2e_required?: boolean
           icon?: string
           id?: string
           is_default?: boolean
@@ -1869,6 +1987,7 @@ export type Database = {
           cover_kind?: string
           cover_value?: string | null
           created_at?: string
+          e2e_required?: boolean
           icon?: string
           id?: string
           is_default?: boolean
@@ -2008,6 +2127,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      life_week_reviews: {
+        Row: {
+          completed_at: string
+          created_at: string
+          id: string
+          reflection: string
+          subject: string
+          user_id: string
+          week_index: number
+          week_start: string
+        }
+        Insert: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          reflection: string
+          subject?: string
+          user_id: string
+          week_index: number
+          week_start: string
+        }
+        Update: {
+          completed_at?: string
+          created_at?: string
+          id?: string
+          reflection?: string
+          subject?: string
+          user_id?: string
+          week_index?: number
+          week_start?: string
+        }
+        Relationships: []
       }
       living_hope_goals: {
         Row: {
@@ -2413,6 +2565,7 @@ export type Database = {
       }
       notes: {
         Row: {
+          bible_id: string | null
           body: string
           book: string
           chapter: number
@@ -2421,8 +2574,10 @@ export type Database = {
           updated_at: string
           user_id: string
           verse: number
+          verse_id: string | null
         }
         Insert: {
+          bible_id?: string | null
           body: string
           book: string
           chapter: number
@@ -2431,8 +2586,10 @@ export type Database = {
           updated_at?: string
           user_id: string
           verse: number
+          verse_id?: string | null
         }
         Update: {
+          bible_id?: string | null
           body?: string
           book?: string
           chapter?: number
@@ -2441,6 +2598,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verse?: number
+          verse_id?: string | null
         }
         Relationships: []
       }
@@ -2657,6 +2815,124 @@ export type Database = {
           },
         ]
       }
+      prayer_request_timeline_events: {
+        Row: {
+          body: string | null
+          created_at: string
+          event_kind: string
+          id: string
+          link_ref: Json
+          occurred_at: string
+          prayer_request_id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          event_kind: string
+          id?: string
+          link_ref?: Json
+          occurred_at?: string
+          prayer_request_id: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          event_kind?: string
+          id?: string
+          link_ref?: Json
+          occurred_at?: string
+          prayer_request_id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prayer_request_timeline_events_prayer_request_id_fkey"
+            columns: ["prayer_request_id"]
+            isOneToOne: false
+            referencedRelation: "prayer_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prayer_requests: {
+        Row: {
+          amount_provided: number | null
+          amount_requested: number | null
+          answer_text: string | null
+          answered_at: string | null
+          category: string
+          created_at: string
+          deadline: string | null
+          id: string
+          praise_report_entry_id: string | null
+          prayer_text: string
+          private_notes: string
+          purpose: string
+          requested_at: string
+          scripture_refs: Json
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_provided?: number | null
+          amount_requested?: number | null
+          answer_text?: string | null
+          answered_at?: string | null
+          category?: string
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          praise_report_entry_id?: string | null
+          prayer_text?: string
+          private_notes?: string
+          purpose?: string
+          requested_at?: string
+          scripture_refs?: Json
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_provided?: number | null
+          amount_requested?: number | null
+          answer_text?: string | null
+          answered_at?: string | null
+          category?: string
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          praise_report_entry_id?: string | null
+          prayer_text?: string
+          private_notes?: string
+          purpose?: string
+          requested_at?: string
+          scripture_refs?: Json
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prayer_requests_praise_report_entry_id_fkey"
+            columns: ["praise_report_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           all_entries_cover_focal_x: number
@@ -2672,6 +2948,8 @@ export type Database = {
           id: string
           identity_generated_at: string | null
           identity_summary: Json | null
+          journal_e2e_enabled: boolean
+          journal_timezone: string
           layout: string
           onboarded: boolean
           page_tone: string
@@ -2692,6 +2970,8 @@ export type Database = {
           id?: string
           identity_generated_at?: string | null
           identity_summary?: Json | null
+          journal_e2e_enabled?: boolean
+          journal_timezone?: string
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -2712,6 +2992,8 @@ export type Database = {
           id?: string
           identity_generated_at?: string | null
           identity_summary?: Json | null
+          journal_e2e_enabled?: boolean
+          journal_timezone?: string
           layout?: string
           onboarded?: boolean
           page_tone?: string
@@ -3148,6 +3430,122 @@ export type Database = {
         }
         Relationships: []
       }
+      user_journal_crypto: {
+        Row: {
+          created_at: string
+          key_version: number
+          recovery_wrapped_dek: string
+          salt: string
+          updated_at: string
+          user_id: string
+          wrapped_dek: string
+        }
+        Insert: {
+          created_at?: string
+          key_version?: number
+          recovery_wrapped_dek: string
+          salt: string
+          updated_at?: string
+          user_id: string
+          wrapped_dek: string
+        }
+        Update: {
+          created_at?: string
+          key_version?: number
+          recovery_wrapped_dek?: string
+          salt?: string
+          updated_at?: string
+          user_id?: string
+          wrapped_dek?: string
+        }
+        Relationships: []
+      }
+      vision_board_items: {
+        Row: {
+          board_id: string
+          created_at: string
+          height: number
+          id: string
+          note_color: string | null
+          rotation: number
+          storage_path: string | null
+          text: string | null
+          type: string
+          updated_at: string
+          user_id: string
+          width: number
+          x: number
+          y: number
+          z_index: number
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          height?: number
+          id?: string
+          note_color?: string | null
+          rotation?: number
+          storage_path?: string | null
+          text?: string | null
+          type: string
+          updated_at?: string
+          user_id: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          height?: number
+          id?: string
+          note_color?: string | null
+          rotation?: number
+          storage_path?: string | null
+          text?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vision_board_items_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "vision_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vision_boards: {
+        Row: {
+          background_key: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          background_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          background_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       youtube_channel_subscriptions: {
         Row: {
           auto_import: boolean
@@ -3333,6 +3731,15 @@ export type Database = {
           title: string
         }[]
       }
+      get_my_storage_usage: { Args: never; Returns: Json }
+      list_user_storage_objects_for_backup: {
+        Args: { p_user_id: string }
+        Returns: {
+          bucket_id: string
+          name: string
+          size_bytes: number
+        }[]
+      }
       match_artifact_claims: {
         Args: { match_count?: number; query_embedding: string }
         Returns: {
@@ -3449,6 +3856,7 @@ export type Database = {
           peer_user_id: string
         }[]
       }
+      sync_habit_framework_template: { Args: never; Returns: undefined }
     }
     Enums: {
       transcript_segment_source:
