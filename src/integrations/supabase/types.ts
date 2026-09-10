@@ -150,6 +150,72 @@ export type Database = {
           },
         ]
       }
+      artifact_claim_research_runs: {
+        Row: {
+          artifact_claim_id: string
+          artifact_id: string
+          brief_summary: string | null
+          created_at: string
+          first_chat_at: string | null
+          id: string
+          opened_at: string | null
+          pack_json: Json
+          pack_type: string
+          use_web: boolean
+          user_id: string
+          user_question: string | null
+          verdict: string | null
+          verdict_at: string | null
+        }
+        Insert: {
+          artifact_claim_id: string
+          artifact_id: string
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          id?: string
+          opened_at?: string | null
+          pack_json: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Update: {
+          artifact_claim_id?: string
+          artifact_id?: string
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          id?: string
+          opened_at?: string | null
+          pack_json?: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id?: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_claim_research_runs_artifact_claim_id_fkey"
+            columns: ["artifact_claim_id"]
+            isOneToOne: false
+            referencedRelation: "artifact_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artifact_claim_research_runs_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artifact_claims: {
         Row: {
           artifact_id: string
@@ -221,6 +287,32 @@ export type Database = {
             columns: ["matched_belief_id"]
             isOneToOne: false
             referencedRelation: "belief_nodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifact_library_seen: {
+        Row: {
+          artifact_id: string
+          first_opened_at: string
+          user_id: string
+        }
+        Insert: {
+          artifact_id: string
+          first_opened_at?: string
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string
+          first_opened_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_library_seen_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
             referencedColumns: ["id"]
           },
         ]
@@ -790,6 +882,51 @@ export type Database = {
         }
         Relationships: []
       }
+      claim_research_events: {
+        Row: {
+          artifact_claim_id: string
+          artifact_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json
+          user_id: string
+        }
+        Insert: {
+          artifact_claim_id: string
+          artifact_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json
+          user_id: string
+        }
+        Update: {
+          artifact_claim_id?: string
+          artifact_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_research_events_artifact_claim_id_fkey"
+            columns: ["artifact_claim_id"]
+            isOneToOne: false
+            referencedRelation: "artifact_claims"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "claim_research_events_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_readings: {
         Row: {
           belief_id: string | null
@@ -960,6 +1097,66 @@ export type Database = {
           summary?: string
           title?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      framework_hard_questions: {
+        Row: {
+          conclusion: string | null
+          confidence: number | null
+          created_at: string
+          current_thinking: string | null
+          framing: string | null
+          id: string
+          layer: string | null
+          linked_belief_ids: string[]
+          notes: string
+          scripture_refs: Json
+          seed_key: string | null
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+          why_it_matters: string | null
+        }
+        Insert: {
+          conclusion?: string | null
+          confidence?: number | null
+          created_at?: string
+          current_thinking?: string | null
+          framing?: string | null
+          id?: string
+          layer?: string | null
+          linked_belief_ids?: string[]
+          notes?: string
+          scripture_refs?: Json
+          seed_key?: string | null
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+          why_it_matters?: string | null
+        }
+        Update: {
+          conclusion?: string | null
+          confidence?: number | null
+          created_at?: string
+          current_thinking?: string | null
+          framing?: string | null
+          id?: string
+          layer?: string | null
+          linked_belief_ids?: string[]
+          notes?: string
+          scripture_refs?: Json
+          seed_key?: string | null
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+          why_it_matters?: string | null
         }
         Relationships: []
       }
@@ -1178,6 +1375,113 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      hard_question_research_runs: {
+        Row: {
+          brief_summary: string | null
+          created_at: string
+          first_chat_at: string | null
+          hard_question_id: string
+          id: string
+          opened_at: string | null
+          pack_json: Json
+          pack_type: string
+          use_web: boolean
+          user_id: string
+          user_question: string | null
+          verdict: string | null
+          verdict_at: string | null
+        }
+        Insert: {
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          hard_question_id: string
+          id?: string
+          opened_at?: string | null
+          pack_json: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Update: {
+          brief_summary?: string | null
+          created_at?: string
+          first_chat_at?: string | null
+          hard_question_id?: string
+          id?: string
+          opened_at?: string | null
+          pack_json?: Json
+          pack_type?: string
+          use_web?: boolean
+          user_id?: string
+          user_question?: string | null
+          verdict?: string | null
+          verdict_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hard_question_research_runs_hard_question_id_fkey"
+            columns: ["hard_question_id"]
+            isOneToOne: false
+            referencedRelation: "framework_hard_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hard_question_sources: {
+        Row: {
+          artifact_id: string | null
+          created_at: string
+          hard_question_id: string
+          id: string
+          kind: string
+          label: string
+          snippet: string | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          artifact_id?: string | null
+          created_at?: string
+          hard_question_id: string
+          id?: string
+          kind?: string
+          label: string
+          snippet?: string | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          artifact_id?: string | null
+          created_at?: string
+          hard_question_id?: string
+          id?: string
+          kind?: string
+          label?: string
+          snippet?: string | null
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hard_question_sources_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: false
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hard_question_sources_hard_question_id_fkey"
+            columns: ["hard_question_id"]
+            isOneToOne: false
+            referencedRelation: "framework_hard_questions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       highlights: {
         Row: {
@@ -1535,6 +1839,7 @@ export type Database = {
       }
       knowledge_entities: {
         Row: {
+          avatar_url: string | null
           confidence: number | null
           created_at: string
           embedding: string | null
@@ -1549,6 +1854,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avatar_url?: string | null
           confidence?: number | null
           created_at?: string
           embedding?: string | null
@@ -1563,6 +1869,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avatar_url?: string | null
           confidence?: number | null
           created_at?: string
           embedding?: string | null
@@ -2098,6 +2405,93 @@ export type Database = {
         }
         Relationships: []
       }
+      reader_page_ink: {
+        Row: {
+          anchor_verse: number | null
+          book: string
+          chapter: number
+          created_at: string
+          id: string
+          layout_fingerprint: string
+          page_index: number
+          side: string
+          strokes: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          anchor_verse?: number | null
+          book: string
+          chapter: number
+          created_at?: string
+          id?: string
+          layout_fingerprint: string
+          page_index: number
+          side: string
+          strokes?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          anchor_verse?: number | null
+          book?: string
+          chapter?: number
+          created_at?: string
+          id?: string
+          layout_fingerprint?: string
+          page_index?: number
+          side?: string
+          strokes?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reading_activity: {
+        Row: {
+          activity_date: string
+          chapters_read: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          chapters_read?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          chapters_read?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reading_plan_progress: {
+        Row: {
+          completed_at: string
+          day_index: number
+          id: string
+          plan_id: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          day_index: number
+          id?: string
+          plan_id: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          day_index?: number
+          id?: string
+          plan_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       study_plans: {
         Row: {
           created_at: string
@@ -2385,6 +2779,138 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_channel_subscriptions: {
+        Row: {
+          auto_import: boolean
+          channel_handle: string | null
+          channel_id: string
+          channel_thumbnail_url: string | null
+          channel_title: string | null
+          created_at: string
+          id: string
+          last_synced_at: string | null
+          last_video_published_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_import?: boolean
+          channel_handle?: string | null
+          channel_id: string
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          last_video_published_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_import?: boolean
+          channel_handle?: string | null
+          channel_id?: string
+          channel_thumbnail_url?: string | null
+          channel_title?: string | null
+          created_at?: string
+          id?: string
+          last_synced_at?: string | null
+          last_video_published_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_oauth_connections: {
+        Row: {
+          access_token: string | null
+          access_token_expires_at: string | null
+          channel_id: string | null
+          channel_title: string | null
+          created_at: string
+          refresh_token: string
+          scopes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          created_at?: string
+          refresh_token: string
+          scopes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          access_token_expires_at?: string | null
+          channel_id?: string | null
+          channel_title?: string | null
+          created_at?: string
+          refresh_token?: string
+          scopes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_oauth_states: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          return_path: string
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          return_path?: string
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      youtube_transcript_cache: {
+        Row: {
+          created_at: string
+          expires_at: string
+          provider: string
+          raw_text: string
+          source: Database["public"]["Enums"]["transcript_segment_source"]
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          provider: string
+          raw_text: string
+          source?: Database["public"]["Enums"]["transcript_segment_source"]
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          provider?: string
+          raw_text?: string
+          source?: Database["public"]["Enums"]["transcript_segment_source"]
+          video_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2422,6 +2948,20 @@ export type Database = {
           operation: string
           provider: string
           total_tokens: number
+        }[]
+      }
+      get_library_corpus_stats: {
+        Args: never
+        Returns: {
+          agree_count: number
+          artifact_id: string
+          claim_count: number
+          created_at: string
+          disagree_count: number
+          kind: string
+          new_count: number
+          peer_library_count: number
+          title: string
         }[]
       }
       match_artifact_claims: {
@@ -2476,6 +3016,22 @@ export type Database = {
           statement: string
           topic: string
           updated_at: string
+        }[]
+      }
+      match_corpus_peers_for_artifact: {
+        Args: {
+          match_count?: number
+          min_similarity?: number
+          p_artifact_id: string
+        }
+        Returns: {
+          avg_similarity: number
+          compared_claim_count: number
+          peer_artifact_id: string
+          strong_match_count: number
+          top_peer_claim: string
+          top_similarity: number
+          top_source_claim: string
         }[]
       }
       match_entities: {
