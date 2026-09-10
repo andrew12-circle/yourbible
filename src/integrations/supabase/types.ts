@@ -1783,6 +1783,50 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_videos: {
+        Row: {
+          anchor_offset: number
+          created_at: string
+          duration_ms: number | null
+          entry_id: string
+          id: string
+          mime_type: string | null
+          storage_path: string
+          transcript: string | null
+          user_id: string
+        }
+        Insert: {
+          anchor_offset?: number
+          created_at?: string
+          duration_ms?: number | null
+          entry_id: string
+          id?: string
+          mime_type?: string | null
+          storage_path: string
+          transcript?: string | null
+          user_id: string
+        }
+        Update: {
+          anchor_offset?: number
+          created_at?: string
+          duration_ms?: number | null
+          entry_id?: string
+          id?: string
+          mime_type?: string | null
+          storage_path?: string
+          transcript?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_videos_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journals: {
         Row: {
           color: string
@@ -1965,11 +2009,245 @@ export type Database = {
           },
         ]
       }
+      living_hope_goals: {
+        Row: {
+          created_at: string
+          domain: string
+          id: string
+          letter_id: string | null
+          parent_goal_id: string | null
+          scripture_refs: string[]
+          sort_order: number
+          status: string
+          steps: Json
+          target_metric: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          vivid_detail: string | null
+        }
+        Insert: {
+          created_at?: string
+          domain?: string
+          id?: string
+          letter_id?: string | null
+          parent_goal_id?: string | null
+          scripture_refs?: string[]
+          sort_order?: number
+          status?: string
+          steps?: Json
+          target_metric?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          vivid_detail?: string | null
+        }
+        Update: {
+          created_at?: string
+          domain?: string
+          id?: string
+          letter_id?: string | null
+          parent_goal_id?: string | null
+          scripture_refs?: string[]
+          sort_order?: number
+          status?: string
+          steps?: Json
+          target_metric?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          vivid_detail?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "living_hope_goals_letter_id_fkey"
+            columns: ["letter_id"]
+            isOneToOne: false
+            referencedRelation: "living_hope_letters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "living_hope_goals_parent_goal_id_fkey"
+            columns: ["parent_goal_id"]
+            isOneToOne: false
+            referencedRelation: "living_hope_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      living_hope_letters: {
+        Row: {
+          created_at: string
+          full_letter: string | null
+          gratitude: string | null
+          id: string
+          mission_statement: string | null
+          opened_at: string | null
+          outlook: string | null
+          realizations: string | null
+          scripture_anchor: string | null
+          sealed_at: string | null
+          status: string
+          surrender_prayer: string | null
+          timeframe_years: number
+          title: string
+          unlock_at: string | null
+          updated_at: string
+          user_id: string
+          wishes: string | null
+        }
+        Insert: {
+          created_at?: string
+          full_letter?: string | null
+          gratitude?: string | null
+          id?: string
+          mission_statement?: string | null
+          opened_at?: string | null
+          outlook?: string | null
+          realizations?: string | null
+          scripture_anchor?: string | null
+          sealed_at?: string | null
+          status?: string
+          surrender_prayer?: string | null
+          timeframe_years?: number
+          title?: string
+          unlock_at?: string | null
+          updated_at?: string
+          user_id: string
+          wishes?: string | null
+        }
+        Update: {
+          created_at?: string
+          full_letter?: string | null
+          gratitude?: string | null
+          id?: string
+          mission_statement?: string | null
+          opened_at?: string | null
+          outlook?: string | null
+          realizations?: string | null
+          scripture_anchor?: string | null
+          sealed_at?: string | null
+          status?: string
+          surrender_prayer?: string | null
+          timeframe_years?: number
+          title?: string
+          unlock_at?: string | null
+          updated_at?: string
+          user_id?: string
+          wishes?: string | null
+        }
+        Relationships: []
+      }
+      living_hope_reviews: {
+        Row: {
+          completed_at: string
+          connection_notes: Json
+          created_at: string
+          goal_touches: Json
+          id: string
+          journal_entry_id: string | null
+          manifesto_index: number | null
+          metric_values: Json
+          review_date: string
+          routine_checks: Json
+          story_index: number | null
+          surrender_note: string | null
+          user_id: string
+          vision_recall: string | null
+        }
+        Insert: {
+          completed_at?: string
+          connection_notes?: Json
+          created_at?: string
+          goal_touches?: Json
+          id?: string
+          journal_entry_id?: string | null
+          manifesto_index?: number | null
+          metric_values?: Json
+          review_date: string
+          routine_checks?: Json
+          story_index?: number | null
+          surrender_note?: string | null
+          user_id: string
+          vision_recall?: string | null
+        }
+        Update: {
+          completed_at?: string
+          connection_notes?: Json
+          created_at?: string
+          goal_touches?: Json
+          id?: string
+          journal_entry_id?: string | null
+          manifesto_index?: number | null
+          metric_values?: Json
+          review_date?: string
+          routine_checks?: Json
+          story_index?: number | null
+          surrender_note?: string | null
+          user_id?: string
+          vision_recall?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "living_hope_reviews_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      living_hope_weekly_reviews: {
+        Row: {
+          answers: Json
+          completed_at: string
+          created_at: string
+          id: string
+          user_id: string
+          week_start: string
+        }
+        Insert: {
+          answers?: Json
+          completed_at?: string
+          created_at?: string
+          id?: string
+          user_id: string
+          week_start: string
+        }
+        Update: {
+          answers?: Json
+          completed_at?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
+      living_hope_workbook: {
+        Row: {
+          content: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       my_ai_chats: {
         Row: {
           created_at: string
           id: string
           journal_entry_id: string | null
+          project_id: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -1978,6 +2256,7 @@ export type Database = {
           created_at?: string
           id?: string
           journal_entry_id?: string | null
+          project_id?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -1986,11 +2265,20 @@ export type Database = {
           created_at?: string
           id?: string
           journal_entry_id?: string | null
+          project_id?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "my_ai_chats_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "my_ai_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       my_ai_message_candidates: {
         Row: {
@@ -2095,6 +2383,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      my_ai_projects: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       notes: {
         Row: {
@@ -2405,6 +2720,42 @@ export type Database = {
         }
         Relationships: []
       }
+      questions_for_god: {
+        Row: {
+          context: string | null
+          created_at: string
+          id: string
+          insight: string | null
+          notes: string
+          question: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          insight?: string | null
+          notes?: string
+          question: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          context?: string | null
+          created_at?: string
+          id?: string
+          insight?: string | null
+          notes?: string
+          question?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reader_page_ink: {
         Row: {
           anchor_verse: number | null
@@ -2590,12 +2941,17 @@ export type Database = {
           created_at: string
           done: boolean
           due_date: string | null
+          end_date: string | null
           id: string
           list_id: string | null
           notes: string | null
           parent_id: string | null
+          pinned_for_date: string | null
           priority: number
           sort_order: number
+          start_date: string | null
+          status: string
+          task_type: string | null
           title: string
           updated_at: string
           user_id: string
@@ -2605,12 +2961,17 @@ export type Database = {
           created_at?: string
           done?: boolean
           due_date?: string | null
+          end_date?: string | null
           id?: string
           list_id?: string | null
           notes?: string | null
           parent_id?: string | null
+          pinned_for_date?: string | null
           priority?: number
           sort_order?: number
+          start_date?: string | null
+          status?: string
+          task_type?: string | null
           title: string
           updated_at?: string
           user_id: string
@@ -2620,12 +2981,17 @@ export type Database = {
           created_at?: string
           done?: boolean
           due_date?: string | null
+          end_date?: string | null
           id?: string
           list_id?: string | null
           notes?: string | null
           parent_id?: string | null
+          pinned_for_date?: string | null
           priority?: number
           sort_order?: number
+          start_date?: string | null
+          status?: string
+          task_type?: string | null
           title?: string
           updated_at?: string
           user_id?: string
@@ -2653,6 +3019,7 @@ export type Database = {
           color: string | null
           created_at: string
           id: string
+          kind: string | null
           name: string
           slug: string | null
           sort_order: number
@@ -2664,6 +3031,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          kind?: string | null
           name: string
           slug?: string | null
           sort_order?: number
@@ -2675,6 +3043,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          kind?: string | null
           name?: string
           slug?: string | null
           sort_order?: number
