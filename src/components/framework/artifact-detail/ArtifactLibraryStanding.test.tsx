@@ -12,7 +12,10 @@ const peers: CorpusPeerMatch[] = [
   {
     peerArtifactId: "peer-1",
     peerTitle: "Related sermon",
+    peerKind: "sermon",
     avgSimilarity: 0.6,
+    topSimilarity: 0.72,
+    comparedClaimCount: 5,
     strongMatchCount: 2,
     topSourceClaim: "Source claim text",
     topPeerClaim: "Peer claim text",
@@ -20,7 +23,10 @@ const peers: CorpusPeerMatch[] = [
   {
     peerArtifactId: "peer-2",
     peerTitle: "Another talk",
+    peerKind: "talk",
     avgSimilarity: 0.55,
+    topSimilarity: 0.61,
+    comparedClaimCount: 4,
     strongMatchCount: 1,
     topSourceClaim: "Another source claim",
     topPeerClaim: "Another peer claim",

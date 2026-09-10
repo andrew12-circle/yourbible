@@ -8,7 +8,7 @@ type Props = {
   layoutRootSelector?: string;
   /** `minimal` — Study, Transcript, and Journal (primary study views). */
   variant?: "full" | "minimal";
-  activeTab?: "study" | "transcript" | "notes" | "journal";
+  activeTab?: "study" | "transcript" | "notes" | "journal" | "research";
   onStudyClick?: () => void;
   onTranscriptClick?: () => void;
   /** Defaults to Transcript / FileText (video). Use Reader / ScrollText for books. */

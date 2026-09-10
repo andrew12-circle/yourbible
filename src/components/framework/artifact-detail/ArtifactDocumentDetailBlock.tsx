@@ -44,7 +44,7 @@ type Props = {
   heroEmbed?: boolean;
   /** Phone/tablet pinned layout — cover fixed at top like YouTube video. */
   mobilePinnedLayout?: boolean;
-  mobileActiveTab?: "study" | "transcript" | "notes" | "journal";
+  mobileActiveTab?: "study" | "transcript" | "notes" | "journal" | "research";
   mobileChromeHost?: HTMLElement | null;
   backTo?: string;
   insightExplorePanel?: ReactNode;

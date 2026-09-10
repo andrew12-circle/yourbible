@@ -44,7 +44,7 @@ export default function ArtifactPdfPageViewer({ pdfBytes, title, className }: Pr
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas is unavailable.");
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      await pdfPage.render({ canvasContext: ctx, viewport, canvas }).promise;
+      await pdfPage.render({ canvasContext: ctx, viewport }).promise;
     } catch {
       setRenderError("Could not render this page.");
     } finally {

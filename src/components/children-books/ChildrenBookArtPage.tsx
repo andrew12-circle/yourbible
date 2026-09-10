@@ -5,7 +5,7 @@ import { SpreadPageSpineShade } from "@/components/children-books/SpreadPageSpin
 import { StorySymbol } from "@/components/children-books/ChildrenBookSymbols";
 import { childrenBookPagePadding } from "@/lib/children-books/pageMargins";
 import type { ChildrenBookPage } from "@/lib/children-books/storybook";
-import type { SpreadSideKind } from "@/lib/children-books/spreadLayout";
+type SpreadSideKind = "art-pan-left" | "art-pan-right" | string;
 import { cn } from "@/lib/utils";
 
 const paletteClasses: Record<ChildrenBookPage["palette"], string> = {
