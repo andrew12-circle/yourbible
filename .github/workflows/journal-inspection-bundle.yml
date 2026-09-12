@@ -1,0 +1,42 @@
+name: Journal inspection bundle
+on:
+  push:
+    branches: [fix/journal-completeness-20260912]
+    paths: ['.github/workflows/journal-inspection-bundle.yml']
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Package source and test dependencies only
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib, subprocess, tarfile
+          names = subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          allowed_roots = {'src','supabase','scripts','docs'}
+          allowed_suffixes = {'.json','.ts','.js','.mjs','.cjs','.html','.css','.md'}
+          with tarfile.open('/tmp/journal-inspection.tar.gz','w:gz') as out:
+            for name in names:
+              if not name: continue
+              p=pathlib.PurePosixPath(name)
+              if any(part.startswith('.env') for part in p.parts): continue
+              if p.parts[0] in allowed_roots or (len(p.parts)==1 and p.suffix in allowed_suffixes):
+                if pathlib.Path(name).is_file(): out.add(name, arcname=name)
+            out.add('node_modules', arcname='node_modules')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: journal-inspection
+          path: /tmp/journal-inspection.tar.gz
+          compression-level: 0
+          retention-days: 1
