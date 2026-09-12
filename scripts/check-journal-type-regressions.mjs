@@ -2,9 +2,13 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { normalizeDiagnosticUnions } from './journal-diagnostic-normalization.mjs';
 
 // Existing repository-wide type debt is reported, not disguised as a clean tsc.
-// Fail on any additional diagnostic relative to the explicitly supplied baseline.
+// Union member display order is normalized with TypeScript's parser; every
+// diagnostic, member and file remains part of the comparison. Retain full logs.
+const selfTests = spawnSync(process.execPath, ['--test', 'scripts/journal-diagnostic-normalization.test.mjs'], { stdio: 'inherit' });
+if (selfTests.error || selfTests.status !== 0) throw selfTests.error || new Error('Diagnostic normalization tests failed.');
 const baseline = process.argv[2] || '540dcad4ba42eea28e8bae655c1a11c8e8dc3419';
 if (!/^[0-9a-f]{40}$/.test(baseline)) throw new Error('A full baseline commit SHA is required.');
 const root = process.cwd();
@@ -23,7 +27,7 @@ function check(directory, filename) {
   const diagnostics = new Map();
   const normalized = text.split(root).join('<repo>').split(baseRoot).join('<repo>');
   for (const match of normalized.matchAll(/^([^\n]+?)\(\d+,\d+\): (error TS\d+:[^\n]+)/gm)) {
-    const key = `${match[1]}: ${match[2]}`;
+    const key = `${match[1]}: ${normalizeDiagnosticUnions(match[2])}`;
     diagnostics.set(key, (diagnostics.get(key) || 0) + 1);
   }
   if (result.status !== 0 && !diagnostics.size) throw new Error(`Typecheck infrastructure failed: ${text.slice(0, 1000)}`);
