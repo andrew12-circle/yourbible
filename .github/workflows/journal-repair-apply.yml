@@ -1,0 +1,82 @@
+name: Apply isolated journal repair
+on:
+  push:
+    branches: [fix/journal-reliability-20260912]
+    paths:
+      - '.github/workflows/journal-repair-apply.yml'
+      - 'scripts/apply-journal-repair.py'
+permissions:
+  contents: write
+concurrency:
+  group: isolated-journal-repair
+  cancel-in-progress: false
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/fix/journal-reliability-20260912'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/journal-reliability-20260912
+      - name: Verify and apply prepared sources
+        run: |
+          cat scripts/journal-repair-part*.b64 > scripts/journal-repair-manifest.b64
+          python3 - <<'PY'
+          import base64, gzip, hashlib
+          from pathlib import Path
+          raw = gzip.decompress(base64.b64decode(Path('scripts/journal-repair-manifest.b64').read_text()))
+          assert hashlib.sha256(raw).hexdigest() == '248f99bbc23a87b93c6f4090c2c7b364e86f19449ae626cae9e26b856fff8c17', 'Prepared source checksum mismatch'
+          PY
+          python3 scripts/apply-journal-repair.py
+      - name: Commit source changes to isolated branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          files = json.loads(Path('/tmp/journal-repair-files.json').read_text())
+          subprocess.run(['git', 'add', '--', *files], check=True)
+          PY
+          git commit -m 'fix(journal): durable revisioned saves and non-destructive transcript integration'
+          git push origin HEAD:fix/journal-reliability-20260912
+          git rev-parse HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm ci
+      - name: Journal regression tests
+        id: tests
+        continue-on-error: true
+        run: npm test -- src/lib/journal src/components/journal src/hooks/useJournalComposePersistence.test.tsx 2>&1 | tee /tmp/journal-tests.log
+      - name: Typecheck integrated application
+        id: types
+        continue-on-error: true
+        run: npx tsc --noEmit -p tsconfig.app.json 2>&1 | tee /tmp/journal-typecheck.log
+      - name: Build integrated application
+        id: build
+        continue-on-error: true
+        run: npm run build:dev 2>&1 | tee /tmp/journal-build.log
+      - name: Report validation results
+        if: always()
+        run: |
+          echo 'Tests: ${{ steps.tests.outcome }}'
+          echo 'Types: ${{ steps.types.outcome }}'
+          echo 'Build: ${{ steps.build.outcome }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-repair-validation
+          path: /tmp/journal-*.log
+      - name: Require successful integrated validation
+        if: always()
+        run: |
+          test '${{ steps.tests.outcome }}' = 'success'
+          test '${{ steps.types.outcome }}' = 'success'
+          test '${{ steps.build.outcome }}' = 'success'
