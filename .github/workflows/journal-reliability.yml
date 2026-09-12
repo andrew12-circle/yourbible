@@ -8,6 +8,7 @@ on:
       - 'supabase/functions/_shared/journal*.ts'
       - 'supabase/migrations/*journal*.sql'
       - 'scripts/check-journal-type-regressions.mjs'
+      - 'scripts/journal-diagnostic-*'
       - 'package*.json'
       - '.github/workflows/journal-reliability.yml'
   pull_request:
@@ -17,6 +18,7 @@ on:
       - 'supabase/functions/_shared/journal*.ts'
       - 'supabase/migrations/*journal*.sql'
       - 'scripts/check-journal-type-regressions.mjs'
+      - 'scripts/journal-diagnostic-*'
       - 'package*.json'
       - '.github/workflows/journal-reliability.yml'
 permissions:
@@ -39,11 +41,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - run: npm ci
-      - name: Journal and compose-hook regression tests
+      - name: Journal and related UI regression tests
         id: tests
         continue-on-error: true
         run: npm test -- src/lib/journal src/components/journal src/hooks/useJournalComposePersistence.test.tsx src/hooks/useJournalListController.test.tsx src/components/reader/CompanionJournalTab.test.tsx 2>&1 | tee "$RUNNER_TEMP/journal-tests.log"
@@ -51,21 +54,41 @@ jobs:
         id: types
         continue-on-error: true
         run: node scripts/check-journal-type-regressions.mjs 540dcad4ba42eea28e8bae655c1a11c8e8dc3419
-      - name: Application development build
+      - name: Production build and release artifact checks
         id: build
         continue-on-error: true
-        run: npm run build:dev 2>&1 | tee "$RUNNER_TEMP/journal-build.log"
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/journal-build.log"
+      - name: Full repository test suite report
+        id: full_tests
+        continue-on-error: true
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/journal-full-tests.log"
+      - name: Full repository lint report
+        id: lint
+        continue-on-error: true
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/journal-lint.log"
+      - name: Record exact source and outcomes for review
+        if: always()
+        run: |
+          git rev-parse HEAD > "$RUNNER_TEMP/journal-verified-commit.log"
+          git diff --binary 0ad7039f62b91d6463d4694d79d2e0b66e93c5b2 HEAD -- src supabase scripts docs > "$RUNNER_TEMP/journal-reviewed-changes.patch"
+          {
+            echo 'Journal tests: ${{ steps.tests.outcome }}'
+            echo 'Type comparison: ${{ steps.types.outcome }}'
+            echo 'Production build: ${{ steps.build.outcome }}'
+            echo 'Full repository tests: ${{ steps.full_tests.outcome }}'
+            echo 'Full repository lint: ${{ steps.lint.outcome }}'
+          } | tee "$RUNNER_TEMP/journal-outcomes.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: journal-reliability-validation
-          path: ${{ runner.temp }}/journal-*.log
-      - name: Enforce validation results
+          path: |
+            ${{ runner.temp }}/journal-*.log
+            ${{ runner.temp }}/journal-reviewed-changes.patch
+      - name: Enforce journal validation results
         if: always()
         run: |
-          echo 'Journal tests: ${{ steps.tests.outcome }}'
-          echo 'Type regression comparison: ${{ steps.types.outcome }}'
-          echo 'Development build: ${{ steps.build.outcome }}'
           test '${{ steps.tests.outcome }}' = success
           test '${{ steps.types.outcome }}' = success
           test '${{ steps.build.outcome }}' = success
+          # Full-repository debt is reported separately and must be reviewed before merging.
