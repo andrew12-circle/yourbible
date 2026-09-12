@@ -1,0 +1,90 @@
+name: Finalize journal reliability repair
+on:
+  push:
+    branches: [fix/journal-reliability-20260912]
+    paths: ['.github/workflows/journal-repair-finalize.yml']
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/journal-reliability-20260912
+          fetch-depth: 0
+      - name: Apply exact integration corrections
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('scripts/finalize-journal-repair.py')
+          s=p.read_text().replace("'enriched?.summary','enriched && enriched.summary'", "'enrichResult?.summary','enrichResult && enrichResult.summary'")
+          s=s.replace("baseMeta.liveTranscript,')", "undefined,')")
+          s=s.replace('0, null, baseMeta.liveTranscript)', '0, null, baseMeta.peakLiveTranscript)')
+          p.write_text(s)
+          PY
+          python3 scripts/finalize-journal-repair.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src supabase/functions
+          git commit -m 'fix(journal): guard delayed editor updates and atomic sketch transcription'
+          git push origin HEAD:fix/journal-reliability-20260912
+          git rev-parse HEAD
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Journal regression tests
+        id: tests
+        continue-on-error: true
+        run: npm test -- src/lib/journal src/components/journal src/hooks/useJournalComposePersistence.test.tsx 2>&1 | tee /tmp/journal-tests.log
+      - name: Compare TypeScript diagnostics with the audited baseline
+        id: types
+        continue-on-error: true
+        run: |
+          git worktree add --detach /tmp/journal-baseline 540dcad4ba42eea28e8bae655c1a11c8e8dc3419
+          ln -s "$PWD/node_modules" /tmp/journal-baseline/node_modules
+          set +e
+          npx tsc --noEmit -p tsconfig.app.json --pretty false > /tmp/journal-typecheck.log 2>&1
+          (cd /tmp/journal-baseline && npx tsc --noEmit -p tsconfig.app.json --pretty false) > /tmp/journal-baseline-types.log 2>&1
+          set -e
+          python3 - <<'PY'
+          import re, collections
+          from pathlib import Path
+          def errors(path):
+            s=Path(path).read_text()
+            headers=re.findall(r'^([^\n]+?)\(\d+,\d+\): (error TS\d+:[^\n]+)',s,re.M)
+            if not headers and s.strip(): raise RuntimeError('Unexpected TypeScript output: '+s[:500])
+            return collections.Counter((p,e) for p,e in headers)
+          old=errors('/tmp/journal-baseline-types.log'); new=errors('/tmp/journal-typecheck.log')
+          added=new-old
+          report=f'Baseline diagnostics: {sum(old.values())}\nRepair diagnostics: {sum(new.values())}\nNew diagnostics: {sum(added.values())}\n'
+          for (p,e),n in added.items(): report+=f'{p}: {e} ({n})\n'
+          Path('/tmp/journal-type-regression.log').write_text(report)
+          print(report)
+          raise SystemExit(1 if added else 0)
+          PY
+      - name: Application build
+        id: build
+        continue-on-error: true
+        run: npm run build:dev 2>&1 | tee /tmp/journal-build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-final-validation
+          path: /tmp/journal-*.log
+      - name: Require passing validation
+        if: always()
+        run: |
+          echo 'Tests: ${{ steps.tests.outcome }}; new type errors: ${{ steps.types.outcome }}; build: ${{ steps.build.outcome }}'
+          test '${{ steps.tests.outcome }}' = success
+          test '${{ steps.types.outcome }}' = success
+          test '${{ steps.build.outcome }}' = success
