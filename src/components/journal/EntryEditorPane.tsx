@@ -271,7 +271,7 @@ export default function EntryEditorPane({
     const cur = entryRef.current;
     if (!cur || !user?.id || cur.contentLocked) return !cur;
     const result = await flushJournalDocument(user.id, cur.id);
-    if (!result.ok && !opts?.silent) toast({ title: "Entry not saved to the cloud", description: result.error.message, variant: "destructive" });
+    if (result.ok === false && !opts?.silent) toast({ title: "Entry not saved to the cloud", description: result.error.message, variant: "destructive" });
     return result.ok;
   }, [user?.id]);
   const flushSaveRef = useRef(flushSave);
@@ -1609,7 +1609,7 @@ export default function EntryEditorPane({
           saveGenerationRef.current += 1;
           const result = await upsertSketchAndTranscribe(user.id, entry.id, file);
           await applySketchUpload(entry.id, result);
-          if (!result.ok) {
+          if (result.ok === false) {
             toast({
               title: "Transcription failed",
               description: result.error ?? "Your sketch was saved — try again.",

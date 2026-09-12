@@ -1540,7 +1540,7 @@ export function useNewJournalEntryPage() {
           toast({
             title: best ? "Video and transcript saved" : "Video saved",
             description: best
-              ? enrichResult?.summary
+              ? enrichResult && enrichResult.summary
                 ? "Summary and full transcript are in your entry."
                 : undefined
               : journalVideoTranscriptEmptyMessage({
@@ -1692,6 +1692,7 @@ export function useNewJournalEntryPage() {
   }, [savePendingSketchFile]);
 
   return {
+    lat, lng, journalId,
     videoCaptionPreview,
     user,
     loading,

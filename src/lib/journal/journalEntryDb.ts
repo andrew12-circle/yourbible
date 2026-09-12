@@ -64,7 +64,7 @@ export async function updateJournalEntry(
       if (row.contentLocked) throw new Error("Unlock your journal before editing this entry.");
       encoded = await encryptJournalPayload({ title: row.title, body: row.body, summary: row.summary, ...patch });
     }
-    const { data, error } = await supabase.from("journal_entries").update(encoded)
+    const { data, error } = await supabase.from("journal_entries").update(encoded as Database["public"]["Tables"]["journal_entries"]["Update"])
       .eq("id", id).eq("user_id", userId).eq("revision", opts!.expectedRevision!)
       .select("*").maybeSingle();
     if (error) throw error;

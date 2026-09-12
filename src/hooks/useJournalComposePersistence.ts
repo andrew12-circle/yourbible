@@ -1,3 +1,4 @@
+import { JournalViewAdoption } from "@/lib/journal/journalViewAdoption";
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import { mergeInlineTags } from "@/lib/journal/inlineMarkers";
@@ -45,6 +46,7 @@ export function useJournalComposePersistence(options: Options) {
   optionsRef.current = options;
   const identityRef = useRef(options.editId ?? options.inlineEntryId);
   const observedUiRef = useRef<JournalValues | null>(null);
+  const viewAdoption = useRef(new JournalViewAdoption());
   const initializedRef = useRef(!options.editId);
   const finishedRef = useRef(false);
   const restoredRef = useRef(false);
@@ -55,6 +57,7 @@ export function useJournalComposePersistence(options: Options) {
     scopeRef.current = scope;
     identityRef.current = options.editId ?? options.inlineEntryId;
     observedUiRef.current = null;
+    viewAdoption.current.reset();
     initializedRef.current = !options.editId;
     finishedRef.current = false;
     restoredRef.current = false;
@@ -68,6 +71,7 @@ export function useJournalComposePersistence(options: Options) {
     // The next fully hydrated render establishes the UI baseline without saving its
     // formatted date or chat-summary presentation back over the stored document.
     observedUiRef.current = null;
+    viewAdoption.current.reset();
   }, []);
 
   const getQueue = useCallback(async (snapshot: ComposePersistenceSnapshot): Promise<JournalSaveQueue> => {
@@ -90,12 +94,13 @@ export function useJournalComposePersistence(options: Options) {
   const synchronize = useCallback((queue: JournalSaveQueue, snapshot: ComposePersistenceSnapshot) => {
     const values = payloadFor(snapshot);
     const observed = observedUiRef.current;
-    observedUiRef.current = values;
     if (observed) {
-      const patch = journalChangedFields(observed, values);
+      const { observed: nextObserved, patch } = viewAdoption.current.consume(observed, values);
+      observedUiRef.current = nextObserved;
       if (Object.keys(patch).length) patchJournalDocument(queue.current().userId, queue.current().id, patch);
+    } else {
+      observedUiRef.current = values;
     }
-    observedUiRef.current = values;
   }, []);
 
   const schedulePersist = useCallback(() => {
@@ -130,7 +135,7 @@ export function useJournalComposePersistence(options: Options) {
       if (optionsRef.current.enabled !== false) synchronize(queue, optionsRef.current.getSnapshot());
       if (opts?.patch) queue.patch(opts.patch);
       const result = await queue.flush();
-      if (!result.ok && !opts?.silent) toast({ title: "Entry not saved to the cloud", description: result.error.message, variant: "destructive" });
+      if (result.ok === false && !opts?.silent) toast({ title: "Entry not saved to the cloud", description: result.error.message, variant: "destructive" });
       return result;
     } catch (cause) {
       const error = cause instanceof Error ? cause : new Error(String(cause));
@@ -202,7 +207,7 @@ export function useJournalComposePersistence(options: Options) {
         if (journalValueEqual(view[key], observedUiRef.current[key]) && !journalValueEqual(view[key], documentValues[key])) applied[key] = documentValues[key];
       }
       if (Object.keys(applied).length) {
-        observedUiRef.current = { ...observedUiRef.current, ...applied };
+        viewAdoption.current.stage(observedUiRef.current, applied);
         optionsRef.current.onDocumentChange?.(applied);
       }
     };

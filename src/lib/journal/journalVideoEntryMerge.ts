@@ -24,7 +24,7 @@ export async function persistVideoJournalTranscriptToEntry(
   });
   if (body !== current) queue.patch({ body });
   const result = await queue.flush();
-  if (!result.ok) throw result.error;
+  if (result.ok === false) throw result.error;
   const acknowledged = String(result.snapshot.values.body ?? "");
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent<JournalVideoSavedEventDetail>(
     JOURNAL_VIDEO_SAVED_EVENT, { detail: { entryId, body: acknowledged } },
