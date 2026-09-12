@@ -1,11 +1,12 @@
 name: Journal reliability
 on:
   push:
-    branches: [main, fix/journal-reliability-20260912]
+    branches: [main, 'fix/journal-*']
     paths:
       - 'src/**'
       - 'supabase/functions/journal-*/**'
       - 'supabase/functions/_shared/journal*.ts'
+      - 'supabase/migrations/*journal*.sql'
       - 'scripts/check-journal-type-regressions.mjs'
       - 'package*.json'
       - '.github/workflows/journal-reliability.yml'
@@ -14,6 +15,7 @@ on:
       - 'src/**'
       - 'supabase/functions/journal-*/**'
       - 'supabase/functions/_shared/journal*.ts'
+      - 'supabase/migrations/*journal*.sql'
       - 'scripts/check-journal-type-regressions.mjs'
       - 'package*.json'
       - '.github/workflows/journal-reliability.yml'
@@ -44,7 +46,7 @@ jobs:
       - name: Journal and compose-hook regression tests
         id: tests
         continue-on-error: true
-        run: npm test -- src/lib/journal src/components/journal src/hooks/useJournalComposePersistence.test.tsx 2>&1 | tee "$RUNNER_TEMP/journal-tests.log"
+        run: npm test -- src/lib/journal src/components/journal src/hooks/useJournalComposePersistence.test.tsx src/hooks/useJournalListController.test.tsx src/components/reader/CompanionJournalTab.test.tsx 2>&1 | tee "$RUNNER_TEMP/journal-tests.log"
       - name: No new TypeScript diagnostics versus audited baseline
         id: types
         continue-on-error: true
