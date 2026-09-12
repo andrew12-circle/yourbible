@@ -107,9 +107,10 @@ async function mergeTranscriptIntoEntry(
   anchorOffset: number,
   transcript: string,
   bodySnap: VideoJournalBodySnap | null,
+  previousTranscript?: string,
 ): Promise<void> {
   if (!transcript.trim()) return;
-  await persistVideoJournalTranscriptToEntry(userId, entryId, transcript, anchorOffset, bodySnap);
+  await persistVideoJournalTranscriptToEntry(userId, entryId, transcript, anchorOffset, bodySnap, previousTranscript);
 }
 
 function errorMessage(error: unknown): string {
@@ -335,6 +336,7 @@ export async function uploadQueuedJournalVideo(
     meta.anchorOffset,
     saved.transcript,
     snap,
+    liveCaptions,
   );
   // The queue is the last durable local copy. Delete it only after upload,
   // transcription disposition, video-row update, and final body merge succeed.

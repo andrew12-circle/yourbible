@@ -1,3 +1,4 @@
+import { fetchJournalEntryDetail } from "@/lib/journal/journalEntryDb";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { Edit, Trash2, MapPin, BookOpen, Sparkles, Loader2, MessageCircle, Ear, PenLine } from "lucide-react";
@@ -57,6 +58,8 @@ interface Entry {
   lat: number | null;
   lng: number | null;
   entry_kind?: string | null;
+  e2e_encrypted?: boolean;
+  contentLocked?: boolean;
 }
 interface Score {
   axes: Record<string, number>;
@@ -93,7 +96,10 @@ export default function JournalEntryPage() {
     if (!id) return;
     setEntryLoading(true);
     setEntryNotFound(false);
-    const { data, error } = await supabase.from("journal_entries").select("*").eq("id", id).maybeSingle();
+    let data: Awaited<ReturnType<typeof fetchJournalEntryDetail>> = null;
+    let error: { message: string } | null = null;
+    try { data = await fetchJournalEntryDetail(id, user?.id); }
+    catch (cause) { error = { message: cause instanceof Error ? cause.message : String(cause) }; }
     if (error) {
       setEntryLoading(false);
       toast({ title: "Couldn't load entry", description: error.message, variant: "destructive" });
@@ -173,7 +179,7 @@ export default function JournalEntryPage() {
   }, [photos]);
 
   const needsSketchTranscription =
-    !!entry &&
+    !!entry && !entry.e2e_encrypted && !entry.contentLocked &&
     sketchStoragePaths.length > 0 &&
     !entryBodyHasSketchTranscription(entry.body);
 
@@ -192,7 +198,6 @@ export default function JournalEntryPage() {
           description: tx.error,
           variant: "destructive",
         });
-        autoTranscribeAttempted.current = false;
         return;
       }
       if (tx.transcribed > 0 || tx.title) {
@@ -208,7 +213,7 @@ export default function JournalEntryPage() {
   }, [entry, needsSketchTranscription, sketchStoragePaths, transcribingSketch, load]);
 
   useEffect(() => {
-    if (!entry || titleSuggestAttempted.current) return;
+    if (!entry || entry.e2e_encrypted || entry.contentLocked || titleSuggestAttempted.current) return;
     if (!shouldSuggestJournalTitle(entry.title, entry.body, entry.summary)) return;
     titleSuggestAttempted.current = true;
     void suggestJournalEntryTitle({ entryId: entry.id, body: entry.body }).then((res) => {

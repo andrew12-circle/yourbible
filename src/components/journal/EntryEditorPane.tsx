@@ -1,3 +1,6 @@
+import { loadJournalDocumentRow, patchJournalDocument, flushJournalDocument, refreshJournalDocument, peekJournalDocument, journalSnapshotRow, JOURNAL_DOCUMENT_CHANGED } from "@/lib/journal/journalDocuments";
+import { JournalSaveStatus } from "@/components/journal/JournalSaveStatus";
+import { mergeVideoTranscriptSafely } from "@/lib/journal/journalTextMerge";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
@@ -93,6 +96,8 @@ import { cn } from "@/lib/utils";
 
 interface EntryRow {
   id: string;
+  revision: number;
+  user_id: string;
   title: string | null;
   body: string;
   summary: string | null;
@@ -146,6 +151,7 @@ export default function EntryEditorPane({
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const videoLiveSnapRef = useRef<{ body: string; anchor: number } | null>(null);
   const [dictInterim, setDictInterim] = useState("");
+  const [videoCaptionPreview, setVideoCaptionPreview] = useState("");
   const [sketchOpen, setSketchOpen] = useState(false);
   const [replyWithAi, setReplyWithAi] = useState(false);
   const [chatDraft, setChatDraft] = useState("");
@@ -180,13 +186,14 @@ export default function EntryEditorPane({
   }, [togglePrivacyBlur]);
 
   const reloadEntryFromServer = useCallback(async (id: string) => {
-    const row = await fetchJournalEntryDetail(id);
-    if (row && entryRef.current?.id === id) {
+    if (!user?.id) return null;
+    const row = await refreshJournalDocument(user.id, id);
+    if (entryRef.current?.id === id) {
       entryRef.current = row as EntryRow;
       setEntry(row as EntryRow);
     }
-    return row as EntryRow | null;
-  }, []);
+    return row as EntryRow;
+  }, [user?.id]);
 
   const applySketchUpload = useCallback(
     async (entryId: string, upload: { storage_path: string; photo_id: string | null }) => {
@@ -247,126 +254,71 @@ export default function EntryEditorPane({
   }, []);
 
   const scheduleTitleSuggestion = (row: EntryRow) => {
-    if (!shouldSuggestJournalTitle(row.title, row.body, row.summary)) return;
+    if (row.e2e_encrypted || row.contentLocked || !shouldSuggestJournalTitle(row.title, row.body, row.summary)) return;
     if (titleSuggestTimer.current) clearTimeout(titleSuggestTimer.current);
     titleSuggestTimer.current = setTimeout(async () => {
       const cur = entryRef.current;
-      if (!cur || cur.id !== row.id || cur.title?.trim()) return;
+      if (!user?.id || !cur || cur.id !== row.id || cur.title?.trim()) return;
       const res = await suggestJournalEntryTitle({ entryId: cur.id, body: cur.body });
-      if (!res.ok || !res.title) return;
-      entryRef.current = { ...cur, title: res.title };
-      setEntry((prev) => (prev?.id === cur.id ? { ...prev, title: res.title } : prev));
-      onChanged();
+      if (!res.ok || !res.title || entryRef.current?.id !== cur.id) return;
+      // Read the acknowledged row through the coordinator. Never restore the
+      // body captured before the title request or display an unpersisted title.
+      await reloadEntryFromServer(cur.id).catch(() => {});
     }, 2500);
   };
 
-  const flushSave = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      if (!user?.id) return;
-      if (saveTimer.current) {
-        clearTimeout(saveTimer.current);
-        saveTimer.current = null;
-      }
-
-      const cur = entryRef.current;
-      if (!cur) return;
-
-      const pending = pendingSaveRef.current;
-      if (Object.keys(pending).length === 0) return;
-
-      pendingSaveRef.current = {};
-      saveGenerationRef.current += 1;
-
-      const payload = buildFlushPayload(pending, cur);
-      let error: { message: string } | null = null;
-      try {
-        ({ error } = await updateJournalEntry(user.id, cur.id, payload, { journalId: cur.journal_id }));
-      } catch (err) {
-        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
-        if (!opts?.silent) {
-          toast({
-            title: "Save failed",
-            description: err instanceof Error ? err.message : "Journal encryption required",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      if (error && !opts?.silent) {
-        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
-        toast({ title: "Save failed", description: error.message, variant: "destructive" });
-        return;
-      }
-
-      const listKeys = Object.keys(payload).filter((k) => k !== "body" && k !== "tags");
-      if (listKeys.length > 0) onChanged();
-      if ("body" in payload && user.id) {
-        void syncEntryWikilinks(user.id, cur.id, cur.body).then(() => {
-          scheduleLinksReload();
-        });
-        if (!("title" in payload)) scheduleTitleSuggestion(cur);
-      }
-    },
-    [user?.id, onChanged, scheduleLinksReload],
-  );
-
+  const flushSave = useCallback(async (opts?: { silent?: boolean }): Promise<boolean> => {
+    const cur = entryRef.current;
+    if (!cur || !user?.id || cur.contentLocked) return !cur;
+    const result = await flushJournalDocument(user.id, cur.id);
+    if (!result.ok && !opts?.silent) toast({ title: "Entry not saved to the cloud", description: result.error.message, variant: "destructive" });
+    return result.ok;
+  }, [user?.id]);
   const flushSaveRef = useRef(flushSave);
   flushSaveRef.current = flushSave;
 
-  // Autosave on entry mutation — accumulate patches so rapid edits never drop fields.
   const queueSave = (patch: Partial<EntryRow>) => {
     const cur = entryRef.current;
-    if (!cur) return;
-    const merged = { ...cur, ...patch };
-    entryRef.current = merged;
-    setEntry(merged);
-    pendingSaveRef.current = { ...pendingSaveRef.current, ...patch };
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    const generation = ++saveGenerationRef.current;
-    saveTimer.current = setTimeout(async () => {
-      if (generation !== saveGenerationRef.current) return;
-
-      const latest = entryRef.current;
-      if (!latest) return;
-
-      const pending = { ...pendingSaveRef.current };
-      pendingSaveRef.current = {};
-      const payload = buildFlushPayload(pending, latest);
-
-      let error: { message: string } | null = null;
-      try {
-        ({ error } = await updateJournalEntry(user.id, latest.id, payload, {
-          journalId: latest.journal_id,
-        }));
-      } catch (err) {
-        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
-        toast({
-          title: "Save failed",
-          description: err instanceof Error ? err.message : "Journal encryption required",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (generation !== saveGenerationRef.current) return;
-      if (error) {
-        pendingSaveRef.current = mergePendingPatches(pendingSaveRef.current, pending);
-        toast({ title: "Save failed", description: error.message, variant: "destructive" });
-      } else {
-        const listKeys = Object.keys(payload).filter((k) => k !== "body" && k !== "tags");
-        if (listKeys.length > 0) onChanged();
-        if ("body" in payload) {
-          if (user?.id) {
-            void syncEntryWikilinks(user.id, latest.id, latest.body).then(() => {
-              scheduleLinksReload();
-            });
-          }
-          if (!("title" in payload)) scheduleTitleSuggestion(latest);
-        }
-      }
-    }, 400);
+    if (!cur || !user?.id || cur.contentLocked) return;
+    try {
+      const next = patchJournalDocument(user.id, cur.id, patch);
+      entryRef.current = next as EntryRow;
+      setEntry(next as EntryRow);
+    } catch (error) {
+      toast({ title: "Save paused", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+    }
   };
   queueSaveRef.current = queueSave;
+
+  const lastAcknowledgedRevision = useRef<number | null>(null);
+  const acknowledgedBodyRef = useRef<string | null>(null);
+  const onChangedRef = useRef(onChanged);
+  onChangedRef.current = onChanged;
+  useEffect(() => {
+    if (!user?.id || !entryId) return;
+    const onDocumentChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string; entryId: string }>).detail;
+      if (detail?.userId !== user.id || detail.entryId !== entryId) return;
+      const queue = peekJournalDocument(user.id, entryId);
+      if (!queue || entryRef.current?.id !== entryId) return;
+      const state = queue.getState();
+      const next = journalSnapshotRow(state.snapshot) as EntryRow;
+      entryRef.current = next;
+      setEntry(next);
+      if (state.status === "saved" && next.revision !== lastAcknowledgedRevision.current) {
+        lastAcknowledgedRevision.current = next.revision;
+        onChangedRef.current();
+        const previousBody = acknowledgedBodyRef.current;
+        acknowledgedBodyRef.current = next.body;
+        if (!next.e2e_encrypted && next.body !== previousBody && (next.body.includes("[[") || previousBody?.includes("[["))) {
+          void syncEntryWikilinks(user.id, entryId, next.body).then(() => scheduleLinksReload());
+        }
+        scheduleTitleSuggestion(next);
+      }
+    };
+    window.addEventListener(JOURNAL_DOCUMENT_CHANGED, onDocumentChange);
+    return () => window.removeEventListener(JOURNAL_DOCUMENT_CHANGED, onDocumentChange);
+  }, [user?.id, entryId, scheduleLinksReload]);
 
   useEffect(() => {
     const onHide = () => {
@@ -419,7 +371,7 @@ export default function EntryEditorPane({
 
       let row: EntryRow | null = null;
       try {
-        row = (await fetchJournalEntryDetail(entryId)) as EntryRow | null;
+        row = (await loadJournalDocumentRow(user.id, entryId)) as EntryRow | null;
       } catch (error) {
         if (cancelled) return;
         setLoadingEntry(false);
@@ -475,7 +427,7 @@ export default function EntryEditorPane({
   }, [photos]);
 
   const needsSketchTranscription =
-    !!entry &&
+    !!entry && !entry.e2e_encrypted && !entry.contentLocked &&
     sketchStoragePaths.length > 0 &&
     !entryBodyHasSketchTranscription(entry.body);
 
@@ -493,7 +445,7 @@ export default function EntryEditorPane({
           description: tx.error,
           variant: "destructive",
         });
-        sketchTranscribeAttemptedRef.current = null;
+        // A failed automatic attempt remains attempted; the user can explicitly retry.
         return;
       }
       if (tx.transcribed > 0 || tx.title || tx.body) {
@@ -712,74 +664,28 @@ export default function EntryEditorPane({
     videoAutoTitle.onRecordingStart();
   }, [resolveBodyVideoAnchor, videoAutoTitle]);
 
-  const handleVideoLiveTranscript = useCallback(
-    (live: string) => {
-      const snap = videoLiveSnapRef.current;
-      if (!snap) return;
-      const nextBody = bodyWithLiveVideoTranscript(snap.body, snap.anchor, live);
-      handleBodyChange(nextBody);
-    },
-    [handleBodyChange],
-  );
-
+  // Captions are a preview, not ownership of the editable journal body.
+  const handleVideoLiveTranscript = useCallback((live: string) => setVideoCaptionPreview(live), []);
   const handleVideoRecordingCancelled = useCallback(() => {
-    const snap = videoLiveSnapRef.current;
-    if (snap) handleBodyChange(snap.body);
+    setVideoCaptionPreview("");
     videoLiveSnapRef.current = null;
-  }, [handleBodyChange]);
-
-  const handleVideoSaved = useCallback(
-    async ({
-      transcript,
-      anchorOffset,
-      liveTranscript,
-      peakLiveTranscript,
-    }: {
-      transcript: string;
-      anchorOffset: number;
-      liveTranscript?: string;
-      peakLiveTranscript?: string;
-    }) => {
-      await reloadVideos();
-      const cur = entryRef.current;
-      const snap = videoLiveSnapRef.current;
-      const best = resolveVideoJournalTranscript({
-        serverTranscript: transcript,
-        liveTranscript,
-        peakLiveTranscript,
-        snap,
-        body: cur?.body,
-      });
-      if (!cur || !best) {
-        videoLiveSnapRef.current = null;
-        if (snap && cur && cur.body !== snap.body) {
-          // Keep live preview text — don't wipe words the user already saw while recording.
-        } else if (snap) {
-          handleBodyChange(snap.body);
-        }
-        if (cur) await videoAutoTitle.onRecordingComplete(cur.body);
-        return;
+  }, []);
+  const handleVideoSaved = useCallback(async (_payload: {
+    transcript: string; anchorOffset: number; liveTranscript?: string; peakLiveTranscript?: string;
+  }) => {
+    await reloadVideos();
+    const id = entryRef.current?.id;
+    if (id && user?.id) {
+      const row = await refreshJournalDocument(user.id, id);
+      if (entryRef.current?.id === id) {
+        entryRef.current = row as EntryRow;
+        setEntry(row as EntryRow);
+        if (!row.e2e_encrypted) await videoAutoTitle.onRecordingComplete(row.body);
       }
-      const nextBody = finalizeVideoJournalBody(snap, cur.body, anchorOffset, best);
-      handleBodyChange(nextBody);
-      await videoAutoTitle.onRecordingComplete(nextBody);
-      videoLiveSnapRef.current = null;
-    },
-    [handleBodyChange, reloadVideos, videoAutoTitle],
-  );
-
-  useEffect(() => {
-    const onVideoSaved = (event: Event) => {
-      const detail = (event as CustomEvent<JournalVideoSavedEventDetail>).detail;
-      const cur = entryRef.current;
-      if (!detail?.entryId || !cur || cur.id !== detail.entryId) return;
-      if (cur.body === detail.body) return;
-      entryRef.current = { ...cur, body: detail.body };
-      setEntry({ ...cur, body: detail.body });
-    };
-    window.addEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
-    return () => window.removeEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
-  }, [entryId]);
+    }
+    setVideoCaptionPreview("");
+    videoLiveSnapRef.current = null;
+  }, [user?.id, reloadVideos, videoAutoTitle]);
 
   const handleRetranscribeVideo = useCallback(
     async (video: { id: string; storage_path: string; anchor_offset: number }) => {
@@ -801,7 +707,7 @@ export default function EntryEditorPane({
         await updateEntryVideoTranscript(video.id, prepared);
         const cur = entryRef.current;
         if (cur) {
-          const nextBody = replaceTranscriptBeforeVideo(cur.body, video.anchor_offset, prepared);
+          const nextBody = mergeVideoTranscriptSafely({ current: cur.body, transcript: prepared, anchor: video.anchor_offset, snap: null });
           handleBodyChange(nextBody);
           await videoAutoTitle.onRecordingComplete(nextBody);
         }
@@ -1009,17 +915,17 @@ export default function EntryEditorPane({
 
   const handleClose = async () => {
     dictateRef.current?.stop();
-    await flushSave({ silent: true });
+    if (!(await flushSave())) return;
     onClose();
   };
 
   const openFocusedEntry = async () => {
     if (!entry || !user?.id) return;
     dictateRef.current?.stop();
-    await flushSave({ silent: true });
     if (inlineChatMode && chatTurns.length > 0) {
       persistChatTranscript(composeChatTranscript(chatTurns, chatDraft));
     }
+    if (!(await flushSave())) return;
     navigate(`/journal/${entry.id}/edit`);
   };
 
@@ -1178,6 +1084,8 @@ export default function EntryEditorPane({
           <Plus className="w-4 h-4" />
         </button>
       </header>
+
+      <JournalSaveStatus userId={user?.id} entryId={entry.id} liveCaption={videoCaptionPreview} />
 
       {/* Toolbar */}
       <div className="flex h-10 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border/60 bg-background/90 px-3 backdrop-blur-md scrollbar-hide">

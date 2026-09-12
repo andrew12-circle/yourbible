@@ -1,3 +1,4 @@
+import { JournalSaveStatus } from "@/components/journal/JournalSaveStatus";
 import { DictateButton } from "@/components/journal/DictateButton";
 import { NewJournalEntryToolbar } from "@/components/journal/new-entry/NewJournalEntryToolbar";
 import MobileJournalMoreTools from "@/components/journal/new-entry/MobileJournalMoreTools";
@@ -241,6 +242,7 @@ export default function NewJournalEntryPage() {
           )}
         </div>
       </header>
+      <JournalSaveStatus userId={p.user?.id} entryId={p.activeEntryId} liveCaption={p.videoCaptionPreview} />
 
       <main
         ref={p.mainScrollRef}
