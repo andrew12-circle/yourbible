@@ -65,7 +65,7 @@ export function useVideoJournalAutoTitle({
       onSummarizingChange?.(true);
       try {
         const result = await enrichVideoJournalEntry({ entryId: id, body });
-        if (lockedRef.current) return result;
+        if (lockedRef.current || entryIdRef.current !== id) return result;
         if (result.summary) onSummary?.(result.summary);
         return result;
       } finally {

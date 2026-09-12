@@ -1,3 +1,4 @@
+import { JournalDraftRecovery } from "@/components/journal/JournalDraftRecovery";
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -258,6 +259,7 @@ const App = () => (
                 <GlobalArtifactDocumentPip />
                 <LifeWeekReviewGate />
                 <JournalVideoUploadRetry />
+              <JournalDraftRecovery />
               </Suspense>
               </JournalVideoLaunchProvider>
               </LifeWeekReviewProvider>

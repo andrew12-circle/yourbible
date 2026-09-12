@@ -1,3 +1,4 @@
+import { loadJournalDocumentRow, refreshJournalDocument } from "@/lib/journal/journalDocuments";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type SyntheticEvent } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import type { DictateButtonHandle } from "@/components/journal/DictateButton";
@@ -122,6 +123,8 @@ export function useNewJournalEntryPage() {
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
+  const [videoCaptionPreview, setVideoCaptionPreview] = useState("");
+  const manualSaveRef = useRef(false);
   const [body, setBody] = useState("");
   const [mood, setMood] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
@@ -251,6 +254,7 @@ export function useNewJournalEntryPage() {
   const getComposeSnapshot = useCallback(
     (): ComposePersistenceSnapshot => ({
       title,
+      summary,
       body,
       tags,
       mood,
@@ -271,6 +275,7 @@ export function useNewJournalEntryPage() {
     }),
     [
       title,
+      summary,
       body,
       tags,
       mood,
@@ -300,7 +305,13 @@ export function useNewJournalEntryPage() {
     entryKind,
     isListening,
     getSnapshot: getComposeSnapshot,
-    skipLocalRestore: Boolean(editId),
+    enabled: !inlineChatMode,
+    onDocumentChange: (patch) => {
+      if ("title" in patch) setTitle(String(patch.title ?? ""));
+      if ("summary" in patch) setSummary(String(patch.summary ?? ""));
+      if ("body" in patch) setBody(String(patch.body ?? ""));
+      if ("tags" in patch) setTags((patch.tags ?? []) as string[]);
+    },
   });
 
   const {
@@ -531,9 +542,10 @@ export function useNewJournalEntryPage() {
     void (async () => {
       let entryHydrated = false;
       try {
-      const data = await fetchJournalEntryDetail(editId);
+      const data = await loadJournalDocumentRow(activeUserId, editId);
       if (cancelled) return;
       if (!data) throw new Error("This journal entry could not be found.");
+      composePersistence.initialize(data);
       setTitle(data.title ?? "");
       setSummary((data as { summary?: string | null }).summary ?? "");
       const parsedBody = parseChatJournalEntry(data.body, (data as { summary?: string | null }).summary);
@@ -623,33 +635,54 @@ export function useNewJournalEntryPage() {
 
   useEffect(() => {
     if (editId || !user) return;
-    const draft = restoreLocalDraft();
-    if (!draft) return;
-
-    setTitle((t) => (t.trim() ? t : draft.title));
-    setBody((b) => {
-      if (b.trim()) return b;
-      return draft.body;
+    let cancelled = false;
+    void (async () => {
+      const draft = await restoreLocalDraft();
+      if (!draft || cancelled) return;
+      setTitle((value) => value.trim() ? value : draft.title);
+      setBody((value) => value.trim() ? value : draft.body);
+      if (draft.tags.length) setTags((value) => value.length ? value : draft.tags);
+      if (draft.entryKind) setEntryKind(draft.entryKind);
+      if (draft.listeningSections) setListeningSections(draft.listeningSections);
+      const values = draft.values;
+      if (values) {
+        setSummary(String(values.summary ?? ""));
+        setJournalId(values.journal_id as string | null);
+        setMood(values.mood as number | null);
+        setVerseRef(String(values.verse_ref ?? ""));
+        setBeliefId(String(values.belief_id ?? ""));
+        setPromptId(values.prompt_id as string | null);
+        setLocationName(String(values.location_name ?? ""));
+        setLat(values.lat as number | null);
+        setLng(values.lng as number | null);
+        setWeather(values.weather as string | null);
+        setWeatherTempC(values.weather_temp_c as number | null);
+        setWeatherIcon(values.weather_icon as string | null);
+        setAnalyzeForMirror(Boolean(values.analyze_for_mirror));
+        if (typeof values.entry_at_ts === "string") {
+          const date = new Date(values.entry_at_ts);
+          date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+          setEntryAt(date.toISOString().slice(0, 16));
+        }
+      }
+    })().catch((error: unknown) => {
+      if (!cancelled) toast({ title: "Draft recovery needs attention", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     });
-    if (draft.tags.length) setTags((ts) => (ts.length ? ts : draft.tags));
-    if (draft.entryKind && !entryKind) setEntryKind(draft.entryKind);
-    if (draft.listeningSections && !isListeningEmpty(draft.listeningSections)) {
-      setListeningSections(draft.listeningSections);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editId, user?.id]);
+    return () => { cancelled = true; };
+  }, [editId, user?.id, restoreLocalDraft]);
 
   useEffect(() => {
     if (!user || inlineChatMode) return;
     if (editId && loadedEditId !== editId) return;
     if (!body.trim() && !title.trim() && !editId && !inlineEntryId) return;
-    if (!hasMeaningfulComposeContent({ title, body, entryKind, listeningSections })) return;
+    if (!editId && !inlineEntryId && !hasMeaningfulComposeContent({ title, body, entryKind, listeningSections })) return;
     scheduleComposePersist();
   }, [
     user,
     inlineChatMode,
     body,
     title,
+    summary,
     tags,
     mood,
     entryKind,
@@ -901,43 +934,8 @@ export function useNewJournalEntryPage() {
     const ts = new Date(entryAt);
 
     if (!eId) {
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .insert({
-          user_id: user.id,
-          journal_id: journalId,
-          title: title.trim() || null,
-          body: "",
-          mood,
-          tags,
-          verse_ref: verseRef.trim() || null,
-          belief_id: beliefId || null,
-          prompt_id: promptId,
-          location_name: locationName.trim() || null,
-          lat,
-          lng,
-          weather,
-          weather_temp_c: weatherTempC,
-          weather_icon: weatherIcon,
-          analyze_for_mirror: false,
-          entry_at_ts: ts.toISOString(),
-          entry_at: ts.toISOString().slice(0, 10),
-          entry_kind: "chat",
-        })
-        .select("id")
-        .maybeSingle();
-      if (error || !data) {
-        toast({ title: "Couldn't start AI chat", description: error?.message, variant: "destructive" });
-        return null;
-      }
-      eId = data.id;
-      setInlineEntryId(eId);
-    } else if (editId) {
-      await supabase
-        .from("journal_entries")
-        .update({ entry_kind: "chat" })
-        .eq("id", eId)
-        .eq("user_id", user.id);
+      eId = await composePersistence.ensureEntry();
+      if (!eId) return null;
     }
 
     if (!cId) {
@@ -1006,6 +1004,7 @@ export function useNewJournalEntryPage() {
     try {
       ensured = await ensureChatEntry();
       if (!ensured) {
+        setBody((current) => current || text);
         setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
         return;
       }
@@ -1108,85 +1107,24 @@ export function useNewJournalEntryPage() {
   }, [editId, inlineEntryId, chatId, aiBusy, chatTurns, includeGeneral, responseDepth, loadChatTurns]);
 
   const save = useCallback(async () => {
-    if (!user) return;
+    if (!user || manualSaveRef.current) return;
     dictateRef.current?.stop();
     const hasChat = chatTurns.length > 0;
-    if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length && !hasChat) {
+    if (!body.trim() && !title.trim() && !pendingFiles.length && !existingPhotos.length && !hasChat && !editId && !inlineEntryId) {
       toast({ title: "Write something or add a photo first", variant: "destructive" });
       return;
     }
+    manualSaveRef.current = true;
     setBusy(true);
     setBusyLabel("Saving");
-    await flushComposeSave({ silent: true });
-    const ts = new Date(entryAt);
-
-    const isInlineChat = !!inlineEntryId && hasChat;
-    const composedBody = isInlineChat ? composeChatTranscript(chatTurns, body) : body;
-    const finalKind = isInlineChat ? "chat" : entryKind;
-
-    const payload = {
-      user_id: user.id,
-      journal_id: journalId,
-      title: title.trim() || null,
-      summary: summary.trim() || null,
-      body: composedBody,
-      mood,
-      tags: mergeInlineTags(composedBody, tags),
-      verse_ref: verseRef.trim() || null,
-      belief_id: beliefId || null,
-      prompt_id: promptId,
-      location_name: locationName.trim() || null,
-      lat,
-      lng,
-      weather,
-      weather_temp_c: weatherTempC,
-      weather_icon: weatherIcon,
-      analyze_for_mirror: entryKind === "vent" ? false : analyzeForMirror,
-      entry_at_ts: ts.toISOString(),
-      entry_at: ts.toISOString().slice(0, 10),
-      entry_kind: finalKind,
-    };
-
-    let entryId = editId ?? inlineEntryId ?? null;
-    const { user_id: _uid, ...entryPayload } = payload;
-    if (entryId) {
-      try {
-        const { error } = await updateJournalEntry(user.id, entryId, entryPayload, {
-          journalId: journalId ?? null,
-        });
-        if (error) {
-          setBusy(false);
-          toast({ title: "Save failed", description: error.message, variant: "destructive" });
-          return;
-        }
-      } catch (err) {
-        setBusy(false);
-        toast({
-          title: "Save failed",
-          description: err instanceof Error ? err.message : "Journal encryption required",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      try {
-        const { data, error } = await insertJournalEntry(user.id, entryPayload);
-        if (error || !data) {
-          setBusy(false);
-          toast({ title: "Save failed", description: error?.message, variant: "destructive" });
-          return;
-        }
-        entryId = data.id;
-      } catch (err) {
-        setBusy(false);
-        toast({
-          title: "Save failed",
-          description: err instanceof Error ? err.message : "Journal encryption required",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+    try {
+    const isInlineChat = hasChat && (inlineChatMode || entryKind === "chat");
+    const result = await flushComposeSave({
+      patch: isInlineChat ? { body: composeChatTranscript(chatTurns, body), entry_kind: "chat" } : undefined,
+    });
+    if (!result.ok) return;
+    const entryId = result.entryId;
+    const composedBody = String(result.snapshot.values.body ?? "");
 
     if (entryId && composedBody.includes("[[")) {
       await syncEntryWikilinks(user.id, entryId, composedBody);
@@ -1197,7 +1135,7 @@ export function useNewJournalEntryPage() {
       setBusyLabel("Uploading photos");
       try {
         const uploaded = await uploadEntryPhotos(user.id, entryId, pendingFiles);
-        await supabase.from("journal_photos").insert(
+        const { error: attachmentError } = await supabase.from("journal_photos").insert(
           uploaded.map((u) => ({
             user_id: user.id,
             entry_id: entryId!,
@@ -1206,6 +1144,8 @@ export function useNewJournalEntryPage() {
             height: u.height,
           })),
         );
+        if (attachmentError) throw attachmentError;
+        setPendingFiles((files) => files.filter((file) => !pendingFiles.includes(file)));
         const { data: photoRows } = await supabase
           .from("journal_photos")
           .select("storage_path")
@@ -1224,14 +1164,7 @@ export function useNewJournalEntryPage() {
               variant: "destructive",
             });
           } else if (tx.transcribed > 0 || tx.title) {
-            const { data: refreshed } = await supabase
-              .from("journal_entries")
-              .select("body,title,summary")
-              .eq("id", entryId!)
-              .maybeSingle();
-            if (refreshed?.body) setBody(refreshed.body);
-            if (refreshed?.title) setTitle(refreshed.title);
-            else if (tx.title) setTitle(tx.title);
+            const refreshed = await refreshJournalDocument(user.id, entryId!);
             toast({
               title: tx.title || refreshed?.title ? "Entry named and transcribed" : "Handwritten note transcribed",
               description:
@@ -1254,10 +1187,8 @@ export function useNewJournalEntryPage() {
             : String(e),
           variant: "destructive",
         });
-        if (hasPendingSketchUpload) {
-          setBusy(false);
-          return;
-        }
+        setBusy(false);
+        return;
       }
     }
 
@@ -1267,6 +1198,8 @@ export function useNewJournalEntryPage() {
         .catch((e) => console.error("score err", e));
     }
 
+    const finalSave = await flushComposeSave();
+    if (!finalSave.ok) return;
     clearComposeDraft();
 
     if (isInlineChat) {
@@ -1306,6 +1239,12 @@ export function useNewJournalEntryPage() {
     }
 
     navigate(`/journal/${entryId}`);
+    } catch (error) {
+      toast({ title: "Save needs attention", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+    } finally {
+      manualSaveRef.current = false;
+      setBusy(false);
+    }
   }, [
     user,
     chatTurns,
@@ -1453,91 +1392,13 @@ export function useNewJournalEntryPage() {
     videoAutoTitle.onRecordingStart();
   }, [getVideoAnchorOffset, videoAutoTitle, editId, inlineEntryId]);
 
-  const handleVideoLiveTranscript = useCallback(
-    (live: string) => {
-      const snap = videoLiveSnapRef.current;
-      if (!snap) return;
-      const nextBody = bodyWithLiveVideoTranscript(snap.body, snap.anchor, live);
-      handleBodyChange(nextBody);
-    },
-    [handleBodyChange],
-  );
-
+  const handleVideoLiveTranscript = useCallback((live: string) => setVideoCaptionPreview(live), []);
   const handleVideoRecordingCancelled = useCallback(() => {
-    const snap = videoLiveSnapRef.current;
-    if (snap) handleBodyChange(snap.body);
+    setVideoCaptionPreview("");
     videoLiveSnapRef.current = null;
-  }, [handleBodyChange]);
+  }, []);
 
-  const ensureDraftEntry = useCallback(async (): Promise<string | null> => {
-    if (!user) return null;
-    const existing = editId ?? inlineEntryId;
-    if (existing) return existing;
-
-    await flushComposeSave({ silent: true });
-    const ts = new Date(entryAt);
-    const payload = {
-      user_id: user.id,
-      journal_id: journalId,
-      title: title.trim() || null,
-      body: body.trim() || " ",
-      mood,
-      tags: mergeInlineTags(body, tags),
-      verse_ref: verseRef.trim() || null,
-      belief_id: beliefId || null,
-      prompt_id: promptId,
-      location_name: locationName.trim() || null,
-      lat,
-      lng,
-      weather,
-      weather_temp_c: weatherTempC,
-      weather_icon: weatherIcon,
-      analyze_for_mirror: entryKind === "vent" ? false : analyzeForMirror,
-      entry_at_ts: ts.toISOString(),
-      entry_at: ts.toISOString().slice(0, 10),
-      entry_kind: entryKind,
-    };
-    const { user_id: _uid, ...entryPayload } = payload;
-    try {
-      const { data, error } = await insertJournalEntry(user.id, entryPayload);
-      if (error || !data) {
-        toast({ title: "Couldn't start entry", description: error?.message, variant: "destructive" });
-        return null;
-      }
-      setInlineEntryIdWithNativeOwner(data.id);
-      return data.id;
-    } catch (err) {
-      toast({
-        title: "Couldn't start entry",
-        description: err instanceof Error ? err.message : "Try again",
-        variant: "destructive",
-      });
-      return null;
-    }
-  }, [
-    user,
-    editId,
-    inlineEntryId,
-    flushComposeSave,
-    entryAt,
-    journalId,
-    title,
-    body,
-    mood,
-    tags,
-    verseRef,
-    beliefId,
-    promptId,
-    locationName,
-    lat,
-    lng,
-    weather,
-    weatherTempC,
-    weatherIcon,
-    analyzeForMirror,
-    entryKind,
-    setInlineEntryIdWithNativeOwner,
-  ]);
+  const ensureDraftEntry = composePersistence.ensureEntry;
 
   const openNativeDraftVideo = useCallback((ownerId: string) => {
     videoAnchorRef.current = getVideoAnchorOffset();
@@ -1664,15 +1525,10 @@ export function useNewJournalEntryPage() {
         });
 
         await reloadVideos();
-        let enrichResult: { summary?: string } | void;
-        if (best.trim()) {
-          const nextBody = finalizeVideoJournalBody(snap, bodyRef.current, anchorOffset, best);
-          handleBodyChange(nextBody);
-          enrichResult = await videoAutoTitle.onRecordingComplete(nextBody);
-        } else {
-          enrichResult = await videoAutoTitle.onRecordingComplete(bodyRef.current);
-        }
+        const refreshed = await refreshJournalDocument(user.id, entryId);
+        const enrichResult = refreshed.e2e_encrypted ? undefined : await videoAutoTitle.onRecordingComplete(refreshed.body);
         videoLiveSnapRef.current = null;
+        setVideoCaptionPreview("");
 
         if (queued) {
           toast({
@@ -1684,7 +1540,7 @@ export function useNewJournalEntryPage() {
           toast({
             title: best ? "Video and transcript saved" : "Video saved",
             description: best
-              ? enrichResult?.summary
+              ? enrichResult && enrichResult.summary
                 ? "Summary and full transcript are in your entry."
                 : undefined
               : journalVideoTranscriptEmptyMessage({
@@ -1728,7 +1584,8 @@ export function useNewJournalEntryPage() {
       const detail = (event as CustomEvent<JournalVideoSavedEventDetail>).detail;
       if (!detail?.entryId || detail.entryId !== entryId) return;
       if (bodyRef.current === detail.body) return;
-      setBody(detail.body);
+      // The shared document subscription reconciles this event with pending typing.
+      void refreshJournalDocument(user!.id, entryId).catch(() => {});
     };
     window.addEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
     return () => window.removeEventListener(JOURNAL_VIDEO_SAVED_EVENT, onVideoSaved);
@@ -1810,9 +1667,7 @@ export function useNewJournalEntryPage() {
           toast({ title: "Handwritten note saved" });
           return;
         }
-        if (r.body) setBody(r.body);
-        if (r.title) setTitle(r.title);
-        if (r.summary) setSummary(r.summary);
+        await refreshJournalDocument(user.id, editId);
         toast({
           title: r.title ? "Entry named and transcribed" : "Handwritten note transcribed",
           description: r.title
@@ -1837,6 +1692,8 @@ export function useNewJournalEntryPage() {
   }, [savePendingSketchFile]);
 
   return {
+    lat, lng, journalId,
+    videoCaptionPreview,
     user,
     loading,
     editId,

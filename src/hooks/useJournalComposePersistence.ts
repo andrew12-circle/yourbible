@@ -1,308 +1,235 @@
+import { JournalViewAdoption } from "@/lib/journal/journalViewAdoption";
 import { useCallback, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { mergeInlineTags } from "@/lib/journal/inlineMarkers";
-import {
-  clearComposeEntryDraft,
-  composeDraftStorageKey,
-  hasMeaningfulComposeContent,
-  loadComposeEntryDraft,
-  saveComposeEntryDraft,
-} from "@/lib/journal/composeEntryDraft";
+import { composeDraftStorageKey, loadComposeEntryDraft, clearComposeEntryDraft, hasMeaningfulComposeContent } from "@/lib/journal/composeEntryDraft";
 import type { JournalEntryKind } from "@/lib/journal/entryKinds";
-import {
-  buildFlushPayload,
-  mergePendingPatches,
-  type JournalAutosavePatch,
-} from "@/lib/journal/journalEntryAutosave";
-import { maybeEncryptJournalPayload } from "@/lib/journal/journalEntryCrypto";
 import type { ListeningSections } from "@/lib/journal/listeningEntry";
 import { localDateKey } from "@/lib/journal/localDate";
+import { createLocalJournalDocument, openJournalDocument, patchJournalDocument, flushJournalDocument, registerJournalEditorSync, peekJournalDocument, JOURNAL_DOCUMENT_CHANGED } from "@/lib/journal/journalDocuments";
+import { journalChangedFields, journalValueEqual, type JournalValues, type JournalFlushResult, type JournalSaveQueue } from "@/lib/journal/journalSaveQueue";
+import type { JournalEntryRecord } from "@/lib/journal/journalEntryDb";
 
 export type ComposePersistenceSnapshot = {
-  title: string;
-  body: string;
-  tags: string[];
-  mood: number | null;
-  entryKind: JournalEntryKind | null;
-  journalId: string | null;
-  verseRef: string;
-  beliefId: string;
-  promptId: string | null;
-  locationName: string;
-  lat: number | null;
-  lng: number | null;
-  weather: string | null;
-  weatherTempC: number | null;
-  weatherIcon: string | null;
-  analyzeForMirror: boolean;
-  entryAt: string;
-  listeningSections?: ListeningSections;
+  title: string; body: string; summary?: string; tags: string[]; mood: number | null;
+  entryKind: JournalEntryKind | null; journalId: string | null; verseRef: string; beliefId: string;
+  promptId: string | null; locationName: string; lat: number | null; lng: number | null;
+  weather: string | null; weatherTempC: number | null; weatherIcon: string | null;
+  analyzeForMirror: boolean; entryAt: string; listeningSections?: ListeningSections;
 };
-
-type UseJournalComposePersistenceOpts = {
-  userId: string | undefined;
-  editId: string | undefined;
-  inlineEntryId: string | null;
-  setInlineEntryId: (id: string) => void;
-  entryKind: JournalEntryKind | null;
-  isListening: boolean;
+type Options = {
+  userId: string | undefined; editId: string | undefined; inlineEntryId: string | null;
+  setInlineEntryId: (id: string) => void; entryKind: JournalEntryKind | null; isListening: boolean;
   getSnapshot: () => ComposePersistenceSnapshot;
-  /** Skip local restore when loading an existing entry from the server. */
+  enabled?: boolean;
+  onDocumentChange?: (patch: JournalValues) => void;
+  /** Kept for API compatibility. Existing-entry recovery is now revision-aware. */
   skipLocalRestore?: boolean;
 };
+function payloadFor(snap: ComposePersistenceSnapshot): JournalValues {
+  const date = new Date(snap.entryAt);
+  if (!Number.isFinite(date.getTime())) throw new Error("Choose a valid entry date before saving.");
+  return {
+    journal_id: snap.journalId, title: snap.title.trim() || null, body: snap.body,
+    summary: snap.summary?.trim() || null, mood: snap.mood, tags: mergeInlineTags(snap.body, snap.tags),
+    verse_ref: snap.verseRef.trim() || null, belief_id: snap.beliefId || null, prompt_id: snap.promptId,
+    location_name: snap.locationName.trim() || null, lat: snap.lat, lng: snap.lng,
+    weather: snap.weather, weather_temp_c: snap.weatherTempC, weather_icon: snap.weatherIcon,
+    analyze_for_mirror: snap.entryKind === "vent" ? false : snap.analyzeForMirror,
+    entry_at_ts: date.toISOString(), entry_at: localDateKey(date), entry_kind: snap.entryKind,
+  };
+}
+const pointerKey = (userId: string) => `yb_journal_compose_identity_v2:${userId}`;
 
-const LOCAL_DEBOUNCE_MS = 250;
-const SERVER_DEBOUNCE_MS = 600;
+export function useJournalComposePersistence(options: Options) {
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const identityRef = useRef(options.editId ?? options.inlineEntryId);
+  const observedUiRef = useRef<JournalValues | null>(null);
+  const viewAdoption = useRef(new JournalViewAdoption());
+  const initializedRef = useRef(!options.editId);
+  const finishedRef = useRef(false);
+  const restoredRef = useRef(false);
+  const generationRef = useRef(0);
+  const scopeRef = useRef(`${options.userId}:${options.editId ?? "new"}`);
+  const scope = `${options.userId}:${options.editId ?? "new"}`;
+  if (scopeRef.current !== scope) {
+    scopeRef.current = scope;
+    identityRef.current = options.editId ?? options.inlineEntryId;
+    observedUiRef.current = null;
+    viewAdoption.current.reset();
+    initializedRef.current = !options.editId;
+    finishedRef.current = false;
+    restoredRef.current = false;
+    generationRef.current += 1;
+  }
 
-export function useJournalComposePersistence({
-  userId,
-  editId,
-  inlineEntryId,
-  setInlineEntryId,
-  entryKind,
-  isListening,
-  getSnapshot,
-  skipLocalRestore = false,
-}: UseJournalComposePersistenceOpts) {
-  const getSnapshotRef = useRef(getSnapshot);
-  getSnapshotRef.current = getSnapshot;
+  const initialize = useCallback((row: JournalEntryRecord) => {
+    if (row.contentLocked) throw new Error("Unlock your journal before editing.");
+    identityRef.current = row.id;
+    initializedRef.current = true;
+    // The next fully hydrated render establishes the UI baseline without saving its
+    // formatted date or chat-summary presentation back over the stored document.
+    observedUiRef.current = null;
+    viewAdoption.current.reset();
+  }, []);
 
-  const draftKeyRef = useRef<string | null>(null);
-  const localTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const serverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pendingServerRef = useRef<JournalAutosavePatch>({});
-  const ensuringDraftRef = useRef(false);
-  const restoredLocalRef = useRef(false);
-  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const getQueue = useCallback(async (snapshot: ComposePersistenceSnapshot): Promise<JournalSaveQueue> => {
+    const current = optionsRef.current;
+    if (!current.userId) throw new Error("Sign in before saving your journal.");
+    if (!initializedRef.current) throw new Error("Wait for this entry to finish opening.");
+    let id = current.editId ?? identityRef.current ?? current.inlineEntryId;
+    if (!id) {
+      id = crypto.randomUUID();
+      identityRef.current = id; // Synchronous, before any await or React state update.
+      try { sessionStorage.setItem(pointerKey(current.userId), id); } catch { /* The durable entry draft still owns its identity. */ }
+      const queue = createLocalJournalDocument(current.userId, id, payloadFor(snapshot));
+      current.setInlineEntryId(id);
+      return queue;
+    }
+    identityRef.current = id;
+    return openJournalDocument(current.userId, id);
+  }, []);
+
+  const synchronize = useCallback((queue: JournalSaveQueue, snapshot: ComposePersistenceSnapshot) => {
+    const values = payloadFor(snapshot);
+    const observed = observedUiRef.current;
+    if (observed) {
+      const { observed: nextObserved, patch } = viewAdoption.current.consume(observed, values);
+      observedUiRef.current = nextObserved;
+      if (Object.keys(patch).length) patchJournalDocument(queue.current().userId, queue.current().id, patch);
+    } else {
+      observedUiRef.current = values;
+    }
+  }, []);
+
+  const schedulePersist = useCallback(() => {
+    const current = optionsRef.current;
+    if (!current.userId || !initializedRef.current || finishedRef.current || current.enabled === false) return;
+    const snapshot = current.getSnapshot();
+    if (!identityRef.current && !hasMeaningfulComposeContent(snapshot)) return;
+    const generation = ++generationRef.current;
+    const ownerScope = scopeRef.current;
+    void getQueue(snapshot).then((queue) => {
+      if (generation !== generationRef.current || ownerScope !== scopeRef.current) return;
+      synchronize(queue, snapshot);
+      // Both editors delegate debounce and acknowledgement to the same owner.
+      if (queue.isDirty()) patchJournalDocument(queue.current().userId, queue.current().id, {});
+    }).catch((error: unknown) => {
+      toast({ title: "Journal save paused", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+    });
+  }, [getQueue, synchronize]);
+
+  const flushServerSave = useCallback(async (opts?: { silent?: boolean; patch?: JournalValues }): Promise<JournalFlushResult> => {
+    const current = optionsRef.current;
+    const userId = current.userId;
+    const ownerScope = scopeRef.current;
+    if (!userId) return { ok: false, entryId: identityRef.current ?? "", error: new Error("Sign in before saving.") };
+    if (finishedRef.current) return flushJournalDocument(userId, identityRef.current!);
+    const snapshot = current.getSnapshot();
+    generationRef.current += 1;
+    try {
+      const queue = await getQueue(snapshot);
+      if (ownerScope !== scopeRef.current) return queue.flush();
+      // A later user edit may have arrived during hydration; always capture it before flushing.
+      if (optionsRef.current.enabled !== false) synchronize(queue, optionsRef.current.getSnapshot());
+      if (opts?.patch) queue.patch(opts.patch);
+      const result = await queue.flush();
+      if (result.ok === false && !opts?.silent) toast({ title: "Entry not saved to the cloud", description: result.error.message, variant: "destructive" });
+      return result;
+    } catch (cause) {
+      const error = cause instanceof Error ? cause : new Error(String(cause));
+      if (!opts?.silent) toast({ title: "Save failed", description: error.message, variant: "destructive" });
+      return { ok: false, entryId: identityRef.current ?? "", error };
+    }
+  }, [getQueue, synchronize]);
+
+  const ensureEntry = useCallback(async (): Promise<string | null> => {
+    const result = await flushServerSave();
+    return result.ok ? result.entryId : null;
+  }, [flushServerSave]);
+
+  const restoreLocalDraft = useCallback(async () => {
+    const current = optionsRef.current;
+    if (current.editId || !current.userId || restoredRef.current) return null;
+    restoredRef.current = true;
+    // A verse/prompt explicitly supplied by the caller is a new document, not an
+    // instruction to overwrite the last unfinished entry.
+    if (hasMeaningfulComposeContent(current.getSnapshot())) return null;
+    let id: string | null = null;
+    try { id = sessionStorage.getItem(pointerKey(current.userId)); } catch { /* fall back to legacy recovery */ }
+    if (id) {
+      const queue = await openJournalDocument(current.userId, id);
+      identityRef.current = id;
+      current.setInlineEntryId(id);
+      const values = queue.current().values;
+      return {
+        title: String(values.title ?? ""), body: String(values.body ?? ""),
+        tags: (values.tags ?? []) as string[], entryKind: (values.entry_kind ?? null) as JournalEntryKind | null,
+        listeningSections: undefined, values,
+      };
+    }
+    // A legacy new-entry draft has no server identity; importing it creates a new
+    // revisioned document. Existing-entry legacy drafts are never auto-overwritten.
+    const legacy = loadComposeEntryDraft(composeDraftStorageKey(current.userId, undefined, current.entryKind));
+    return legacy ? { ...legacy, values: undefined } : null;
+  }, []);
+
+  const clearDraft = useCallback(() => {
+    const current = optionsRef.current;
+    finishedRef.current = true;
+    if (current.userId && !current.editId) {
+      try { sessionStorage.removeItem(pointerKey(current.userId)); } catch { /* no journal content is removed here */ }
+      clearComposeEntryDraft(composeDraftStorageKey(current.userId, undefined, current.entryKind));
+    }
+    // Only the write owner clears its exact acknowledged IndexedDB snapshot.
+  }, []);
 
   useEffect(() => {
-    if (!userId) {
-      draftKeyRef.current = null;
-      return;
-    }
-    draftKeyRef.current = composeDraftStorageKey(userId, editId, entryKind);
-  }, [userId, editId, entryKind]);
+    const userId = options.userId;
+    const id = options.editId ?? options.inlineEntryId;
+    if (!userId || !id) return;
+    const sync = () => {
+      const current = optionsRef.current;
+      const queue = peekJournalDocument(userId, id);
+      if (current.enabled !== false && initializedRef.current && !finishedRef.current && queue) synchronize(queue, current.getSnapshot());
+    };
+    const unsubscribe = registerJournalEditorSync(userId, id, sync);
+    const onChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string; entryId: string }>).detail;
+      if (detail?.userId !== userId || detail.entryId !== id || optionsRef.current.enabled === false || !observedUiRef.current) return;
+      const queue = peekJournalDocument(userId, id);
+      if (!queue) return;
+      const view = payloadFor(optionsRef.current.getSnapshot());
+      const documentValues = queue.current().values;
+      const applied: JournalValues = {};
+      for (const key of ["title", "summary", "body", "tags"]) {
+        if (journalValueEqual(view[key], observedUiRef.current[key]) && !journalValueEqual(view[key], documentValues[key])) applied[key] = documentValues[key];
+      }
+      if (Object.keys(applied).length) {
+        viewAdoption.current.stage(observedUiRef.current, applied);
+        optionsRef.current.onDocumentChange?.(applied);
+      }
+    };
+    window.addEventListener(JOURNAL_DOCUMENT_CHANGED, onChange);
+    return () => { unsubscribe(); window.removeEventListener(JOURNAL_DOCUMENT_CHANGED, onChange); };
+  }, [options.userId, options.editId, options.inlineEntryId, synchronize]);
 
-  const persistLocalDraft = useCallback(() => {
-    const key = draftKeyRef.current;
-    if (!key) return;
-    const snap = getSnapshotRef.current();
-    saveComposeEntryDraft(key, {
-      title: snap.title,
-      body: snap.body,
-      tags: snap.tags,
-      listeningSections: isListening ? snap.listeningSections : undefined,
-      entryKind: snap.entryKind,
-    });
-  }, [isListening]);
-
-  const scheduleLocalDraft = useCallback(() => {
-    if (localTimerRef.current) clearTimeout(localTimerRef.current);
-    localTimerRef.current = setTimeout(() => {
-      localTimerRef.current = null;
-      persistLocalDraft();
-    }, LOCAL_DEBOUNCE_MS);
-  }, [persistLocalDraft]);
-
-  const buildServerPayload = useCallback((snap: ComposePersistenceSnapshot): JournalAutosavePatch => {
-    const ts = new Date(snap.entryAt);
-    return {
-      journal_id: snap.journalId,
-      title: snap.title.trim() || null,
-      body: snap.body,
-      mood: snap.mood,
-      tags: mergeInlineTags(snap.body, snap.tags),
-      verse_ref: snap.verseRef.trim() || null,
-      belief_id: snap.beliefId || null,
-      prompt_id: snap.promptId,
-      location_name: snap.locationName.trim() || null,
-      lat: snap.lat,
-      lng: snap.lng,
-      weather: snap.weather,
-      weather_temp_c: snap.weatherTempC,
-      weather_icon: snap.weatherIcon,
-      analyze_for_mirror: snap.entryKind === "vent" ? false : snap.analyzeForMirror,
-      entry_at_ts: ts.toISOString(),
-      entry_at: localDateKey(ts),
-      entry_kind: snap.entryKind,
+  const flushRef = useRef(flushServerSave);
+  flushRef.current = flushServerSave;
+  useEffect(() => {
+    const flush = () => {
+      if (!finishedRef.current && initializedRef.current && identityRef.current && optionsRef.current.enabled !== false) void flushRef.current({ silent: true });
+    };
+    const hidden = () => { if (document.visibilityState === "hidden") flush(); };
+    document.addEventListener("visibilitychange", hidden);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", hidden);
+      window.removeEventListener("pagehide", flush);
+      flush();
     };
   }, []);
 
-  const ensureDraftEntry = useCallback(async (): Promise<string | null> => {
-    if (!userId) return null;
-    if (editId) return editId;
-    if (inlineEntryId) return inlineEntryId;
-    if (ensuringDraftRef.current) return null;
-
-    const snap = getSnapshotRef.current();
-    if (!hasMeaningfulComposeContent(snap)) return null;
-
-    ensuringDraftRef.current = true;
-    try {
-      let payload: Record<string, unknown>;
-      try {
-        payload = await maybeEncryptJournalPayload(buildServerPayload(snap), {
-          journalId: snap.journalId,
-        });
-      } catch (err) {
-        toast({
-          title: "Couldn't create entry",
-          description: err instanceof Error ? err.message : "Journal encryption required",
-          variant: "destructive",
-        });
-        return null;
-      }
-      const { data, error } = await supabase
-        .from("journal_entries")
-        .insert({ ...payload, user_id: userId })
-        .select("id")
-        .maybeSingle();
-
-      if (error || !data?.id) {
-        if (error) {
-          toast({
-            title: "Couldn't back up entry",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-        return null;
-      }
-
-      setInlineEntryId(data.id);
-      const newKey = composeDraftStorageKey(userId, data.id, entryKind);
-      clearComposeEntryDraft(composeDraftStorageKey(userId, undefined, entryKind));
-      draftKeyRef.current = newKey;
-      return data.id;
-    } finally {
-      ensuringDraftRef.current = false;
-    }
-  }, [userId, editId, inlineEntryId, setInlineEntryId, buildServerPayload, entryKind]);
-
-  const flushServerSave = useCallback(
-    async (opts?: { silent?: boolean }) => {
-      if (!userId) return;
-      if (serverTimerRef.current) {
-        clearTimeout(serverTimerRef.current);
-        serverTimerRef.current = null;
-      }
-
-      const run = async () => {
-        let entryId = editId ?? inlineEntryId;
-        if (!entryId) {
-          entryId = await ensureDraftEntry();
-          if (!entryId) return;
-        }
-
-        const pending = { ...pendingServerRef.current };
-        if (Object.keys(pending).length === 0) return;
-        pendingServerRef.current = {};
-
-        const snap = getSnapshotRef.current();
-        let payload: Record<string, unknown>;
-        try {
-          payload = await maybeEncryptJournalPayload(
-            buildFlushPayload(pending, buildServerPayload(snap)),
-            { journalId: snap.journalId },
-          );
-        } catch (err) {
-          pendingServerRef.current = mergePendingPatches(pendingServerRef.current, pending);
-          if (!opts?.silent) {
-            toast({
-              title: "Couldn't save entry",
-              description: err instanceof Error ? err.message : "Journal encryption required",
-              variant: "destructive",
-            });
-          }
-          return;
-        }
-
-        const { error } = await supabase
-          .from("journal_entries")
-          .update(payload)
-          .eq("id", entryId)
-          .eq("user_id", userId);
-
-        if (error) {
-          pendingServerRef.current = mergePendingPatches(pendingServerRef.current, pending);
-          if (!opts?.silent) {
-            toast({ title: "Autosave failed", description: error.message, variant: "destructive" });
-          }
-        }
-      };
-
-      const queued = saveChainRef.current.catch(() => {}).then(run);
-      saveChainRef.current = queued;
-      await queued;
-    },
-    [userId, editId, inlineEntryId, ensureDraftEntry, buildServerPayload],
-  );
-
-  const scheduleServerSave = useCallback(() => {
-    if (!userId) return;
-
-    const snap = getSnapshotRef.current();
-    if (!hasMeaningfulComposeContent(snap)) return;
-
-    scheduleLocalDraft();
-    pendingServerRef.current = mergePendingPatches(
-      pendingServerRef.current,
-      buildServerPayload(snap),
-    );
-
-    if (serverTimerRef.current) clearTimeout(serverTimerRef.current);
-    serverTimerRef.current = setTimeout(() => {
-      serverTimerRef.current = null;
-      void flushServerSave();
-    }, SERVER_DEBOUNCE_MS);
-  }, [userId, scheduleLocalDraft, buildServerPayload, flushServerSave]);
-
-  const restoreLocalDraft = useCallback(() => {
-    if (restoredLocalRef.current || skipLocalRestore) return;
-    const key = draftKeyRef.current;
-    if (!key) return;
-    restoredLocalRef.current = true;
-
-    const draft = loadComposeEntryDraft(key);
-    if (!draft) return;
-    if (!draft.body.trim() && !draft.title.trim()) return;
-
-    return draft;
-  }, [skipLocalRestore]);
-
-  const clearDraft = useCallback(() => {
-    const key = draftKeyRef.current;
-    if (key) clearComposeEntryDraft(key);
-    if (userId && !editId) {
-      clearComposeEntryDraft(composeDraftStorageKey(userId, undefined, entryKind));
-    }
-  }, [userId, editId, entryKind]);
-
-  useEffect(() => {
-    const onHide = () => {
-      if (document.visibilityState === "hidden") {
-        persistLocalDraft();
-        void flushServerSave({ silent: true });
-      }
-    };
-    document.addEventListener("visibilitychange", onHide);
-    return () => document.removeEventListener("visibilitychange", onHide);
-  }, [persistLocalDraft, flushServerSave]);
-
-  useEffect(() => {
-    return () => {
-      if (localTimerRef.current) clearTimeout(localTimerRef.current);
-      if (serverTimerRef.current) clearTimeout(serverTimerRef.current);
-      persistLocalDraft();
-      void flushServerSave({ silent: true });
-    };
-  }, [persistLocalDraft, flushServerSave]);
-
-  return {
-    schedulePersist: scheduleServerSave,
-    flushServerSave,
-    restoreLocalDraft,
-    clearDraft,
-  };
+  return { schedulePersist, flushServerSave, restoreLocalDraft, clearDraft, initialize, ensureEntry };
 }

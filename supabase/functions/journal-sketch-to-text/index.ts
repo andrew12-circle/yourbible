@@ -1,3 +1,4 @@
+import { appendJournalBlock } from "../_shared/journalAtomicBlock.ts";
 /**
  * Reads a saved journal sketch image (handwriting on paper) via Gemini vision
  * and appends an AI transcription block to the journal entry body.
@@ -95,7 +96,7 @@ Deno.serve(async (req) => {
 
     const { data: entry } = await supabase
       .from("journal_entries")
-      .select("id,title,body,summary,user_id")
+      .select("id,title,body,summary,user_id,revision,e2e_encrypted")
       .eq("id", entry_id)
       .maybeSingle();
     if (!entry || entry.user_id !== u.user.id) {
@@ -104,6 +105,13 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    if (entry.e2e_encrypted) {
+      return new Response(JSON.stringify({ error: "Encrypted entries cannot use server-side handwriting transcription." }), {
+        status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!Number.isSafeInteger(entry.revision)) throw new Error("Journal revision support is required.");
 
     const { data: photo } = await supabase
       .from("journal_photos")
@@ -161,14 +169,17 @@ Deno.serve(async (req) => {
           }
         }
         if (suggestedTitle || suggestedSummary) {
-          await supabase
-            .from("journal_entries")
+          const { data: metadata, error: metadataError } = await supabase.from("journal_entries")
             .update({
               ...(suggestedTitle ? { title: suggestedTitle } : {}),
               ...(suggestedSummary ? { summary: suggestedSummary } : {}),
             })
-            .eq("id", entry_id)
-            .eq("user_id", u.user.id);
+            .eq("id", entry_id).eq("user_id", u.user.id)
+            .eq("revision", entry.revision).eq("e2e_encrypted", false)
+            .select("title,summary").maybeSingle();
+          if (metadataError) throw metadataError;
+          suggestedTitle = metadata && suggestedTitle ? metadata.title : null;
+          suggestedSummary = metadata && suggestedSummary ? metadata.summary : null;
         }
       }
       return new Response(
@@ -277,30 +288,30 @@ If there is essentially no handwriting (only blank paper or pure drawings), retu
       });
     }
 
-    const sep = bodyStr.trim().length ? "\n\n" : "";
-    const block =
-      `${sep}${marker}\n---\n**From your sketch** (AI transcription)\n\n${transcribed}\n`;
-    const nextBody = `${bodyStr}${block}`;
-
-    const { data: updated, error: upErr } = await supabase
-      .from("journal_entries")
-      .update({ body: nextBody })
-      .eq("id", entry_id)
-      .eq("user_id", u.user.id)
-      .select("id,title,body")
-      .maybeSingle();
-
-    if (upErr || !updated) {
-      return new Response(JSON.stringify({ error: upErr?.message ?? "Could not update entry" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const updated = await appendJournalBlock({
+      entryId: entry_id, userId: u.user.id, marker,
+      block: `---\n**From your sketch** (AI transcription)\n\n${transcribed}\n`,
+      read: async () => {
+        const { data, error } = await supabase.from("journal_entries")
+          .select("id,title,body,summary,user_id,revision,e2e_encrypted")
+          .eq("id", entry_id).eq("user_id", u.user.id).maybeSingle();
+        if (error) throw error;
+        return data;
+      },
+      compareAndSwap: async (row, body) => {
+        const { data, error } = await supabase.from("journal_entries").update({ body })
+          .eq("id", entry_id).eq("user_id", u.user.id)
+          .eq("revision", row.revision).eq("e2e_encrypted", false)
+          .select("id,title,body,summary,user_id,revision,e2e_encrypted").maybeSingle();
+        if (error) throw error;
+        return data;
+      },
+    });
 
     let suggestedTitle: string | null = null;
     let suggestedSummary: string | null = null;
     const needsTitle = needsAutoTitle(updated.title) && transcribed.length >= 20;
-    const needsSummary = !String(entry.summary ?? "").trim() && transcribed.length >= 40;
+    const needsSummary = !String(updated.summary ?? "").trim() && transcribed.length >= 40;
     if (needsTitle || needsSummary) {
       const metaRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
         method: "POST",
@@ -337,14 +348,17 @@ If there is essentially no handwriting (only blank paper or pure drawings), retu
       }
     }
     if (suggestedTitle || suggestedSummary) {
-      await supabase
-        .from("journal_entries")
+      const { data: metadata, error: metadataError } = await supabase.from("journal_entries")
         .update({
           ...(suggestedTitle ? { title: suggestedTitle } : {}),
           ...(suggestedSummary ? { summary: suggestedSummary } : {}),
         })
-        .eq("id", entry_id)
-        .eq("user_id", u.user.id);
+        .eq("id", entry_id).eq("user_id", u.user.id)
+        .eq("revision", updated.revision).eq("e2e_encrypted", false)
+        .select("title,summary").maybeSingle();
+      if (metadataError) throw metadataError;
+      suggestedTitle = metadata && suggestedTitle ? metadata.title : null;
+      suggestedSummary = metadata && suggestedSummary ? metadata.summary : null;
     }
 
     return new Response(

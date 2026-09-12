@@ -113,6 +113,7 @@ describe("journal video durable upload processing", () => {
       expect.stringContaining("and my week"),
       0,
       null,
+      undefined,
     );
     expect(enqueueMock).not.toHaveBeenCalled();
     expect(uploadEntryVideoMock).not.toHaveBeenCalled();
@@ -219,7 +220,7 @@ describe("journal video durable upload processing", () => {
     expect(insertEntryVideoMock).not.toHaveBeenCalled();
     expect(transcribeJournalVideoMock).not.toHaveBeenCalled();
     expect(persistMock).toHaveBeenCalledTimes(1);
-    expect(persistMock).toHaveBeenCalledWith("u1", "e1", preparedTranscript, 0, null);
+    expect(persistMock).toHaveBeenCalledWith("u1", "e1", preparedTranscript, 0, null, baseMeta.peakLiveTranscript);
     expect(removeQueueMock).toHaveBeenCalledWith("recording-1");
     expect(saved.transcript).toBe(preparedTranscript);
   });
