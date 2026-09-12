@@ -1,9 +1,8 @@
+import { useJournalListController } from "@/hooks/useJournalListController";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw, MessageCircle, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
-import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import EntryListMediaThumbnail from "@/components/journal/EntryListMediaThumbnail";
 import { Pin, Sparkles, MapPin } from "lucide-react";
 import { moodMeta } from "./MoodPicker";
@@ -18,12 +17,6 @@ import {
   setJournalEntryPinned,
 } from "@/lib/journal/entryActions";
 import { toast } from "@/hooks/use-toast";
-import { formatJournalLoadError } from "@/lib/journal/journalE2eSchema";
-import {
-  fetchJournalEntryListPage,
-  JOURNAL_LIST_PAGE_SIZE,
-  type JournalEntryListRow,
-} from "@/lib/journal/entryListQuery";
 import { Button } from "@/components/ui/button";
 
 interface Entry {
@@ -70,65 +63,16 @@ export default function EntryListPane({
   headingLabel?: string;
 }) {
   const { user } = useAuth();
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
-  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
   const [view, setView] = useState<View>("list");
   const [searchOpen, setSearchOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  const attachPhotos = async (list: JournalEntryListRow[], merge: boolean) => {
-    const ids = list.map((e) => e.id);
-    if (!ids.length) {
-      if (!merge) {
-        setPhotoUrls({});
-        setVideoUrls({});
-      }
-      return;
-    }
-    const { photoUrls: photos, videoUrls: videos } = await fetchEntryListMediaUrls(ids);
-    setPhotoUrls((prev) => (merge ? { ...prev, ...photos } : photos));
-    setVideoUrls((prev) => (merge ? { ...prev, ...videos } : videos));
-  };
-
-  const load = async (append = false) => {
-    if (!user) return;
-    if (append) setLoadingMore(true);
-    else if (entries.length === 0) setLoading(true);
-    setLoadError(null);
-    try {
-      const offset = append ? entries.length : 0;
-      const { rows, hasMore: more } = await fetchJournalEntryListPage(supabase, {
-        journalId,
-        entryKindFilter,
-        excludeJournalIds,
-        offset,
-        limit: JOURNAL_LIST_PAGE_SIZE,
-      });
-      setHasMore(more);
-      setEntries((prev) => (append ? [...prev, ...(rows as Entry[])] : (rows as Entry[])));
-      await attachPhotos(rows, append);
-    } catch (e) {
-      const msg = formatJournalLoadError(e);
-      setLoadError(msg);
-      toast({ title: "Couldn't load entries", description: msg, variant: "destructive" });
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    void load(false);
-  }, [user, journalId, reloadKey, entryKindFilter, excludeJournalIds]); // eslint-disable-line react-hooks/exhaustive-deps -- reset list when scope changes
+  const { entries, setEntries, photoUrls, videoUrls, hasMore, loadError, loading, loadingMore, load } = useJournalListController({
+    userId: user?.id, journalId, entryKindFilter, excludeJournalIds, search: q, reloadKey,
+  });
 
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  }, []);
+  }, [setEntries]);
 
   const applySuggestedTitle = useCallback(
     (id: string, title: string) => patchEntry(id, { title }),
@@ -179,16 +123,7 @@ export default function EntryListPane({
     [user, onDeleted],
   );
 
-  const filtered = useMemo(() => {
-    if (!q.trim()) return entries;
-    const n = q.toLowerCase();
-    return entries.filter(
-      (e) =>
-        (e.title ?? "").toLowerCase().includes(n) ||
-        e.body.toLowerCase().includes(n) ||
-        (e.location_name ?? "").toLowerCase().includes(n),
-    );
-  }, [entries, q]);
+  const filtered = entries;
 
   const grouped = useMemo(() => {
     const map = new Map<string, Entry[]>();

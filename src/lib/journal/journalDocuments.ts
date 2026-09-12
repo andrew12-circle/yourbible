@@ -105,10 +105,10 @@ export async function openJournalDocument(userId: string, entryId: string): Prom
   return task;
 }
 
-export function createLocalJournalDocument(userId: string, entryId: string, values: JournalValues): JournalSaveQueue {
+export function createLocalJournalDocument(userId: string, entryId: string, values: JournalValues, encryptionRequired = false): JournalSaveQueue {
   return queues.get(keyFor(userId, entryId)) ?? register({
     id: entryId, userId, revision: null, values,
-    encrypted: journalEntryMustEncrypt(values.journal_id as string | null),
+    encrypted: encryptionRequired || journalEntryMustEncrypt(values.journal_id as string | null),
   });
 }
 export function peekJournalDocument(userId: string, entryId: string): JournalSaveQueue | undefined {

@@ -11,7 +11,7 @@ export async function suggestJournalEntryTitle(opts: {
   body?: string;
 }): Promise<SuggestTitleResult> {
   const { data, error } = await supabase.functions.invoke("journal-suggest-title", {
-    body: opts,
+    body: opts.entryId ? { entry_id: opts.entryId } : { body: opts.body },
   });
 
   if (error) {

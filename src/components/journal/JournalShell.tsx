@@ -112,6 +112,7 @@ export default function JournalShell({
   const journal = journals.find((j) => j.id === journalId) ?? null;
 
   const onExport = async () => {
+    if (!window.confirm("Export readable journal text, photos, and videos? This ZIP is not password-protected. Keep it in a secure location.")) return;
     setExporting(true);
     try {
       const n = await exportJournalAsZip(journal);

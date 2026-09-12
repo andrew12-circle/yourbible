@@ -3683,6 +3683,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      journal_entry_list_page: {
+        Args: {
+          p_journal_id?: string | null
+          p_exclude_journal_ids?: string[]
+          p_entry_kind?: string | null
+          p_search?: string | null
+          p_limit?: number
+          p_offset?: number
+          p_include_encrypted?: boolean
+          p_sort_updated?: boolean
+        }
+        Returns: {
+          id: string
+          user_id: string
+          title: string | null
+          body: string
+          summary: string | null
+          entry_at_ts: string
+          updated_at: string
+          mood: number | null
+          location_name: string | null
+          weather: string | null
+          weather_temp_c: number | null
+          weather_icon: string | null
+          pinned: boolean
+          analyze_for_mirror: boolean
+          journal_id: string | null
+          entry_kind: string | null
+          e2e_encrypted: boolean
+        }[]
+      }
       accept_partner_invite: { Args: { p_token: string }; Returns: string }
       enqueue_embedding_job: {
         Args: { p_row_id: string; p_table: string; p_user_id: string }

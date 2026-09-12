@@ -12,7 +12,7 @@ export default function JournalMapPage() {
   const { user, loading } = useAuth();
   const { journalId: paramJournalId } = useParams<{ journalId?: string }>();
   const journalId = paramJournalId ?? null;
-  const { rows, markers, loading: placesLoading, placeCount } = useJournalPlaceMarkers(journalId);
+  const { rows, markers, loading: placesLoading, error: placesError, placeCount } = useJournalPlaceMarkers(journalId);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -29,7 +29,9 @@ export default function JournalMapPage() {
           showPlacesChrome
         />
 
-        {!placesLoading && rows.length === 0 ? (
+        {placesError ? (
+          <p role="alert" className="p-4 text-sm text-destructive">{placesError}</p>
+        ) : !placesLoading && rows.length === 0 ? (
           <div className="text-center py-12 px-6">
             <p className="text-lg font-semibold tracking-tight">No located entries</p>
             <p className="text-[15px] text-muted-foreground mt-1">
