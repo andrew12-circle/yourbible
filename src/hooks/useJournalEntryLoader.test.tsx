@@ -35,9 +35,13 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 import { useJournalEntryLoader } from "./useJournalEntryLoader";
+import { toast } from "@/hooks/use-toast";
 
 const entryRow = {
   id: "e1",
+  user_id: "owner",
+  revision: 1,
+  e2e_encrypted: false,
   title: "T",
   body: "body",
   summary: null,
@@ -56,6 +60,7 @@ const entryRow = {
 
 describe("useJournalEntryLoader", () => {
   beforeEach(() => {
+    vi.mocked(toast).mockClear();
     maybeSingleMock.mockReset();
     photosSelectMock.mockReset();
     photosSelectMock.mockResolvedValue({ data: [] });
@@ -74,6 +79,7 @@ describe("useJournalEntryLoader", () => {
     const { result } = renderHook(() => useJournalEntryLoader("e1"));
     await waitFor(() => expect(result.current.entry?.id).toBe("e1"));
     expect(result.current.notFound).toBe(false);
+    expect(result.current.entry).toMatchObject({ revision: 1, user_id: "owner" });
   });
 
   it("ignores stale load when entryId changes", async () => {
@@ -93,5 +99,30 @@ describe("useJournalEntryLoader", () => {
     resolveFirst({ data: entryRow, error: null });
     await waitFor(() => expect(result.current.entry?.id).toBe("e2"));
     expect(result.current.entry?.title).toBe("New");
+  });
+
+  it("rejects an unversioned row instead of bypassing concurrency protection", async () => {
+    maybeSingleMock.mockResolvedValue({ data: { ...entryRow, revision: undefined }, error: null });
+    const { result } = renderHook(() => useJournalEntryLoader("e1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.entry).toBeNull();
+    expect(result.current.notFound).toBe(false);
+    expect(photosSelectMock).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Couldn't load entry", variant: "destructive",
+      description: expect.stringContaining("revision support"),
+    }));
+  });
+
+  it("reports a failed read without treating the entry as deleted", async () => {
+    maybeSingleMock.mockResolvedValue({ data: null, error: new Error("Connection interrupted") });
+    const { result } = renderHook(() => useJournalEntryLoader("e1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.entry).toBeNull();
+    expect(result.current.notFound).toBe(false);
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({
+      title: "Couldn't load entry", variant: "destructive",
+      description: expect.stringContaining("Connection interrupted"),
+    }));
   });
 });

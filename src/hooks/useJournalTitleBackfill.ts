@@ -7,6 +7,8 @@ type EntrySlice = {
   title: string | null;
   body: string;
   summary?: string | null;
+  e2e_encrypted?: boolean;
+  contentLocked?: boolean;
 };
 
 const MAX_CONCURRENT = 2;
@@ -22,6 +24,7 @@ export function useJournalTitleBackfill(
   useEffect(() => {
     const candidates = entries.filter(
       (e) =>
+        !e.e2e_encrypted && !e.contentLocked &&
         !attempted.current.has(e.id) &&
         shouldSuggestJournalTitle(e.title, e.body, e.summary),
     );
@@ -41,8 +44,9 @@ export function useJournalTitleBackfill(
 
       void suggestJournalEntryTitle({ entryId: entry.id, body: entry.body })
         .then((res) => {
-          if (!cancelled && res.ok && res.title) onTitle(entry.id, res.title);
+          if (!cancelled && res.ok && res.persisted && !res.skipped && res.title) onTitle(entry.id, res.title);
         })
+        .catch(() => { /* Leave the existing title unchanged; manual retry remains available. */ })
         .finally(() => {
           inFlight -= 1;
           runNext();

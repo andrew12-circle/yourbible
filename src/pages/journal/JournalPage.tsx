@@ -1,3 +1,4 @@
+import { useJournalListController } from "@/hooks/useJournalListController";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Mic, PenLine, Search, Video } from "lucide-react";
@@ -12,7 +13,6 @@ import JournalOverviewPane from "@/components/journal/JournalOverviewPane";
 import AllEntriesOverviewPane from "@/components/journal/AllEntriesOverviewPane";
 import EntryListItem, { EntryListData } from "@/components/journal/EntryListItem";
 import { Input } from "@/components/ui/input";
-import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import { useIsDesktop } from "@/hooks/use-desktop";
 import {
   ensureDefaultJournal,
@@ -29,14 +29,8 @@ import {
   setJournalEntryPinned,
 } from "@/lib/journal/entryActions";
 import { toast } from "@/hooks/use-toast";
-import { formatJournalLoadError } from "@/lib/journal/journalE2eSchema";
 import { useJournalTitleBackfill } from "@/hooks/useJournalTitleBackfill";
 import DayOneImportDialog from "@/components/journal/DayOneImportDialog";
-import {
-  fetchJournalEntryListPage,
-  JOURNAL_LIST_PAGE_SIZE,
-  type JournalEntryListRow,
-} from "@/lib/journal/entryListQuery";
 import {
   journalDeskEntryHref,
   journalEntryHref,
@@ -273,14 +267,10 @@ function MobileJournalList({
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
-  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { entries, setEntries, photoUrls, videoUrls, hasMore, loadError, loading, loadingMore, load: loadEntries } = useJournalListController({
+    userId: user?.id, journalId, excludeJournalIds: !journalId && notesJournalId ? [notesJournalId] : undefined, search: q,
+  });
   const notesReturnTo = "/journal/notes";
   const composeHref = useCallback(
     (capture?: "video" | "dictate") => {
@@ -294,57 +284,9 @@ function MobileJournalList({
     [journalId, notesMode],
   );
 
-  const attachPhotoUrls = useCallback(async (list: JournalEntryListRow[], merge: boolean) => {
-    const ids = list.map((e) => e.id);
-    if (!ids.length) {
-      if (!merge) {
-        setPhotoUrls({});
-        setVideoUrls({});
-      }
-      return;
-    }
-    const { photoUrls: photos, videoUrls: videos } = await fetchEntryListMediaUrls(ids);
-    setPhotoUrls((prev) => (merge ? { ...prev, ...photos } : photos));
-    setVideoUrls((prev) => (merge ? { ...prev, ...videos } : videos));
-  }, []);
-
-  const loadEntries = useCallback(
-    async (append = false) => {
-      if (!user) return;
-      if (append) setLoadingMore(true);
-      else setLoading(true);
-      setLoadError(null);
-      try {
-        const offset = append ? entries.length : 0;
-        const { rows, hasMore: more } = await fetchJournalEntryListPage(supabase, {
-          journalId,
-          excludeJournalIds:
-            !journalId && notesJournalId ? [notesJournalId] : undefined,
-          offset,
-          limit: JOURNAL_LIST_PAGE_SIZE,
-        });
-        setHasMore(more);
-        setEntries((prev) => (append ? [...prev, ...(rows as Entry[])] : (rows as Entry[])));
-        await attachPhotoUrls(rows, append);
-      } catch (e) {
-        const msg = formatJournalLoadError(e);
-        setLoadError(msg);
-        toast({ title: "Couldn't load entries", description: msg, variant: "destructive" });
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
-    [user, journalId, notesJournalId, entries.length, attachPhotoUrls],
-  );
-
-  useEffect(() => {
-    void loadEntries(false);
-  }, [user, journalId]); // eslint-disable-line react-hooks/exhaustive-deps -- reset when journal scope changes
-
   const patchEntry = useCallback((id: string, patch: Partial<Entry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  }, []);
+  }, [setEntries]);
 
   const applySuggestedTitle = useCallback(
     (id: string, title: string) => patchEntry(id, { title }),
@@ -394,16 +336,7 @@ function MobileJournalList({
     [user],
   );
 
-  const filtered = useMemo(() => {
-    if (!q.trim()) return entries;
-    const n = q.toLowerCase();
-    return entries.filter(
-      (e) =>
-        (e.title ?? "").toLowerCase().includes(n) ||
-        e.body.toLowerCase().includes(n) ||
-        (e.location_name ?? "").toLowerCase().includes(n),
-    );
-  }, [entries, q]);
+  const filtered = entries;
 
   const pinned = filtered.filter((e) => e.pinned);
   const rest = filtered.filter((e) => !e.pinned);
@@ -471,7 +404,7 @@ function MobileJournalList({
 
       {!loading && filtered.length === 0 && !loadError && (
         <div className="text-center py-20 px-6">
-          <p className="text-lg font-semibold tracking-tight">No entries yet</p>
+          <p className="text-lg font-semibold tracking-tight">{q.trim() ? "No matching entries" : "No entries yet"}</p>
           <p className="text-[15px] text-muted-foreground mt-1 mb-4">
             Write your first entry or tap the compose button.
           </p>
