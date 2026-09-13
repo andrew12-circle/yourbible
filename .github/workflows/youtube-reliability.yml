@@ -1,0 +1,122 @@
+name: YouTube reliability
+on:
+  push:
+    branches: [main, 'fix/youtube-*']
+    paths:
+      - 'api/youtube-captions.ts'
+      - 'public/youtube-player.*'
+      - 'src/lib/youtube/**'
+      - 'src/lib/framework/*ranscript*'
+      - 'src/components/framework/**'
+      - 'src/hooks/useArtifact*'
+      - 'src/hooks/useStaticYouTubeEmbedTelemetry.ts'
+      - 'supabase/functions/framework-fetch-transcript/**'
+      - 'supabase/functions/framework-prefetch-youtube-captions/**'
+      - 'supabase/functions/_shared/**'
+      - 'vercel.json'
+      - 'scripts/check-youtube-edge.mjs'
+      - '.github/workflows/youtube-reliability.yml'
+  pull_request:
+    paths:
+      - 'api/youtube-captions.ts'
+      - 'public/youtube-player.*'
+      - 'src/lib/youtube/**'
+      - 'src/lib/framework/*ranscript*'
+      - 'src/components/framework/**'
+      - 'src/hooks/useArtifact*'
+      - 'src/hooks/useStaticYouTubeEmbedTelemetry.ts'
+      - 'supabase/functions/framework-fetch-transcript/**'
+      - 'supabase/functions/framework-prefetch-youtube-captions/**'
+      - 'supabase/functions/_shared/**'
+      - 'vercel.json'
+      - '.github/workflows/youtube-reliability.yml'
+permissions:
+  contents: read
+concurrency:
+  group: youtube-reliability-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: youtube-test-placeholder
+      VITE_SUPABASE_ANON_KEY: youtube-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test 2>&1 | tee "$RUNNER_TEMP/youtube-tests.log"
+      - run: npm run lint 2>&1 | tee "$RUNNER_TEMP/youtube-lint.log"
+      - run: node scripts/check-journal-type-regressions.mjs 2150e9cbd8ca91d37f060d3e8f3be63dda651898
+      - run: npx tsc --noEmit --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types node api/youtube-captions.ts
+      - run: node scripts/check-youtube-edge.mjs
+      - run: npm run build 2>&1 | tee "$RUNNER_TEMP/youtube-build.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: youtube-reliability-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/youtube-*.log
+            ${{ runner.temp }}/journal-*.log
+  published_routes:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify published player assets, headers, and authentication boundary
+        shell: bash
+        run: |
+          python3 - <<'PY' | tee "$RUNNER_TEMP/youtube-published-routes.log"
+          import hashlib, json, os, time, urllib.request, urllib.error
+          from pathlib import Path
+          origin = 'https://yourbible-lodge.vercel.app'
+          revision = os.environ['GITHUB_SHA']
+          expected = hashlib.sha256(Path('public/youtube-player.js').read_bytes()).hexdigest()
+          for attempt in range(18):
+            try:
+              with urllib.request.urlopen(origin + '/youtube-player.js?release=' + revision, timeout=10) as response:
+                actual = hashlib.sha256(response.read()).hexdigest()
+              if actual == expected:
+                break
+              print('Waiting for the verified player asset to be published.', flush=True)
+            except Exception as error:
+              print('Waiting for deployment:', type(error).__name__, flush=True)
+            time.sleep(20)
+          else:
+            raise RuntimeError('The public host did not serve the verified player asset.')
+          with urllib.request.urlopen(origin + '/youtube-player.html?release=' + revision, timeout=10) as response:
+            html = response.read().decode()
+            assert '/youtube-player.js' in html
+            assert response.headers.get('X-Frame-Options', '').upper() != 'DENY'
+            assert 'capacitor://localhost' in response.headers.get('Content-Security-Policy', '')
+            assert response.headers.get('Referrer-Policy') == 'strict-origin-when-cross-origin'
+          request = urllib.request.Request(origin + '/api/youtube-captions', method='POST',
+            data=b'{"video_id":"HbLhpMEmrqU"}', headers={'Content-Type':'application/json','Authorization':'Bearer invalid-deployment-probe'})
+          try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+              raise RuntimeError('Caption API unexpectedly accepted an invalid session: ' + str(response.status))
+          except urllib.error.HTTPError as error:
+            assert error.code == 401, 'Caption route/configuration failure: HTTP ' + str(error.code)
+            assert 'application/json' in error.headers.get('Content-Type', '')
+            assert 'error' in json.loads(error.read())
+          with urllib.request.urlopen(origin + '/auth', timeout=10) as response:
+            assert response.headers.get('X-Frame-Options', '').upper() == 'DENY'
+          print(json.dumps({'source':revision, 'player_asset_sha256':expected, 'player_headers':'passed',
+            'caption_api_invalid_session':'401 JSON', 'application_frame_denial':'passed',
+            'real_video_playback_tested':False, 'authenticated_transcript_retrieval_tested':False}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: youtube-public-route-check-${{ github.run_id }}
+          path: ${{ runner.temp }}/youtube-published-routes.log

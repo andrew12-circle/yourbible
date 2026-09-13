@@ -1976,7 +1976,7 @@ export default function ArtifactDetailPage() {
           toast({ title: "Nice work", description: "Heading back to your artifacts." });
           navigate("/framework/artifacts");
         }}
-        polling={polling}
+        polling={polling && a.status === "analyzing" && Boolean(a.raw_text?.trim())}
         quickBeliefOpen={quickBeliefOpen}
         onQuickBeliefOpenChange={setQuickBeliefOpen}
         quickBeliefText={quickBeliefText}

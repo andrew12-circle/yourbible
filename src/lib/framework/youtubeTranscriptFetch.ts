@@ -69,11 +69,12 @@ export async function retryYoutubeTranscriptFetch(
   return resumeYoutubeTranscriptFetch(artifactId, url, fetchOpts);
 }
 
-export async function markYoutubeTranscriptFetchError(artifactId: string, message: string): Promise<void> {
+export async function markYoutubeTranscriptFetchError(artifactId: string, message: string, processingToken?: string | null): Promise<void> {
+  if (!processingToken) return; // An unowned failure cannot overwrite another run.
   await supabase
     .from("artifacts")
     .update({ status: "error", error: message })
-    .eq("id", artifactId);
+    .eq("id", artifactId).eq("processing_token", processingToken).eq("status", "fetching");
 }
 
 type FetchTranscriptBody = {
@@ -185,13 +186,13 @@ export async function startYoutubeTranscriptFetch({
 }: StartYoutubeTranscriptFetchParams): Promise<TranscriptFetchResult> {
   const { videoId: resolvedId, fetchUrl } = resolveFetchTarget(url, metadata, videoId);
 
+  let token = processingToken;
   try {
     // A user has already submitted the artifact. Do not await the browser's
     // fallback ladder here: on iOS one unavailable caption provider can hold
     // the artifact in "fetching" long enough to look like a blank study.
     // `useYoutubeCaptionPrefetch` still supplies browser-resolved captions
     // before submit; otherwise, start the durable edge job immediately.
-    let token = processingToken;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         await invokeFetchTranscript({
@@ -212,7 +213,7 @@ export async function startYoutubeTranscriptFetch({
     return { ok: true };
   } catch (err) {
     const message = `Could not start transcript fetch: ${errorMessage(err)}`;
-    if (markError) await markYoutubeTranscriptFetchError(artifactId, message);
+    if (markError) await markYoutubeTranscriptFetchError(artifactId, message, token);
     return { ok: false, error: message };
   }
 }

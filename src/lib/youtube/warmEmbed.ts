@@ -25,6 +25,7 @@ export function warmYouTubeEmbed(videoId: string | null | undefined): void {
   warmedVideoIds.add(id);
 
   const iframe = document.createElement("iframe");
+  iframe.referrerPolicy = "strict-origin-when-cross-origin";
   iframe.src = buildYouTubeEmbedSrc(id);
   iframe.title = "";
   iframe.setAttribute("aria-hidden", "true");

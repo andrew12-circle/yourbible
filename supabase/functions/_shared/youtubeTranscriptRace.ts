@@ -1,3 +1,4 @@
+import { isDirectTranscriptMediaUrl } from "./transcriptReliability.ts";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { fetchAssemblyAiTranscript } from "./transcriptProviders/assemblyai.ts";
 import { fetchDeepgramTranscript } from "./transcriptProviders/deepgram.ts";
@@ -175,32 +176,15 @@ export async function fetchAssemblyFallback(
     resolveAudioUrl?: (id: string) => Promise<string | null>;
   },
 ): Promise<{ result: TranscriptFetchResult | null; note: string }> {
-  const notes: string[] = [];
-  const videoId = opts?.videoId?.trim() ?? null;
-
-  if (videoId && opts?.resolveAudioUrl) {
-    const audioUrl = await opts.resolveAudioUrl(videoId).catch(() => null);
-    if (audioUrl) {
-      try {
-        const assembly = await fetchAssemblyAiTranscript(audioUrl);
-        if (assembly.rawText) return { result: assembly, note: "ok (direct audio url)" };
-        notes.push("audio url: empty response");
-      } catch (e) {
-        notes.push(`audio url: ${String((e as Error).message ?? e)}`);
-      }
-    } else {
-      notes.push("audio url: not resolved");
-    }
-  }
-
+  if (!Deno.env.get("ASSEMBLYAI_API_KEY")?.trim()) return { result: null, note: "skipped — ASSEMBLYAI_API_KEY not set" };
+  if (/^(false|0)$/i.test(Deno.env.get("TRANSCRIPT_TIER2_ENABLED") ?? "")) return { result: null, note: "disabled" };
+  const videoId = opts?.videoId?.trim();
+  const audioUrl = videoId && opts?.resolveAudioUrl ? await opts.resolveAudioUrl(videoId).catch(() => null) : watchUrl;
+  if (!audioUrl || !isDirectTranscriptMediaUrl(audioUrl)) return { result: null, note: "No direct media URL; watch-page HTML was not submitted." };
   try {
-    const assembly = await fetchAssemblyAiTranscript(watchUrl);
-    if (assembly.rawText) return { result: assembly, note: "ok (watch url)" };
-    return { result: null, note: notes.length ? `${notes.join("; ")}; watch url: empty` : "empty response" };
-  } catch (e) {
-    const watchErr = String((e as Error).message ?? e);
-    return { result: null, note: notes.length ? `${notes.join("; ")}; watch url: ${watchErr}` : watchErr };
-  }
+    const result = await fetchAssemblyAiTranscript(audioUrl);
+    return { result: result.rawText ? result : null, note: result.rawText ? "ok (direct audio)" : "empty response" };
+  } catch (cause) { return { result: null, note: String((cause as Error).message ?? cause) }; }
 }
 
 export async function fetchDeepgramFallback(
@@ -209,7 +193,7 @@ export async function fetchDeepgramFallback(
 ): Promise<TranscriptFetchResult | null> {
   if (!Deno.env.get("DEEPGRAM_API_KEY")?.trim()) return null;
   const audioUrl = await resolveAudioUrl(videoId).catch(() => null);
-  if (!audioUrl) return null;
+  if (!audioUrl || !isDirectTranscriptMediaUrl(audioUrl)) return null;
   try {
     const deepgram = await fetchDeepgramTranscript(audioUrl);
     return deepgram.rawText ? deepgram : null;

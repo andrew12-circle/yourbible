@@ -6,12 +6,9 @@ import { peekArtifactShellCache } from "@/lib/framework/artifactShellCache";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
-import { isManualYoutubeFetchActive } from "@/lib/framework/youtubeFetchCoordinator";
 import {
   markYoutubeTranscriptFetchError,
-  retryYoutubeTranscriptFetch,
 } from "@/lib/framework/youtubeTranscriptFetch";
-import { resolveYouTubeVideoId } from "@/lib/youtube";
 import { isReadableDocumentKind } from "@/lib/framework/documentArtifact";
 import {
   analyzeClientTimeoutSeconds,
@@ -21,11 +18,7 @@ import {
 } from "@/lib/framework/analyzeTimeouts";
 import { shouldRepairRateLimitArtifact } from "@/lib/framework/artifactAnalysisRecovery";
 
-const YOUTUBE_FETCH_ENSURE_AFTER_MS = 30_000;
-const YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS = 20;
-const YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS = 45_000;
-const YOUTUBE_FETCH_AUTO_RETRY_LIMIT = 4;
-const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 200;
+const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 140;
 
 export type ArtifactDetailClaim = {
   id: string;
@@ -74,10 +67,8 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const [elapsed, setElapsed] = useState(0);
   const startedRef = useRef<number | null>(null);
   const prevStatusRef = useRef<string | null>(null);
-  const autoRetryRef = useRef<Record<string, { count: number; lastAt: number }>>({});
   const analyzeRetryRef = useRef<Record<string, number>>({});
   const analyzeClientTimeoutRef = useRef<string | null>(null);
-  const ensureFetchRef = useRef<string | null>(null);
   const clientTimeoutRef = useRef<string | null>(null);
 
   const applyArtifact = useCallback((next: ArtifactRow | null) => {
@@ -108,13 +99,13 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   const fetchArtifactRow = useCallback(async (targetId: string): Promise<ArtifactRow | null> => {
     const artWithMeta = await supabase
       .from("artifacts")
-      .select("id,title,kind,status,error,raw_text,url,metadata,created_at")
+      .select("id,title,kind,status,error,raw_text,url,metadata,created_at,processing_token")
       .eq("id", targetId)
       .maybeSingle();
     const artResult = artWithMeta.error
       ? await supabase
           .from("artifacts")
-          .select("id,title,kind,status,error,raw_text,url,created_at")
+          .select("id,title,kind,status,error,raw_text,url,created_at,processing_token")
           .eq("id", targetId)
           .maybeSingle()
       : artWithMeta;
@@ -232,7 +223,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     if (!artifactId) return;
     const { data } = await supabase
       .from("artifacts")
-      .select("id,title,kind,status,error,raw_text,url,metadata,created_at")
+      .select("id,title,kind,status,error,raw_text,url,metadata,created_at,processing_token")
       .eq("id", artifactId)
       .maybeSingle();
     if (!data) return;
@@ -262,7 +253,6 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
   }, [applyArtifact, artifactId, loadClaimsOnly, loadFull, repairRateLimitArtifactRow]);
 
   useEffect(() => {
-    ensureFetchRef.current = null;
     clientTimeoutRef.current = null;
     analyzeClientTimeoutRef.current = null;
     analyzeRetryRef.current = {};
@@ -328,36 +318,7 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     };
   }, [a?.id, a?.kind, a?.status, loadClaimsOnly]);
 
-  useEffect(() => {
-    if (!artifactLoaded || !a || a.kind !== "youtube" || a.status !== "fetching" || !a.url?.trim()) return;
-    if (a.raw_text?.trim()) return;
-    if (ensureFetchRef.current === a.id) return;
-    if (isManualYoutubeFetchActive(a.id)) return;
-
-    const artifactId = a.id;
-    const artifactUrl = a.url.trim();
-    const timer = window.setTimeout(() => {
-      ensureFetchRef.current = artifactId;
-      void (async () => {
-        const { data } = await supabase
-          .from("artifacts")
-          .select("status,raw_text")
-          .eq("id", artifactId)
-          .maybeSingle();
-        if (data?.status !== "fetching" || (data.raw_text ?? "").trim()) return;
-        const fetchOpts = {
-          videoId: resolveYouTubeVideoId(artifactUrl, a?.metadata),
-          metadata: a?.metadata,
-          createdAt: a?.created_at,
-        };
-        const result = await retryYoutubeTranscriptFetch(artifactId, artifactUrl, fetchOpts);
-        if (!result.ok) await loadStatusOnly();
-      })();
-    }, YOUTUBE_FETCH_ENSURE_AFTER_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [artifactLoaded, a, loadStatusOnly]);
-
+  // The server owns one bounded attempt. Never launch duplicate paid jobs on polling ticks.
   useEffect(() => {
     if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;
     if (elapsed < YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS) return;
@@ -365,28 +326,9 @@ export function useArtifactDetailData(artifactId: string | undefined, userId: st
     clientTimeoutRef.current = a.id;
     void markYoutubeTranscriptFetchError(
       a.id,
-      "Transcript fetch is taking too long. Tap Retry, paste captions, or try again in a few minutes.",
+      "Transcript fetch did not finish within its time limit. Retry once or paste an available transcript.",
+      a.processing_token,
     ).then(() => loadStatusOnly());
-  }, [a, elapsed, loadStatusOnly]);
-
-  useEffect(() => {
-    if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;
-    if (isManualYoutubeFetchActive(a.id)) return;
-    if (elapsed < YOUTUBE_FETCH_AUTO_RETRY_AFTER_SECONDS) return;
-
-    const retry = autoRetryRef.current[a.id] ?? { count: 0, lastAt: 0 };
-    const now = Date.now();
-    if (retry.count >= YOUTUBE_FETCH_AUTO_RETRY_LIMIT) return;
-    if (now - retry.lastAt < YOUTUBE_FETCH_AUTO_RETRY_INTERVAL_MS) return;
-
-    autoRetryRef.current[a.id] = { count: retry.count + 1, lastAt: now };
-    void retryYoutubeTranscriptFetch(a.id, a.url, {
-      videoId: resolveYouTubeVideoId(a.url, a.metadata),
-      metadata: a.metadata,
-      createdAt: a.created_at,
-    }).then((result) => {
-      if (!result.ok) void loadStatusOnly();
-    });
   }, [a, elapsed, loadStatusOnly]);
 
   const transcriptLength = a?.raw_text?.trim().length ?? 0;

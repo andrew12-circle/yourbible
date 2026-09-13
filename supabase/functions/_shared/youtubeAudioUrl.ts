@@ -1,6 +1,6 @@
 /**
  * Resolves a direct audio stream URL for third-party STT (Deepgram).
- * YouTube watch URLs are not accepted by Deepgram; AssemblyAI accepts watch URLs.
+ * Both speech-to-text providers require media files, never YouTube watch-page HTML.
  */
 
 const YT_HEADERS = {
@@ -73,7 +73,7 @@ function parseJsonObjectFromHtml(html: string, marker: string): unknown | null {
 }
 
 async function audioFromWatchPage(videoId: string): Promise<string | null> {
-  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, { headers: YT_HEADERS });
+  const res = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, { headers: YT_HEADERS, signal: AbortSignal.timeout(4000) });
   if (!res.ok) return null;
   const html = await res.text();
   const player = parseJsonObjectFromHtml(html, "ytInitialPlayerResponse");
@@ -92,6 +92,7 @@ type InnertubeClient = {
 async function audioFromInnertubePlayer(videoId: string, client: InnertubeClient): Promise<string | null> {
   const u = `https://youtubei.googleapis.com/youtubei/v1/player?key=${INNERTUBE_WEB.apiKey}`;
   const res = await fetch(u, {
+    signal: AbortSignal.timeout(4000),
     method: "POST",
     headers: {
       ...YT_HEADERS,

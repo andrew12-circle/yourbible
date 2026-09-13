@@ -1,3 +1,4 @@
+import { isDirectTranscriptMediaUrl } from "../transcriptReliability.ts";
 import type { TranscriptSegmentRow } from "../transcriptTypes.ts";
 import { buildFetchResult } from "../transcriptNormalize.ts";
 import { logAiUsage } from "../logAiUsage.ts";
@@ -12,7 +13,7 @@ function audioSecondsFromSegments(segments: TranscriptSegmentRow[]): number {
 
 const POLL_MS = 2500;
 /** Edge functions are killed before 15m; keep polling within server budget (override via env). */
-const MAX_WAIT_MS = Number(Deno.env.get("ASSEMBLYAI_MAX_WAIT_MS") ?? String(8 * 60 * 1000));
+const MAX_WAIT_MS = 35_000;
 
 type AssemblyUtterance = {
   start?: number;
@@ -48,10 +49,11 @@ function utterancesToSegments(utterances: AssemblyUtterance[]): TranscriptSegmen
     .filter((x): x is TranscriptSegmentRow => x != null);
 }
 
-/** AssemblyAI prerecorded transcription from a YouTube watch URL. */
+/** AssemblyAI prerecorded transcription from a direct audio/video file URL. */
 export async function fetchAssemblyAiTranscript(
   watchUrl: string,
 ): Promise<ReturnType<typeof buildFetchResult>> {
+  if (!isDirectTranscriptMediaUrl(watchUrl)) throw new Error("A direct HTTPS audio/video URL is required, not a YouTube watch page.");
   const apiKey = Deno.env.get("ASSEMBLYAI_API_KEY")?.trim();
   if (!apiKey) {
     throw new Error("skipped — ASSEMBLYAI_API_KEY not set on edge function");
@@ -61,6 +63,7 @@ export async function fetchAssemblyAiTranscript(
   }
 
   const submitRes = await fetch("https://api.assemblyai.com/v2/transcript", {
+    signal: AbortSignal.timeout(10_000),
     method: "POST",
     headers: {
       Authorization: apiKey,
@@ -88,6 +91,7 @@ export async function fetchAssemblyAiTranscript(
   while (Date.now() - started < MAX_WAIT_MS) {
     await new Promise((r) => setTimeout(r, POLL_MS));
     const pollRes = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`, {
+      signal: AbortSignal.timeout(8000),
       headers: { Authorization: apiKey },
     });
     if (!pollRes.ok) continue;

@@ -1,3 +1,4 @@
+import { fetchHostedYouTubeCaptions } from "../_shared/transcriptProviders/hostedYouTubeCaptions.ts";
 /**
  * Resolve YouTube captions for the add-video UI and client submit path.
  * Browser fetch to YouTube is blocked by CORS; this runs worker + server caption tiers.
@@ -11,11 +12,8 @@ import { fetchWorkerSequential } from "../_shared/transcriptProviders/youtubeTra
 import {
   buildCaptionLanes,
   CAPTION_RACE_TIMEOUT_MS,
-  fetchTranscriptPlusSequential,
-  outcomeFromTimedText,
   raceCaptionLanes,
 } from "../_shared/youtubeTranscriptRace.ts";
-import { fetchInvidiousSequential } from "../_shared/youtubeInvidiousTranscript.ts";
 import { fetchTimedTextTranscript } from "../_shared/youtubeTranscript.ts";
 
 const corsHeaders = {
@@ -82,6 +80,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    let hostedNote = "";
+    try {
+      const hosted = await fetchHostedYouTubeCaptions(videoId, auth);
+      await saveCachedYouTubeTranscript(admin, videoId, { rawText: hosted.rawText, provider: hosted.provider, source: "caption" });
+      return new Response(JSON.stringify({ text: hosted.rawText, source: "application_captions", provider: hosted.provider }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (cause) { hostedNote = String((cause as Error).message ?? cause); }
+
     const lanes = buildCaptionLanes({
       videoId,
       userId: u.user.id,
@@ -105,63 +112,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const plusSeq = await fetchTranscriptPlusSequential(videoId);
-    if (plusSeq.text?.trim()) {
-      await saveCachedYouTubeTranscript(admin, videoId, {
-        rawText: plusSeq.text,
-        provider: "youtube_transcript_plus",
-        source: "caption",
-      });
-      return new Response(JSON.stringify({
-        text: plusSeq.text,
-        source: "transcript_plus",
-        provider: "youtube_transcript_plus",
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const invSeq = await fetchInvidiousSequential(videoId);
-    if (invSeq.text?.trim()) {
-      await saveCachedYouTubeTranscript(admin, videoId, {
-        rawText: invSeq.text,
-        provider: "youtube_invidious",
-        source: "caption",
-      });
-      return new Response(JSON.stringify({
-        text: invSeq.text,
-        source: "invidious",
-        provider: "youtube_invidious",
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const timed = await fetchTimedTextTranscript(videoId).catch(() => null);
-    if (timed?.trim()) {
-      const fetch = outcomeFromTimedText(timed, "caption", "youtube_timedtext");
-      await saveCachedYouTubeTranscript(admin, videoId, {
-        rawText: fetch.rawText,
-        provider: "youtube_timedtext",
-        source: "caption",
-      });
-      return new Response(JSON.stringify({
-        text: fetch.rawText,
-        source: "timedtext",
-        provider: "youtube_timedtext",
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     return new Response(JSON.stringify({
       error: "No captions found",
+      application_caption_note: hostedNote,
       worker_note: worker.note,
-      transcript_plus_note: plusSeq.note,
-      invidious_note: invSeq.note,
     }), {
       status: 404,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
