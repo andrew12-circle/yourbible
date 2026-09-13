@@ -32,7 +32,6 @@ jobs:
           import base64, gzip, hashlib
           from pathlib import Path
           text = Path('scripts/youtube-repair-part0.b64').read_text().strip()
-          # Correct the identified transport transcription before checking the full source digest.
           text = text.replace('Yyf2f5/9L4CcBh', 'Yyf2f5/4CcBh')
           text += ''.join(Path(f'scripts/yt-chunk{n}.b64').read_text().strip() for n in range(1,7))
           patch = gzip.decompress(base64.b64decode(text, validate=True))
@@ -41,6 +40,22 @@ jobs:
           PY
           git apply --check --index /tmp/youtube-repair.patch
           git apply --index /tmp/youtube-repair.patch
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/hooks/useArtifactDetailProcessingActions.ts')
+          text = p.read_text()
+          fixes = [
+            ('let metadataPatch: Record<string, unknown> | undefined;', 'let metadataPatch: { [key: string]: Json | undefined } | undefined;'),
+            ('? { ...(a.metadata as Record<string, unknown>) }', '? { ...a.metadata }'),
+            ('const pages = documentPageCount(a.metadata);', 'const pages = documentPageCount(baseMeta);'),
+            ('metadata: metadataPatch as never', 'metadata: metadataPatch'),
+          ]
+          for old,new in fixes:
+            assert text.count(old) == 1, 'Unexpected metadata source: ' + old
+            text = text.replace(old,new)
+          p.write_text('import type { Json } from "@/integrations/supabase/types";\n' + text)
+          PY
+          git add src/hooks/useArtifactDetailProcessingActions.ts
           git diff --cached --check
           test -z "$(git diff --cached --name-only -- .github/workflows)"
       - uses: actions/setup-node@v4
@@ -71,19 +86,6 @@ jobs:
         id: api
         continue-on-error: true
         run: npx tsc --noEmit --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types node api/youtube-captions.ts 2>&1 | tee "$RUNNER_TEMP/youtube-api-types.log"
-      - name: Probe public caption availability without account secrets
-        if: always()
-        run: |
-          node --input-type=module <<'JS' | tee "$RUNNER_TEMP/youtube-caption-probe.log"
-          import { fetchTranscript } from 'youtube-transcript-plus';
-          const id = 'HbLhpMEmrqU';
-          try {
-            const rows = await fetchTranscript(id, { signal: AbortSignal.timeout(18000), retries: 0 });
-            console.log(JSON.stringify({ video_id: id, cues: rows.length, characters: rows.reduce((n,r) => n + (r.text || '').length, 0) }));
-          } catch (error) {
-            console.log(JSON.stringify({ video_id: id, available: false, error: String(error?.message ?? error).slice(0,500) }));
-          }
-          JS
       - name: Enforce actual validation outcomes
         if: always()
         run: |
