@@ -1,3 +1,4 @@
+import YouTubeEmbedFrame from "@/components/framework/YouTubeEmbedFrame";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import ArtifactYoutubePipOverlay from "@/components/framework/ArtifactYoutubePipOverlay";
@@ -158,7 +159,7 @@ export default function GlobalArtifactVideoPip() {
         role="region"
         aria-label={session.title ? `Playing: ${session.title}` : "Artifact video"}
       >
-        <iframe
+        <YouTubeEmbedFrame
           data-youtube-static-embed
           key={`${session.youTubeVideoId}:${startSeconds}:${session.resumePlayback ? 1 : 0}`}
           src={staticEmbedSrc}

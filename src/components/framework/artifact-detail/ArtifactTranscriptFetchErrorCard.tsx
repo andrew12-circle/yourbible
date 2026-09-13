@@ -1,3 +1,4 @@
+import { transcriptBillingBlocked } from "../../../../supabase/functions/_shared/transcriptReliability";
 import { FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,11 @@ export function parseTranscriptFetchError(error: string): {
   attempts: string | null;
 } {
   const trimmed = error.trim();
+  if (transcriptBillingBlocked(trimmed)) return {
+    headline: "Automatic transcription is blocked by provider billing.",
+    hint: "The configured AI provider has exhausted its prepaid credits. The app owner needs to restore that balance. Captions can still be retried independently; repeated retries cannot repair billing.",
+    attempts: trimmed,
+  };
   if (/rate limit|provider limit/i.test(trimmed)) {
     return {
       headline: "AI analysis is temporarily busy.",

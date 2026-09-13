@@ -1,3 +1,4 @@
+import { isMessageFromYouTubeFrame, sendYouTubeFrameMessage } from "@/lib/youtube/embedMessaging";
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -28,7 +29,6 @@ import {
 import {
   currentTimeFromEmbedInfo,
   embedStateIsPlaying,
-  isYouTubeEmbedMessageOrigin,
   parseYouTubeEmbedMessage,
   YT_EMBED_STATE,
 } from "@/lib/youtube/embedTelemetry";
@@ -95,10 +95,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
     if (!iframe?.contentWindow) return;
     try {
-      iframe.contentWindow.postMessage(
-        JSON.stringify({ event: "command", func: "getCurrentTime", args: [] }),
-        "https://www.youtube.com",
-      );
+      sendYouTubeFrameMessage(iframe, { event: "command", func: "getCurrentTime", args: [] });
     } catch {
       /* ignore */
     }
@@ -241,8 +238,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       };
 
       const onMessage = (event: MessageEvent) => {
-        if (!isYouTubeEmbedMessageOrigin(event.origin)) return;
-        if (event.source !== iframe.contentWindow) return;
+        if (!isMessageFromYouTubeFrame(event, iframe)) return;
         const msg = parseYouTubeEmbedMessage(event.data);
         if (!msg?.event) return;
         if (msg.event === "onStateChange" && typeof msg.info === "number") {
@@ -269,9 +265,8 @@ export function useStaticYouTubeEmbedTelemetry(options: {
     if (!enabled) return;
 
     const onMessage = (event: MessageEvent) => {
-      if (!isYouTubeEmbedMessageOrigin(event.origin)) return;
       const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
-      if (!iframe?.contentWindow || event.source !== iframe.contentWindow) return;
+      if (!isMessageFromYouTubeFrame(event, iframe)) return;
 
       const msg = parseYouTubeEmbedMessage(event.data);
       if (!msg?.event) return;
@@ -323,10 +318,7 @@ export function useStaticYouTubeEmbedTelemetry(options: {
       const iframe = getStaticYouTubeEmbedIframe(videoSlotRef.current);
       if (!iframe?.contentWindow) return;
       try {
-        iframe.contentWindow.postMessage(
-          JSON.stringify({ event: "listening", id: 1, channel: "widget" }),
-          "https://www.youtube.com",
-        );
+        sendYouTubeFrameMessage(iframe, { event: "listening", id: 1, channel: "widget" });
       } catch {
         /* ignore */
       }

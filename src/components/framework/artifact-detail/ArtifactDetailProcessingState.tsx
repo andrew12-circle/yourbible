@@ -35,16 +35,17 @@ export default function ArtifactDetailProcessingState({
   onRetryFetch,
 }: Props) {
   const hasStudyOutput = Boolean(artifact.raw_text?.trim() || studyClaimsCount > 0);
+  const transcriptStalled = inFlight && !hasStudyOutput && elapsed >= 140;
   const showTranscriptRecovery =
     artifact.kind === "youtube" &&
     Boolean(artifact.url?.trim()) &&
-    !inFlight &&
+    (!inFlight || transcriptStalled) &&
     artifact.status !== "error" &&
     !hasStudyOutput;
 
   return (
     <>
-      {inFlight ? (
+      {inFlight && !transcriptStalled ? (
         <ArtifactPipelineBanner
           status={artifact.status}
           kind={artifact.kind}

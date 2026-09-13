@@ -3,7 +3,7 @@
  * Works from many IPs where raw timedtext scraping fails.
  */
 
-import { fetchTranscript } from "npm:youtube-transcript-plus@1.1.2";
+import { fetchTranscript } from "npm:youtube-transcript-plus@2.0.0";
 
 import { mergeCaptionSegments } from "./mergeCaptionSegments.ts";
 
@@ -30,7 +30,7 @@ export function transcriptPlusToTimedText(segments: TranscriptSegment[]): string
 export async function fetchTranscriptPlusCaptions(videoId: string): Promise<string | null> {
   if (!videoId.trim()) return null;
   try {
-    const segments = await fetchTranscript(videoId, { lang: "en" });
+    const segments = await fetchTranscript(videoId, { signal: AbortSignal.timeout(12_000), retries: 0 });
     return transcriptPlusToTimedText(segments);
   } catch (e) {
     throw new Error(String((e as Error).message ?? e));

@@ -1,3 +1,4 @@
+import type { Json } from "@/integrations/supabase/types";
 import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -49,16 +50,16 @@ export function useArtifactDetailProcessingActions({
     const persistNormalized = normalized !== a.raw_text.trim();
     const processingToken = createTranscriptProcessingToken();
 
-    let metadataPatch: Record<string, unknown> | undefined;
+    let metadataPatch: { [key: string]: Json | undefined } | undefined;
     const baseMeta =
       a.metadata && typeof a.metadata === "object" && !Array.isArray(a.metadata)
-        ? { ...(a.metadata as Record<string, unknown>) }
+        ? { ...a.metadata }
         : {};
     delete baseMeta.analyze_inflight_at;
     metadataPatch = { ...baseMeta };
 
     if (isReadableDocumentKind(a.kind)) {
-      const pages = documentPageCount(a.metadata);
+      const pages = documentPageCount(baseMeta);
       const existingDuration =
         a.metadata && typeof a.metadata === "object" && !Array.isArray(a.metadata)
           ? (a.metadata as Record<string, unknown>).duration_seconds
@@ -72,7 +73,7 @@ export function useArtifactDetailProcessingActions({
       .from("artifacts")
       .update({
         ...(persistNormalized ? { raw_text: normalized } : {}),
-        ...(metadataPatch ? { metadata: metadataPatch as never } : {}),
+        ...(metadataPatch ? { metadata: metadataPatch } : {}),
         status: "analyzing",
         error: null,
         processing_token: processingToken,

@@ -13,6 +13,7 @@ import { mergePlaybackWithBackgroundHandoff } from "@/lib/framework/backgroundPl
 import { embedNeedsResumeSeek, resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 import { useArtifactGlobalDocumentPipStore } from "@/lib/framework/artifactGlobalDocumentPipStore";
+import { youtubeNeedsHostedPlayer } from "@/lib/youtube/hostOrigin";
 import { buildYouTubeEmbedSrc } from "@/lib/youtube/embed";
 
 export function useArtifactVideoPlayback(options: {
@@ -248,6 +249,7 @@ export function useArtifactVideoPlayback(options: {
   }, [isLiveBroadcast, staticEmbedStart, youTubeVideoId]);
 
   const enableApiPlayer = useCallback(() => {
+    if (youtubeNeedsHostedPlayer()) return; // The hosted frame already exposes the same controls/telemetry.
     const seconds = staticTelemetry.getCurrentTime();
     playbackFallbackRef.current = seconds;
     persistSeconds(seconds);
@@ -257,10 +259,14 @@ export function useArtifactVideoPlayback(options: {
 
   const activatePlayer = useCallback(
     (opts?: { autoplay?: boolean }) => {
+      if (youtubeNeedsHostedPlayer()) {
+        if (opts?.autoplay) staticTelemetry.playVideo();
+        return;
+      }
       enableApiPlayer();
       if (opts?.autoplay) playWhenReadyRef.current = true;
     },
-    [enableApiPlayer],
+    [enableApiPlayer, staticTelemetry],
   );
 
   const lastSeekScrollRef = useRef({ at: 0, seconds: -1 });

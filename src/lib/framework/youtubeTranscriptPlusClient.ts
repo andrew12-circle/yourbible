@@ -12,7 +12,7 @@ export type BrowserCaptionFetchResult = {
 export async function fetchYoutubeCaptionsInBrowser(videoId: string): Promise<BrowserCaptionFetchResult> {
   try {
     const { fetchTranscript } = await import("youtube-transcript-plus");
-    const segments = await fetchTranscript(videoId, { lang: "en" });
+    const segments = await fetchTranscript(videoId, { signal: AbortSignal.timeout(12_000), retries: 0 });
     const text = transcriptPlusToTimedText(segments);
     return { text: text?.trim() ? text : null };
   } catch (err) {

@@ -1,3 +1,4 @@
+import { youtubeHostOrigin } from "@/lib/youtube/hostOrigin";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { readPlaybackSecondsLocal, writePlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
 import {
@@ -347,6 +348,8 @@ export function useYouTubeEmbedPlayer(options: {
           width: hostW,
           height: hostH,
           playerVars: {
+            origin: youtubeHostOrigin(),
+            widget_referrer: youtubeHostOrigin() + "/",
             start: initialStart,
             controls: 1,
             fs: 1,

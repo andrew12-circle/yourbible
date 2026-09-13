@@ -1,3 +1,4 @@
+import YouTubeEmbedFrame from "@/components/framework/YouTubeEmbedFrame";
 import { Loader2, PictureInPicture2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { artifactCard, artifactScrollMt, artifactVideoRadius } from "@/lib/framework/artifactSurfaces";
@@ -102,7 +103,7 @@ export default function ArtifactVideoStage({
         className={staticPipActive ? pipShellChrome : "absolute inset-0 z-[2] overflow-hidden bg-black"}
         style={staticPipActive ? pipShellStyle : undefined}
       >
-        <iframe
+        <YouTubeEmbedFrame
           data-youtube-static-embed
           key={youTubeVideoId}
           src={inlineEmbedSrc}

@@ -44,3 +44,10 @@ describe("ArtifactTranscriptFetchErrorCard", () => {
     expect(details).not.toHaveAttribute("open");
   });
 });
+
+it("identifies depleted billing before generic rate limit text", () => {
+  const parsed = parseTranscriptFetchError("Could not fetch transcript. Attempts: Captions empty; Gemini rate limit HTTP429: Your prepayment credits are depleted.");
+  expect(parsed.headline).toMatch(/provider billing/);
+  expect(parsed.hint).toMatch(/restore/);
+  expect(parsed.headline).not.toMatch(/busy/);
+});

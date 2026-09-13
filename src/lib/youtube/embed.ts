@@ -1,3 +1,5 @@
+import { safeWidgetReferrer, youtubeHostOrigin, youtubeNeedsHostedPlayer, YOUTUBE_PLAYER_BRIDGE_PATH } from "./hostOrigin";
+import { sendYouTubeFrameMessage } from "./embedMessaging";
 import { youtubeDocumentPipWindowRef } from "@/lib/youtube/documentPictureInPicture";
 
 export type YouTubeEmbedSrcOptions = {
@@ -10,6 +12,8 @@ export type YouTubeEmbedSrcOptions = {
   origin?: string;
   /** Page URL YouTube uses for embed referrer validation (fixes error 153). */
   widgetReferrer?: string;
+  /** HTTPS document supplies a real Referer for WebViews or a single Error 153 retry. */
+  hosted?: boolean;
 };
 
 /** Standard YouTube embed URL for in-slot iframe; enablejsapi allows commands via postMessage. */
@@ -18,8 +22,10 @@ export function buildYouTubeEmbedSrc(
   startSeconds = 0,
   options?: YouTubeEmbedSrcOptions,
 ): string {
+  if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) throw new Error("Invalid YouTube video ID.");
   const liveEdge = Boolean(options?.liveEdge);
-  const start = liveEdge ? 0 : Math.max(0, Math.floor(options?.startSeconds ?? startSeconds));
+  const requestedStart = options?.startSeconds ?? startSeconds;
+  const start = liveEdge || !Number.isFinite(requestedStart) ? 0 : Math.max(0, Math.floor(requestedStart));
   const autoplay = options?.autoplay ? "1" : "0";
   const mute = options?.mute ? "1" : "0";
   const params = new URLSearchParams({
@@ -34,14 +40,15 @@ export function buildYouTubeEmbedSrc(
     rel: "0",
   });
   if (!liveEdge && start > 0) params.set("start", String(start));
-  const origin =
-    options?.origin ??
-    (typeof window !== "undefined" ? window.location.origin : undefined);
-  if (origin) params.set("origin", origin);
-  const widgetReferrer =
-    options?.widgetReferrer ??
-    (typeof window !== "undefined" ? window.location.href : undefined);
-  if (widgetReferrer) params.set("widget_referrer", widgetReferrer);
+  const origin = youtubeHostOrigin(options?.origin);
+  params.set("origin", origin);
+  params.set("widget_referrer", safeWidgetReferrer(options?.widgetReferrer, origin + "/"));
+  if (options?.hosted || youtubeNeedsHostedPlayer(options?.origin)) {
+    params.set("v", videoId);
+    const parentOrigin = options?.origin ?? (typeof window !== "undefined" ? window.location.origin : origin);
+    params.set("parent_origin", parentOrigin);
+    return `${origin}${YOUTUBE_PLAYER_BRIDGE_PATH}?${params.toString()}`;
+  }
   return `https://www.youtube.com/embed/${encodeURIComponent(videoId)}?${params.toString()}`;
 }
 
@@ -72,10 +79,7 @@ export function postYouTubeEmbedCommand(
 ): void {
   if (!iframe?.contentWindow) return;
   try {
-    iframe.contentWindow.postMessage(
-      JSON.stringify({ event: "command", func, args }),
-      "https://www.youtube.com",
-    );
+    sendYouTubeFrameMessage(iframe, { event: "command", func, args });
   } catch {
     /* ignore */
   }

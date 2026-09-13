@@ -1,3 +1,4 @@
+import { isDirectTranscriptMediaUrl } from "../transcriptReliability.ts";
 import type { TranscriptSegmentRow } from "../transcriptTypes.ts";
 import { buildFetchResult } from "../transcriptNormalize.ts";
 import { logAiUsage } from "../logAiUsage.ts";
@@ -22,6 +23,7 @@ type DeepgramUtterance = {
 export async function fetchDeepgramTranscript(
   audioUrl: string,
 ): Promise<ReturnType<typeof buildFetchResult>> {
+  if (!isDirectTranscriptMediaUrl(audioUrl)) throw new Error("A direct HTTPS audio/video URL is required, not a YouTube watch page.");
   const apiKey = Deno.env.get("DEEPGRAM_API_KEY")?.trim();
   if (!apiKey) {
     throw new Error("skipped — DEEPGRAM_API_KEY not set on edge function (use: npx supabase secrets set DEEPGRAM_API_KEY=...)");
@@ -39,6 +41,7 @@ export async function fetchDeepgramTranscript(
   });
 
   const res = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
+    signal: AbortSignal.timeout(20_000),
     method: "POST",
     headers: {
       Authorization: `Token ${apiKey}`,

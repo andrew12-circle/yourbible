@@ -10,6 +10,7 @@ export type ArtifactRow = {
   url?: string | null;
   metadata?: Json | null;
   created_at?: string | null;
+  processing_token?: string | null;
 };
 
 export function artifactRowStableEqual(prev: ArtifactRow | null, next: ArtifactRow | null): boolean {
@@ -17,6 +18,7 @@ export function artifactRowStableEqual(prev: ArtifactRow | null, next: ArtifactR
   if (!prev || !next) return false;
   if (prev.id !== next.id) return false;
   return (
+    prev.processing_token === next.processing_token &&
     prev.status === next.status &&
     prev.error === next.error &&
     prev.raw_text === next.raw_text &&

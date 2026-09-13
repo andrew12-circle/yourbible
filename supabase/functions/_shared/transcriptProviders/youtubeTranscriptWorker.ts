@@ -1,3 +1,4 @@
+import { transcriptWithDeadline } from "../transcriptReliability.ts";
 import type { TranscriptSegmentRow } from "../transcriptTypes.ts";
 import { buildFetchResult } from "../transcriptNormalize.ts";
 import { mergeCaptionSegments } from "../mergeCaptionSegments.ts";
@@ -5,7 +6,7 @@ import { mergeCaptionSegments } from "../mergeCaptionSegments.ts";
 type WorkerSegment = { start?: number; duration?: number; text?: string };
 type WorkerResponse = { video_id?: string; language?: string; segments?: WorkerSegment[] };
 
-const WORKER_SEQUENTIAL_MS = Number(Deno.env.get("TRANSCRIPT_WORKER_SEQUENTIAL_MS") ?? "25000");
+const WORKER_SEQUENTIAL_MS = 22_000;
 
 /** True when the self-hosted Python transcript worker is configured. */
 export function isWorkerConfigured(): boolean {
@@ -20,12 +21,7 @@ export async function fetchWorkerSequential(
     return { result: null, note: "skipped — TRANSCRIPT_WORKER_URL not set on edge function" };
   }
   try {
-    const result = await Promise.race([
-      fetchWorkerTranscript(videoId),
-      new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error(`timed out after ${WORKER_SEQUENTIAL_MS}ms`)), WORKER_SEQUENTIAL_MS);
-      }),
-    ]);
+    const result = await transcriptWithDeadline(fetchWorkerTranscript(videoId), WORKER_SEQUENTIAL_MS, "Transcript worker");
     if (result?.rawText?.trim()) return { result, note: "ok" };
     return { result: null, note: "empty transcript" };
   } catch (e) {
@@ -52,6 +48,7 @@ export async function fetchWorkerTranscript(
 
   const endpoint = `${baseUrl.replace(/\/+$/, "")}/transcript`;
   const res = await fetch(endpoint, {
+    signal: AbortSignal.timeout(20_000),
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -70,6 +67,7 @@ export async function fetchWorkerTranscript(
   }
 
   const json = (await res.json()) as WorkerResponse;
+  if (json.video_id !== videoId) throw new Error("Transcript worker returned a different video.");
   const rawSegments = mergeCaptionSegments(json.segments ?? []);
   const segments: TranscriptSegmentRow[] = rawSegments
     .map((seg, idx) => {

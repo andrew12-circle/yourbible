@@ -58,3 +58,10 @@ describe("ArtifactDetailProcessingState", () => {
     expect(screen.queryByTestId("artifact-transcript-recovery")).not.toBeInTheDocument();
   });
 });
+
+it("exposes recovery after a stalled fetch instead of an endless pipeline banner", () => {
+  render(<ArtifactDetailProcessingState artifact={{ ...artifact, status: "fetching" }} inFlight elapsed={145}
+    stageLabel={{}} stageHint={{}} studyClaimsCount={0} mobilePinnedPane={false} retryingFetch={false}
+    onPasteTranscript={vi.fn()} onReanalyze={vi.fn()} onRetryFetch={vi.fn()} />);
+  expect(screen.getByTestId("artifact-transcript-recovery")).toBeInTheDocument();
+});

@@ -5,6 +5,7 @@ import {
   retryYoutubeTranscriptFetch,
   startYoutubeTranscriptFetch,
   isStaleYoutubeTranscriptFetch,
+  markYoutubeTranscriptFetchError,
 } from "@/lib/framework/youtubeTranscriptFetch";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveClientYoutubeCaptions } from "@/lib/framework/youtubeClientCaptions";
@@ -16,7 +17,7 @@ vi.mock("@/lib/framework/youtubeClientCaptions", () => ({
 vi.mock("@/integrations/supabase/client", () => {
   const maybeSingle = vi.fn(() => Promise.resolve({ data: null, error: null }));
   const eqForSelect = vi.fn(() => ({ maybeSingle }));
-  const eqForUpdate = vi.fn(() => Promise.resolve({ error: null }));
+  const eqForUpdate = vi.fn(() => Object.assign(Promise.resolve({ error: null }), { eq: eqForUpdate }));
   const update = vi.fn(() => ({ eq: eqForUpdate }));
   const select = vi.fn(() => ({ eq: eqForSelect }));
   const from = vi.fn(() => ({ update, select }));
@@ -45,7 +46,7 @@ const mockedSupabase = supabase as SupabaseMock;
 beforeEach(() => {
   vi.clearAllMocks();
   mockedSupabase.__mocks.maybeSingle.mockResolvedValue({ data: null, error: null });
-  mockedSupabase.__mocks.eqForUpdate.mockResolvedValue({ error: null });
+  mockedSupabase.__mocks.eqForUpdate.mockImplementation(() => Object.assign(Promise.resolve({ error: null }), { eq: mockedSupabase.__mocks.eqForUpdate }));
 });
 
 afterEach(() => {
@@ -215,4 +216,14 @@ describe("youtube transcript fetch helper", () => {
     const stale = new Date(Date.now() - 3 * 60 * 1000 - 1000).toISOString();
     expect(isStaleYoutubeTranscriptFetch(stale)).toBe(true);
   });
+});
+
+it("failure writes are scoped to the original attempt and still-fetching status", async () => {
+  await markYoutubeTranscriptFetchError("artifact-1", "late error", "original-token");
+  expect(mockedSupabase.__mocks.eqForUpdate).toHaveBeenCalledWith("processing_token", "original-token");
+  expect(mockedSupabase.__mocks.eqForUpdate).toHaveBeenCalledWith("status", "fetching");
+});
+it("never writes an error without an owned attempt token", async () => {
+  await markYoutubeTranscriptFetchError("artifact-1", "unknown failure");
+  expect(mockedSupabase.__mocks.update).not.toHaveBeenCalled();
 });
