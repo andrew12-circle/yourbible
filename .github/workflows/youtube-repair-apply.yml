@@ -1,0 +1,111 @@
+name: Validate YouTube repair
+on:
+  push:
+    branches: [fix/youtube-playback-transcripts-20260913]
+    paths: ['.github/workflows/youtube-repair-apply.yml']
+permissions:
+  contents: write
+concurrency:
+  group: youtube-repair-apply
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: youtube-test-placeholder
+      VITE_SUPABASE_ANON_KEY: youtube-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/youtube-playback-transcripts-20260913
+          fetch-depth: 0
+      - name: Verify and apply exact prepared sources
+        run: |
+          test "$(git branch --show-current)" = fix/youtube-playback-transcripts-20260913
+          git merge-base --is-ancestor 2150e9cbd8ca91d37f060d3e8f3be63dda651898 HEAD
+          python3 - <<'PY'
+          import base64, gzip, hashlib
+          from pathlib import Path
+          text = Path('scripts/youtube-repair-part0.b64').read_text().strip()
+          # Correct the identified transport transcription before checking the full source digest.
+          text = text.replace('Yyf2f5/9L4CcBh', 'Yyf2f5/4CcBh')
+          text += ''.join(Path(f'scripts/yt-chunk{n}.b64').read_text().strip() for n in range(1,7))
+          patch = gzip.decompress(base64.b64decode(text, validate=True))
+          assert hashlib.sha256(patch).hexdigest() == 'cd3ffb28102983d719545b2a29c5511c18e97aa442b82af814f828e4f2b001ed', 'Prepared source checksum mismatch'
+          Path('/tmp/youtube-repair.patch').write_bytes(patch)
+          PY
+          git apply --check --index /tmp/youtube-repair.patch
+          git apply --index /tmp/youtube-repair.patch
+          git diff --cached --check
+          test -z "$(git diff --cached --name-only -- .github/workflows)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Full application regression tests
+        id: tests
+        continue-on-error: true
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/youtube-tests.log"
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/youtube-lint.log"
+      - name: No new TypeScript diagnostics
+        id: types
+        continue-on-error: true
+        run: node scripts/check-journal-type-regressions.mjs 2150e9cbd8ca91d37f060d3e8f3be63dda651898 2>&1 | tee "$RUNNER_TEMP/youtube-type-comparison.log"
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/youtube-build.log"
+      - name: Edge function relative import graphs
+        id: edge
+        continue-on-error: true
+        run: node scripts/check-youtube-edge.mjs 2>&1 | tee "$RUNNER_TEMP/youtube-edge.log"
+      - name: Typecheck Node caption route
+        id: api
+        continue-on-error: true
+        run: npx tsc --noEmit --skipLibCheck --target ES2022 --module ESNext --moduleResolution Bundler --types node api/youtube-captions.ts 2>&1 | tee "$RUNNER_TEMP/youtube-api-types.log"
+      - name: Probe public caption availability without account secrets
+        if: always()
+        run: |
+          node --input-type=module <<'JS' | tee "$RUNNER_TEMP/youtube-caption-probe.log"
+          import { fetchTranscript } from 'youtube-transcript-plus';
+          const id = 'HbLhpMEmrqU';
+          try {
+            const rows = await fetchTranscript(id, { signal: AbortSignal.timeout(18000), retries: 0 });
+            console.log(JSON.stringify({ video_id: id, cues: rows.length, characters: rows.reduce((n,r) => n + (r.text || '').length, 0) }));
+          } catch (error) {
+            console.log(JSON.stringify({ video_id: id, available: false, error: String(error?.message ?? error).slice(0,500) }));
+          }
+          JS
+      - name: Enforce actual validation outcomes
+        if: always()
+        run: |
+          echo 'tests=${{ steps.tests.outcome }} lint=${{ steps.lint.outcome }} types=${{ steps.types.outcome }} production=${{ steps.build.outcome }} edge=${{ steps.edge.outcome }} api=${{ steps.api.outcome }}'
+          test '${{ steps.tests.outcome }}' = success
+          test '${{ steps.lint.outcome }}' = success
+          test '${{ steps.types.outcome }}' = success
+          test '${{ steps.build.outcome }}' = success
+          test '${{ steps.edge.outcome }}' = success
+          test '${{ steps.api.outcome }}' = success
+      - name: Commit validated sources only
+        run: |
+          git rm scripts/youtube-repair-part*.b64 scripts/yt-chunk*.b64
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(youtube): identified HTTPS player and authenticated caption retrieval'
+          git rev-parse HEAD | tee "$RUNNER_TEMP/youtube-verified-source.log"
+          git push origin HEAD:fix/youtube-playback-transcripts-20260913
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: youtube-repair-validation
+          path: |
+            ${{ runner.temp }}/youtube-*.log
+            ${{ runner.temp }}/journal-*.log
