@@ -1,0 +1,44 @@
+name: YouTube public host diagnostics
+on:
+  push:
+    branches: [fix/youtube-playback-transcripts-20260913]
+    paths: ['.github/workflows/youtube-public-diagnostics.yml']
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Inspect only public application and player routes
+        shell: bash
+        run: |
+          python3 - <<'PY' | tee "$RUNNER_TEMP/youtube-host-diagnostics.log"
+          import urllib.request, urllib.error, hashlib, json
+          origins = [
+            'https://yourbible-lodge.vercel.app',
+            'https://yourbible-git-fix-youtube-play-46acc1-andrew12-circles-projects.vercel.app',
+            'https://yourbible-vvej-git-fix-youtube-3d5c4c-andrew12-circles-projects.vercel.app',
+          ]
+          expected='b219bf62f335ed13dc877889da2d239d7b6ad20c183b9d6bc8b470639985b643'
+          for origin in origins:
+            for path in ['/', '/youtube-player.js', '/youtube-player.html']:
+              try:
+                with urllib.request.urlopen(origin+path, timeout=10) as r:
+                  raw=r.read(1000000)
+                  print(json.dumps({'origin':origin, 'path':path, 'status':r.status,
+                    'final_url':r.url, 'type':r.headers.get('Content-Type'),
+                    'xfo':r.headers.get('X-Frame-Options'), 'csp':r.headers.get('Content-Security-Policy'),
+                    'referrer_policy':r.headers.get('Referrer-Policy'),
+                    'expected_player':hashlib.sha256(raw).hexdigest()==expected if path.endswith('.js') else None}), flush=True)
+              except urllib.error.HTTPError as e:
+                print(json.dumps({'origin':origin,'path':path,'status':e.code,'type':e.headers.get('Content-Type'),
+                  'vercel_error':e.headers.get('x-vercel-error'),'body':e.read(500).decode(errors='replace')}),flush=True)
+              except Exception as e:
+                print(json.dumps({'origin':origin,'path':path,'error':str(e)}),flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: youtube-host-diagnostics
+          path: ${{ runner.temp }}/youtube-host-diagnostics.log
