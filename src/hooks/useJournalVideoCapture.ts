@@ -8,7 +8,10 @@ import {
   swapJournalVideoCameraTrack,
 } from "@/lib/journal/journalVideoLiveDevices";
 import type { JournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
-import { readJournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
+import {
+  readJournalVideoCaptureSettings,
+  writeJournalVideoCaptureSettings,
+} from "@/lib/journal/journalVideoCaptureSettings";
 import {
   formatChapterLabel,
   type JournalVideoChapter,
@@ -20,7 +23,9 @@ import {
   createJournalAudioSidecarRecorder,
   createJournalVideoMediaRecorder,
   createJournalVideoRecoveryId,
+  journalVideoCaptureErrorMessage,
   journalVideoCaptureSupported,
+  journalVideoShouldRetryDefaultDevices,
   startJournalMediaRecorder,
   stopMediaRecorderWithFlush,
   tuneJournalVideoStream,
@@ -506,14 +511,33 @@ export function useJournalVideoCapture(
         setScreenUsesCameraAudio(session.usesCameraAudio);
       } else {
         setScreenUsesCameraAudio(true);
-        stream = await navigator.mediaDevices.getUserMedia(
-          buildJournalVideoConstraints({
-            quality: s.quality,
-            facingMode: facingRef.current,
-            deviceId: deviceIdRef.current,
-            audioDeviceId: audioDeviceIdRef.current,
-          }),
-        );
+        const selectedDeviceId = deviceIdRef.current;
+        const selectedAudioDeviceId = audioDeviceIdRef.current;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(
+            buildJournalVideoConstraints({
+              quality: s.quality,
+              facingMode: facingRef.current,
+              deviceId: selectedDeviceId,
+              audioDeviceId: selectedAudioDeviceId,
+            }),
+          );
+        } catch (error) {
+          const hasSavedDevice = Boolean(selectedDeviceId || selectedAudioDeviceId);
+          if (!hasSavedDevice || !journalVideoShouldRetryDefaultDevices(error)) throw error;
+          deviceIdRef.current = null;
+          audioDeviceIdRef.current = null;
+          setDeviceId(null);
+          setAudioDeviceId(null);
+          setSettings((prev) => ({ ...prev, audioDeviceId: null }));
+          writeJournalVideoCaptureSettings({ audioDeviceId: null });
+          stream = await navigator.mediaDevices.getUserMedia(
+            buildJournalVideoConstraints({
+              quality: s.quality,
+              facingMode: facingRef.current,
+            }),
+          );
+        }
         await tuneJournalVideoStream(stream, s.quality);
         if (gen !== openGenRef.current) {
           stream.getTracks().forEach((t) => t.stop());
@@ -713,20 +737,7 @@ export function useJournalVideoCapture(
         cleanupStream();
         setMode(null);
         setPhase("idle");
-        const err = e instanceof Error ? e : new Error(String(e));
-        if (err.name === "NotAllowedError") {
-          setError(
-            captureMode === "screen"
-              ? "Screen or camera access was blocked. Tap Allow when prompted, or check Settings → Safari → Camera/Microphone for this site."
-              : "Camera or microphone access was blocked. Tap Allow when prompted, or check Settings → Safari → Camera/Microphone for this site.",
-          );
-        } else if (err.name === "NotFoundError") {
-          setError("No camera or screen source was found.");
-        } else {
-          setError(
-            captureMode === "screen" ? "Could not start screen recording." : "Could not access the camera.",
-          );
-        }
+        setError(journalVideoCaptureErrorMessage(e, captureMode));
       }
     },
     [

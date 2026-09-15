@@ -4,13 +4,13 @@ export const journalChatUserBubbleClass =
 
 /** Journal entry title — display size; md: beats shadcn Input default md:text-sm on desktop. */
 export const journalEntryTitleInputClass =
-  "text-[32px] md:text-[36px] leading-tight font-display font-bold tracking-tight";
+  "text-[32px] md:text-[36px] lg:text-[36px] leading-tight font-display font-bold tracking-tight";
 
 /** Borderless journal body — no rounded box chrome or focus corner artifacts. */
 export const journalPlainWriteFieldClass =
   "journal-plain-write-field !block w-full !min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-0 shadow-none " +
   "rounded-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 " +
-  "font-sans text-[16px] leading-relaxed [field-sizing:fixed]";
+  "font-sans text-[16px] lg:text-[16px] leading-relaxed [field-sizing:fixed]";
 
 /** Citation / source chips under assistant replies. */
 export const journalChatCitationChipBaseClass =

@@ -35,7 +35,9 @@ import {
   createJournalVideoMediaRecorder,
   createJournalVideoRecoveryId,
   deriveJournalVideoRecordingRowId,
+  journalVideoCaptureErrorMessage,
   journalVideoRecorderTimesliceMs,
+  journalVideoShouldRetryDefaultDevices,
   journalVideoCaptureSupported,
   journalVideoTranscriptEmptyMessage,
   insertEntryVideo,
@@ -442,6 +444,20 @@ describe("buildJournalVideoConstraints", () => {
       width: { ideal: 1920, max: 1920 },
       height: { ideal: 1080, max: 1080 },
     });
+  });
+});
+
+describe("journal video device recovery", () => {
+  it("retries the default devices when a saved device id is stale", () => {
+    expect(journalVideoShouldRetryDefaultDevices({ name: "OverconstrainedError" })).toBe(true);
+    expect(journalVideoShouldRetryDefaultDevices({ name: "NotFoundError" })).toBe(true);
+    expect(journalVideoShouldRetryDefaultDevices({ name: "NotAllowedError" })).toBe(false);
+  });
+
+  it("explains a busy desktop camera instead of showing a generic failure", () => {
+    expect(journalVideoCaptureErrorMessage({ name: "NotReadableError" }, "camera")).toContain(
+      "busy in another app",
+    );
   });
 });
 

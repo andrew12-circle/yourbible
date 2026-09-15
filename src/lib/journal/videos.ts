@@ -311,6 +311,35 @@ export function buildJournalVideoConstraints(
   };
 }
 
+/** Saved device ids can outlive the webcam or microphone they identify. */
+export function journalVideoShouldRetryDefaultDevices(error: unknown): boolean {
+  const name = error && typeof error === "object" && "name" in error
+    ? String((error as { name?: unknown }).name ?? "")
+    : "";
+  return name === "OverconstrainedError" || name === "NotFoundError";
+}
+
+export function journalVideoCaptureErrorMessage(
+  error: unknown,
+  captureMode: "camera" | "screen",
+): string {
+  const name = error && typeof error === "object" && "name" in error
+    ? String((error as { name?: unknown }).name ?? "")
+    : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return captureMode === "screen"
+      ? "Screen or camera access was blocked. Allow camera and microphone access for this site, then try again."
+      : "Camera or microphone access was blocked. Allow camera and microphone access for this site, then try again.";
+  }
+  if (name === "NotFoundError") return "No camera or microphone was found.";
+  if (name === "NotReadableError" || name === "AbortError") {
+    return "The camera or microphone is busy in another app. Close the other camera app, then try again.";
+  }
+  return captureMode === "screen"
+    ? "Could not start screen recording."
+    : "Could not access the camera. Close other camera apps and try again.";
+}
+
 export type MediaStreamTrackKind = "video" | "audio";
 
 /** Swap live tracks on a stream without recreating the MediaStream (keeps MediaRecorder attached). */
