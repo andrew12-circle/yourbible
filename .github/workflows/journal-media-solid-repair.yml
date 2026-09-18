@@ -1,0 +1,60 @@
+name: Validate journal media stability repair
+on:
+  push:
+    branches: ['work/journal-media-solid-20260918']
+permissions:
+  contents: write
+concurrency:
+  group: journal-media-solid-repair
+  cancel-in-progress: true
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BASE: 7ca5d0441a0e98fd8b7b17923ee1dd677b1bbdba
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply precise source patch and build clean candidate commit
+        run: |
+          python scripts/journal-media-solid-repair.py
+          git read-tree "$BASE"
+          git add src
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'Andrew Heisley'
+          git config user.email 'andrew12-circle@users.noreply.github.com'
+          TREE=$(git write-tree)
+          CANDIDATE=$(git commit-tree "$TREE" -p "$BASE" -m 'fix(journal): keep media and maps stable through autosaves')
+          echo "CANDIDATE=$CANDIDATE" >> "$GITHUB_ENV"
+          echo "$CANDIDATE" > "$RUNNER_TEMP/journal-media-candidate.txt"
+          git diff "$BASE" "$CANDIDATE" > "$RUNNER_TEMP/journal-media-changes.patch"
+          git archive "$CANDIDATE" src/components/journal/EntryEditorPane.tsx src/components/journal/EntryMiniMap.tsx src/components/journal/JournalEntryMapDock.tsx src/components/journal/EntryListMediaThumbnail.tsx src/hooks/useJournalListController.ts src/lib/journal/entryListMedia.ts src/lib/journal/stableMediaUrls.ts src/lib/journal/journalListUpdates.ts src/pages/journal/JournalPage.tsx src/pages/journal/JournalNotesPage.tsx > "$RUNNER_TEMP/journal-media-source.tar"
+      - run: npm ci
+      - name: Lint
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/journal-media-lint.log"
+      - name: Full repository tests
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/journal-media-tests.log"
+      - name: Type regression check
+        run: node scripts/check-journal-type-regressions.mjs 540dcad4ba42eea28e8bae655c1a11c8e8dc3419
+      - name: Production build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/journal-media-build.log"
+      - name: Publish verified candidate to review branch only
+        run: |
+          git push origin "$CANDIDATE:refs/heads/fix/journal-media-solid-verified-20260918"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-media-solid-validation
+          path: |
+            ${{ runner.temp }}/journal-media-*
+            ${{ runner.temp }}/journal-type*.log
+            ${{ runner.temp }}/journal-baseline-types.log
