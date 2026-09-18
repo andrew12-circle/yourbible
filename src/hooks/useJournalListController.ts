@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchJournalEntryListPage, type JournalEntryListRow, type JournalListOptions } from "@/lib/journal/entryListQuery";
 import { fetchEntryListMediaUrls } from "@/lib/journal/entryListMedia";
 import { useJournalVaultStore } from "@/stores/journalVaultStore";
 import { formatJournalLoadError } from "@/lib/journal/journalE2eSchema";
+
+import { applyJournalListSnapshot, JOURNAL_LIST_ENTRY_SAVED } from "@/lib/journal/journalListUpdates";
+import type { JournalSnapshot } from "@/lib/journal/journalSaveQueue";
+import type { StableMediaUrlCache } from "@/lib/journal/stableMediaUrls";
 
 type ListState = {
   scope: string; dek: CryptoKey | null; rows: JournalEntryListRow[]; hasMore: boolean;
@@ -19,8 +23,9 @@ export function useJournalListController(options: JournalListOptions & { reloadK
   // empty the list (and unmount every thumbnail) after each autosave.
   const scope = JSON.stringify([options.userId, options.journalId, options.entryKindFilter,
     [...(options.excludeJournalIds ?? [])].sort(), options.search?.trim() ?? "", options.sortUpdated, options.limit]);
-  const latest = useRef({ options, scope, dek });
-  latest.current = { options, scope, dek };
+  const mediaCache = useMemo<StableMediaUrlCache>(() => ({ urls: new Map(), pending: new Map() }), [options.userId, dek]);
+  const latest = useRef({ options, scope, dek, mediaCache });
+  latest.current = { options, scope, dek, mediaCache };
   const [state, setState] = useState<ListState | null>(null);
   const stateRef = useRef(state); stateRef.current = state;
   const request = useRef<{ controller: AbortController; scope: string; dek: CryptoKey | null } | null>(null);
@@ -51,7 +56,7 @@ export function useJournalListController(options: JournalListOptions & { reloadK
         if (!matches()) return;
         rows.push(...page.rows);
       }
-      const media = await fetchEntryListMediaUrls(rows.filter((row) => !row.contentLocked).map((row) => row.id));
+      const media = await fetchEntryListMediaUrls(rows.filter((row) => !row.contentLocked).map((row) => row.id), current.mediaCache);
       if (!matches()) return;
       const combined = append ? [...(previous?.rows ?? []), ...rows] : rows;
       setState({ scope: current.scope, dek: current.dek, rows: [...new Map(combined.map((row) => [row.id, row])).values()],
@@ -71,6 +76,32 @@ export function useJournalListController(options: JournalListOptions & { reloadK
     const timeout = setTimeout(() => void load(), options.search?.trim() ? 250 : 0);
     return () => { clearTimeout(timeout); request.current?.controller.abort(); };
   }, [scope, dek, options.reloadKey, load]); // scope isolates filters; reloadKey refreshes in place
+
+  useEffect(() => {
+    const onSaved = (event: Event) => {
+      const snapshot = (event as CustomEvent<JournalSnapshot>).detail;
+      const current = latest.current;
+      if (!snapshot || snapshot.userId !== current.options.userId) return;
+      const previous = stateRef.current;
+      if (!previous || previous.scope !== current.scope || previous.dek !== current.dek) {
+        void load();
+        return;
+      }
+      const update = applyJournalListSnapshot(previous.rows, snapshot, current.options, Boolean(current.dek));
+      if (!update.reload) {
+        setState((value) => {
+          if (!value || value.scope !== current.scope || value.dek !== current.dek) return value;
+          const next = applyJournalListSnapshot(value.rows, snapshot, current.options, Boolean(current.dek));
+          return next.rows === value.rows ? value : { ...value, rows: next.rows };
+        });
+      }
+      // A pre-save read cannot overwrite the acknowledged preview. Abort/restart
+      // that read; the normal idle autosave path performs no list/media request.
+      if (update.reload || request.current) void load();
+    };
+    window.addEventListener(JOURNAL_LIST_ENTRY_SAVED, onSaved);
+    return () => window.removeEventListener(JOURNAL_LIST_ENTRY_SAVED, onSaved);
+  }, [load]);
 
   const setEntries = useCallback((change: SetStateAction<JournalEntryListRow[]>) => {
     const current = latest.current;

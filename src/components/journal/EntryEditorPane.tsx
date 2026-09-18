@@ -27,7 +27,8 @@ import {
   parseChatJournalEntry,
 } from "@/lib/journal/chatJournalEntry";
 import { journalEntryTitleInputClass, journalPlainWriteFieldClass } from "@/lib/journal/journalChatUi";
-import EntryMiniMap from "@/components/journal/EntryMiniMap";
+import JournalEntryMapDock from "@/components/journal/JournalEntryMapDock";
+import { journalValueEqual, type JournalSnapshot } from "@/lib/journal/journalSaveQueue";
 import { moodMeta } from "@/components/journal/MoodPicker";
 import { saveChatAsJournalEntry } from "@/lib/journal/saveChatAsJournalEntry";
 import ChatJournalView from "@/components/journal/ChatJournalView";
@@ -129,7 +130,7 @@ export default function EntryEditorPane({
   entryId: string | null;
   journals: Journal[];
   onClose: () => void;
-  onChanged: () => void;
+  onChanged: (snapshot?: JournalSnapshot) => void;
   onNew: () => void;
   onDeleted: () => void;
 }) {
@@ -168,7 +169,7 @@ export default function EntryEditorPane({
   const [videoSummarizing, setVideoSummarizing] = useState(false);
   const [videoRetranscribingId, setVideoRetranscribingId] = useState<string | null>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
-  const bottomDockRef = useRef<HTMLElement | null>(null);
+  const bottomDockRef = useRef<HTMLDivElement | null>(null);
   const entryInitialFocusRef = useRef<string | null>(null);
   const sketchTranscribeAttemptedRef = useRef<string | null>(null);
   const [transcribingSketch, setTranscribingSketch] = useState(false);
@@ -283,7 +284,7 @@ export default function EntryEditorPane({
     try {
       const next = patchJournalDocument(user.id, cur.id, patch);
       entryRef.current = next as EntryRow;
-      setEntry(next as EntryRow);
+      setEntry((previous) => journalValueEqual(previous, next) ? previous : next as EntryRow);
     } catch (error) {
       toast({ title: "Save paused", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
     }
@@ -304,10 +305,11 @@ export default function EntryEditorPane({
       const state = queue.getState();
       const next = journalSnapshotRow(state.snapshot) as EntryRow;
       entryRef.current = next;
-      setEntry(next);
+      // Storage durability/status notifications must not repaint the editor.
+      setEntry((previous) => journalValueEqual(previous, next) ? previous : next);
       if (state.status === "saved" && next.revision !== lastAcknowledgedRevision.current) {
         lastAcknowledgedRevision.current = next.revision;
-        onChangedRef.current();
+        onChangedRef.current(state.snapshot);
         const previousBody = acknowledgedBodyRef.current;
         acknowledgedBodyRef.current = next.body;
         if (!next.e2e_encrypted && next.body !== previousBody && (next.body.includes("[[") || previousBody?.includes("[["))) {
@@ -398,6 +400,8 @@ export default function EntryEditorPane({
       }
       entryRef.current = row;
       setEntry(row);
+      lastAcknowledgedRevision.current = row.revision;
+      acknowledgedBodyRef.current = row.body;
       // Always open in the normal write layout; chat lives in a collapsed accordion.
       setReplyWithAi(false);
       setChatDraft("");
@@ -674,6 +678,7 @@ export default function EntryEditorPane({
     transcript: string; anchorOffset: number; liveTranscript?: string; peakLiveTranscript?: string;
   }) => {
     await reloadVideos();
+    onChangedRef.current(); // A real attachment change refreshes media metadata.
     const id = entryRef.current?.id;
     if (id && user?.id) {
       const row = await refreshJournalDocument(user.id, id);
@@ -887,6 +892,7 @@ export default function EntryEditorPane({
         .select("id,storage_path");
       const urls = await getSignedPhotoUrls((data ?? []).map((p: { storage_path: string }) => p.storage_path));
       setPhotos((p) => [...p, ...((data ?? []).map((d: { id: string; storage_path: string }) => ({ ...d, url: urls[d.storage_path] })))]);
+      onChangedRef.current();
       return (data ?? []).map((d: { storage_path: string }) => ({ storage_path: d.storage_path }));
     } catch (e) {
       toast({ title: "Photo upload failed", description: String(e), variant: "destructive" });
@@ -898,6 +904,7 @@ export default function EntryEditorPane({
     setPhotos((p) => p.filter((x) => x.id !== id));
     await supabase.storage.from("journal-photos").remove([storage_path]).catch(() => {});
     await supabase.from("journal_photos").delete().eq("id", id);
+    onChangedRef.current();
   };
 
   const remove = async () => {
@@ -1289,6 +1296,7 @@ export default function EntryEditorPane({
                   onRemoveVideo={async (id, path) => {
                     try {
                       await removeVideo(id, path);
+                      onChangedRef.current();
                     } catch (e) {
                       toast({
                         title: "Couldn't remove video",
@@ -1476,7 +1484,7 @@ export default function EntryEditorPane({
             </div>
           )}
 
-          {(!plainWriteLayout || bodyFocused) && (
+          {!plainWriteLayout && (
           <footer className="mt-auto flex flex-wrap items-center gap-3 border-t border-border/40 pt-4 pb-1 text-[12px] text-muted-foreground">
             {journal && (
               <span className="inline-flex items-center gap-1.5">
@@ -1500,41 +1508,13 @@ export default function EntryEditorPane({
       </div>
 
       {plainWriteLayout ? (
-        <div
+        <JournalEntryMapDock
           ref={bottomDockRef}
-          className="shrink-0 border-t border-border/40 bg-background px-8 py-3"
-        >
-          <div className="mx-auto w-full max-w-2xl">
-            {entry.lat != null && entry.lng != null ? (
-              <EntryMiniMap
-                key={`${entry.lat},${entry.lng}`}
-                lat={entry.lat}
-                lng={entry.lng}
-                height={200}
-              />
-            ) : null}
-            {!bodyFocused ? (
-            <footer className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
-              {journal && (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ background: `hsl(${journal.color})` }} />
-                  {journal.name}
-                </span>
-              )}
-              {entry.weather_temp_c != null && (
-                <span className="inline-flex items-center gap-1">
-                  {entry.weather_icon} {formatTemp(entry.weather_temp_c)} {entry.weather}
-                </span>
-              )}
-              {entry.location_name && (
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> {entry.location_name}
-                </span>
-              )}
-            </footer>
-            ) : null}
-          </div>
-        </div>
+          lat={entry.lat} lng={entry.lng}
+          journalName={journal?.name} journalColor={journal?.color}
+          temperature={entry.weather_temp_c} weatherIcon={entry.weather_icon}
+          weather={entry.weather} location={entry.location_name}
+        />
       ) : null}
       </div>
 

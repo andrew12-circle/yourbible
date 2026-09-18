@@ -1,3 +1,5 @@
+import { notifyJournalListEntrySaved } from "@/lib/journal/journalListUpdates";
+import type { JournalSnapshot } from "@/lib/journal/journalSaveQueue";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
@@ -46,7 +48,7 @@ export default function JournalNotesPage() {
     } finally {
       setBooting(false);
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     void loadNotes();
@@ -55,7 +57,7 @@ export default function JournalNotesPage() {
   const refreshJournals = useCallback(async () => {
     if (!user) return;
     setJournals(await ensureDefaultJournal(user.id));
-  }, [user]);
+  }, [user?.id]);
 
   const createNew = async () => {
     if (!user || !notesJournalId || creating) return;
@@ -89,8 +91,9 @@ export default function JournalNotesPage() {
     [navigate],
   );
 
-  const handleEditorChanged = useCallback(() => {
-    setReloadKey((k) => k + 1);
+  const handleEditorChanged = useCallback((snapshot?: JournalSnapshot) => {
+    if (snapshot) notifyJournalListEntrySaved(snapshot);
+    else setReloadKey((k) => k + 1);
   }, []);
 
   const handleDeleted = () => {

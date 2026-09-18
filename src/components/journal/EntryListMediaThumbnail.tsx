@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,7 +16,7 @@ const sizeClasses = {
   fill: "h-full w-full rounded-none",
 } as const;
 
-export default function EntryListMediaThumbnail({
+function EntryListMediaThumbnail({
   photoUrl,
   videoUrl,
   size = "sm",
@@ -56,3 +57,5 @@ export default function EntryListMediaThumbnail({
     </div>
   );
 }
+
+export default memo(EntryListMediaThumbnail);

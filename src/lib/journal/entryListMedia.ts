@@ -2,13 +2,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { getSignedVideoUrls } from "@/lib/journal/videos";
 
+import { stableMediaUrls, type StableMediaUrlCache } from "./stableMediaUrls";
+
 export type EntryListMediaUrls = {
   photoUrls: Record<string, string>;
   videoUrls: Record<string, string>;
 };
 
 /** First photo + first video signed URL per entry (for journal list rows). */
-export async function fetchEntryListMediaUrls(entryIds: string[]): Promise<EntryListMediaUrls> {
+export async function fetchEntryListMediaUrls(entryIds: string[], cache?: StableMediaUrlCache): Promise<EntryListMediaUrls> {
   if (!entryIds.length) return { photoUrls: {}, videoUrls: {} };
 
   const [photosRes, videosRes] = await Promise.all([
@@ -24,6 +26,10 @@ export async function fetchEntryListMediaUrls(entryIds: string[]): Promise<Entry
       .order("created_at"),
   ]);
 
+  // A failed metadata read is not an empty collection. Preserve visible media
+  // through the controller's background-error path instead of removing it.
+  if (photosRes.error) throw photosRes.error;
+  if (videosRes.error) throw videosRes.error;
   const firstPhoto: Record<string, string> = {};
   (photosRes.data ?? []).forEach((p: { entry_id: string; storage_path: string }) => {
     if (!firstPhoto[p.entry_id]) firstPhoto[p.entry_id] = p.storage_path;
@@ -35,8 +41,8 @@ export async function fetchEntryListMediaUrls(entryIds: string[]): Promise<Entry
   });
 
   const [photoSigned, videoSigned] = await Promise.all([
-    getSignedPhotoUrls(Object.values(firstPhoto)),
-    getSignedVideoUrls(Object.values(firstVideo)),
+    cache ? stableMediaUrls(Object.values(firstPhoto), "photo", cache, getSignedPhotoUrls) : getSignedPhotoUrls(Object.values(firstPhoto)),
+    cache ? stableMediaUrls(Object.values(firstVideo), "video", cache, getSignedVideoUrls) : getSignedVideoUrls(Object.values(firstVideo)),
   ]);
 
   const photoUrls: Record<string, string> = {};

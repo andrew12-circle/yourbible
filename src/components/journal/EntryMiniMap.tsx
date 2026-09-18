@@ -1,5 +1,5 @@
-import { memo, useMemo } from "react";
-import { ControlPosition, Map, Marker } from "@vis.gl/react-google-maps";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ControlPosition, Map, Marker, useMap, type MapEvent } from "@vis.gl/react-google-maps";
 import { ExternalLink, MapPin, Mountain } from "lucide-react";
 import GoogleMapsShell, { GoogleMapErrorDetector, useJournalGoogleMapsKey } from "@/components/journal/GoogleMapsShell";
 import { getGoogleMapsApiKey, JOURNAL_DEFAULT_MAP_TYPE, openInGoogleMapsUrl, streetViewMapsUrl } from "@/lib/maps/googleMaps";
@@ -26,9 +26,29 @@ const OsmMiniMap = memo(function OsmMiniMap({ lat, lng, height = 240, className 
   );
 });
 
+const MAP_TYPE_OPTIONS = { position: ControlPosition.TOP_RIGHT };
+const ZOOM_OPTIONS = { position: ControlPosition.RIGHT_CENTER };
+const STREET_VIEW_OPTIONS = { position: ControlPosition.RIGHT_BOTTOM };
+
+function MapLocationSync({ lat, lng }: Pick<Props, "lat" | "lng">) {
+  const map = useMap();
+  const previous = useRef<{ map: NonNullable<ReturnType<typeof useMap>>; lat: number; lng: number } | null>(null);
+  useEffect(() => {
+    if (!map) return;
+    const old = previous.current;
+    if (old?.map === map && (old.lat !== lat || old.lng !== lng)) map.panTo({ lat, lng });
+    previous.current = { map, lat, lng };
+  }, [map, lat, lng]);
+  return null;
+}
+
 const GoogleMiniMap = memo(function GoogleMiniMap({ lat, lng, zoom = 15, height = 240, className }: Props) {
   const apiKey = useJournalGoogleMapsKey()!;
-  const center = { lat, lng };
+  const center = useMemo(() => ({ lat, lng }), [lat, lng]);
+  const [mapTypeId, setMapTypeId] = useState<string>(JOURNAL_DEFAULT_MAP_TYPE);
+  const onMapTypeIdChanged = useCallback((event: MapEvent) => {
+    setMapTypeId(event.map.getMapTypeId() ?? JOURNAL_DEFAULT_MAP_TYPE);
+  }, []);
 
   return (
     <div className={cn("relative", className)} style={{ height }}>
@@ -40,18 +60,20 @@ const GoogleMiniMap = memo(function GoogleMiniMap({ lat, lng, zoom = 15, height 
         <Map
           defaultCenter={center}
           defaultZoom={zoom}
-          mapTypeId={JOURNAL_DEFAULT_MAP_TYPE}
+          mapTypeId={mapTypeId}
+          onMapTypeIdChanged={onMapTypeIdChanged}
           gestureHandling="cooperative"
           disableDefaultUI
           mapTypeControl
-          mapTypeControlOptions={{ position: ControlPosition.TOP_RIGHT }}
+          mapTypeControlOptions={MAP_TYPE_OPTIONS}
           zoomControl
-          zoomControlOptions={{ position: ControlPosition.RIGHT_CENTER }}
+          zoomControlOptions={ZOOM_OPTIONS}
           streetViewControl
-          streetViewControlOptions={{ position: ControlPosition.RIGHT_BOTTOM }}
+          streetViewControlOptions={STREET_VIEW_OPTIONS}
           className="h-full w-full"
         >
           <GoogleMapErrorDetector />
+          <MapLocationSync lat={lat} lng={lng} />
           <Marker position={center} />
         </Map>
       </GoogleMapsShell>

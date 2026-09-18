@@ -1,3 +1,5 @@
+import { notifyJournalListEntrySaved } from "@/lib/journal/journalListUpdates";
+import type { JournalSnapshot } from "@/lib/journal/journalSaveQueue";
 import { useJournalListController } from "@/hooks/useJournalListController";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -66,12 +68,12 @@ export default function JournalPage() {
     if (!user) return;
     ensureDefaultJournal(user.id).then(setJournals);
     getNotesJournalId(user.id).then(setNotesJournalId);
-  }, [user]);
+  }, [user?.id]);
 
   const refreshJournals = useCallback(async () => {
     if (!user) return;
     setJournals(await ensureDefaultJournal(user.id));
-  }, [user]);
+  }, [user?.id]);
 
   const createNew = async () => {
     if (!user || creating) return;
@@ -120,8 +122,9 @@ export default function JournalPage() {
     [journalId, navigate],
   );
 
-  const handleEditorChanged = useCallback(() => {
-    setReloadKey((k) => k + 1);
+  const handleEditorChanged = useCallback((snapshot?: JournalSnapshot) => {
+    if (snapshot) notifyJournalListEntrySaved(snapshot);
+    else setReloadKey((k) => k + 1);
   }, []);
 
   if (loading) return null;

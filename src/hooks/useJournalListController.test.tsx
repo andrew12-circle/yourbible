@@ -32,7 +32,7 @@ describe("journal list loading isolation", () => {
     h.read.mockResolvedValueOnce({ rows: [row("locked", true), row("open")], hasMore: false });
     const { result } = renderHook(() => useJournalListController({ userId: "owner" }));
     await waitFor(() => expect(result.current.entries).toHaveLength(2));
-    expect(h.media).toHaveBeenCalledWith(["open"]);
+    expect(h.media).toHaveBeenCalledWith(["open"], expect.objectContaining({ urls: expect.any(Map), pending: expect.any(Map) }));
   });
   it("reloads when the Notes notebook exclusion becomes available", async () => {
     h.read.mockResolvedValue({ rows: [row("entry")], hasMore: false });
