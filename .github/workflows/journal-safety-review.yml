@@ -1,26 +1,78 @@
-name: Journal safety repair workspace
+name: Journal safety 1-4 validation
 on:
   push:
     branches: ['work/journal-safety-1-4-20260918']
+    paths: ['scripts/journal-safety-ready']
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: journal-safety-1-4-validation
+  cancel-in-progress: true
 jobs:
-  source:
+  validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      BASE: 2acb9769388c5a8c6b44c750e340ae9caf377a10
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 2acb9769388c5a8c6b44c750e340ae9caf377a10
-          persist-credentials: false
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install --save-dev --save-exact fake-indexeddb@6.2.4
-      - name: Package transaction test dependency and exact lock
-        shell: bash
-        run: tar -czf "$RUNNER_TEMP/journal-safety-idb.tar.gz" node_modules/fake-indexeddb package.json package-lock.json
+      - name: Apply verified patch and create clean candidate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib, subprocess
+          encoded = ''.join(Path(f'scripts/journal-safety-part{i}.txt').read_text().strip() for i in range(1,6))
+          patch = gzip.decompress(base64.b64decode(encoded))
+          assert hashlib.sha256(patch).hexdigest() == 'e7d2fa39debf2b9bdfb0b125a3d2a8969e88d47f7948b0714c960869b19c13d5', 'Patch transfer checksum mismatch'
+          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
+          subprocess.run(['git','apply','-'],input=patch,check=True)
+          PY
+          git read-tree "$BASE"
+          git add src supabase package.json package-lock.json
+          git diff --cached --check
+          git config user.name 'Andrew Heisley'
+          git config user.email 'andrew12-circle@users.noreply.github.com'
+          TREE=$(git write-tree)
+          CANDIDATE=$(git commit-tree "$TREE" -p "$BASE" -m 'fix(journal): protect text, privacy, attachments and media refresh')
+          echo "CANDIDATE=$CANDIDATE" >> "$GITHUB_ENV"
+          echo "$CANDIDATE" > "$RUNNER_TEMP/journal-safety-candidate.txt"
+          git diff "$BASE" "$CANDIDATE" > "$RUNNER_TEMP/journal-safety-changes.patch"
+          git diff --stat "$BASE" "$CANDIDATE"
+      - run: npm ci
+      - name: Full repository tests
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/journal-safety-tests.log"
+      - name: Repository lint
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/journal-safety-lint.log"
+      - name: No new TypeScript diagnostics
+        run: node scripts/check-journal-type-regressions.mjs 540dcad4ba42eea28e8bae655c1a11c8e8dc3419
+      - name: Production build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/journal-safety-build.log"
+      - name: Install isolated browser runtime
+        run: |
+          mkdir -p "$RUNNER_TEMP/journal-browser-runtime"
+          npm install --prefix "$RUNNER_TEMP/journal-browser-runtime" playwright
+          "$RUNNER_TEMP/journal-browser-runtime/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Actual editor typing in Chromium
+        run: PLAYWRIGHT_MODULE="$RUNNER_TEMP/journal-browser-runtime/node_modules/playwright/index.mjs" node scripts/test-journal-editor-scroll.mjs 2>&1 | tee "$RUNNER_TEMP/journal-safety-browser.log"
+      - name: Publish verified review candidate only
+        run: git push origin "$CANDIDATE:refs/heads/fix/journal-safety-1-4-verified-20260918"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: journal-safety-idb
-          path: ${{ runner.temp }}/journal-safety-idb.tar.gz
+          name: journal-safety-validation
+          path: |
+            ${{ runner.temp }}/journal-safety-*
+            ${{ runner.temp }}/journal-type*.log
+            ${{ runner.temp }}/journal-baseline-types.log
+            ${{ runner.temp }}/journal-writing-browser*
