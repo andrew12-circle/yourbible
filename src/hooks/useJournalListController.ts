@@ -8,6 +8,7 @@ import { formatJournalLoadError } from "@/lib/journal/journalE2eSchema";
 type ListState = {
   scope: string; dek: CryptoKey | null; rows: JournalEntryListRow[]; hasMore: boolean;
   photoUrls: Record<string, string>; videoUrls: Record<string, string>; error: string | null;
+  errorKind?: "load" | "refresh";
 };
 const EMPTY: JournalEntryListRow[] = [];
 
@@ -59,7 +60,8 @@ export function useJournalListController(options: JournalListOptions & { reloadK
         videoUrls: append ? { ...previous?.videoUrls, ...media.videoUrls } : media.videoUrls });
     } catch (cause) {
       if (matches()) setState({ scope: current.scope, dek: current.dek, rows: previous?.rows ?? [],
-        hasMore: previous?.hasMore ?? false, photoUrls: previous?.photoUrls ?? {}, videoUrls: previous?.videoUrls ?? {}, error: formatJournalLoadError(cause) });
+        hasMore: previous?.hasMore ?? false, photoUrls: previous?.photoUrls ?? {}, videoUrls: previous?.videoUrls ?? {},
+        error: formatJournalLoadError(cause), errorKind: !append && previous?.rows.length ? "refresh" : "load" });
     } finally {
       if (request.current?.controller === controller) { request.current = null; setBusy(null); }
     }
@@ -80,9 +82,9 @@ export function useJournalListController(options: JournalListOptions & { reloadK
     photoUrls: isCurrent ? state.photoUrls : {}, videoUrls: isCurrent ? state.videoUrls : {},
     hasMore: isCurrent && state.hasMore,
     // A background read failure must not replace an already visible list with
-    // a blocking error screen. Initial failures still offer the existing retry UI.
-    loadError: isCurrent && state.rows.length === 0 ? state.error : null,
-    refreshError: isCurrent && state.rows.length > 0 ? state.error : null,
+    // a blocking error screen. Initial and load-more failures keep their retry UI.
+    loadError: isCurrent && state.errorKind !== "refresh" ? state.error : null,
+    refreshError: isCurrent && state.errorKind === "refresh" ? state.error : null,
     loading: Boolean(options.userId) && (!isCurrent || busy === "initial"), loadingMore: busy === "more",
     refreshing: busy === "refresh", load };
 }
