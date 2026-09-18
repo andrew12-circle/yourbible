@@ -16,12 +16,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci
-      - name: Package locked test runtime
+      - run: npm install --save-dev --save-exact fake-indexeddb@6.2.4
+      - name: Package transaction test dependency and exact lock
         shell: bash
-        run: tar -czf "$RUNNER_TEMP/journal-safety-dependencies.tar.gz" node_modules
+        run: tar -czf "$RUNNER_TEMP/journal-safety-idb.tar.gz" node_modules/fake-indexeddb package.json package-lock.json
       - uses: actions/upload-artifact@v4
         with:
-          name: journal-safety-dependencies
-          compression-level: 0
-          path: ${{ runner.temp }}/journal-safety-dependencies.tar.gz
+          name: journal-safety-idb
+          path: ${{ runner.temp }}/journal-safety-idb.tar.gz
