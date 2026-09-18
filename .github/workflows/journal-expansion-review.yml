@@ -1,0 +1,20 @@
+name: Journal recovery workspace
+on:
+  push:
+    branches: ['work/journal-complete-recovery-20260918']
+    paths: ['.github/workflows/journal-expansion-review.yml']
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 3000fecac5731d9ef72648ef8b34d7ea19c92bd4
+          persist-credentials: false
+      - run: git archive HEAD > "$RUNNER_TEMP/journal-expansion-source.tar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: journal-expansion-source
+          path: ${{ runner.temp }}/journal-expansion-source.tar
