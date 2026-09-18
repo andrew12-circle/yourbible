@@ -13,8 +13,17 @@ jobs:
         with:
           ref: 3000fecac5731d9ef72648ef8b34d7ea19c92bd4
           persist-credentials: false
-      - run: git archive HEAD > "$RUNNER_TEMP/journal-expansion-source.tar"
+      - name: Package source and bounded test assets
+        run: |
+          python3 - <<'PY'
+          import os,subprocess,tarfile
+          names=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          with tarfile.open(os.environ['RUNNER_TEMP']+'/journal-expansion-source.tar','w') as tar:
+            for name in names:
+              if name and os.path.isfile(name) and os.path.getsize(name)<2*1024*1024:
+                tar.add(name,arcname=name,recursive=False)
+          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: journal-expansion-source
+          name: journal-expansion-source-small
           path: ${{ runner.temp }}/journal-expansion-source.tar
