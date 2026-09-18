@@ -1,0 +1,22 @@
+name: Journal safety repair workspace
+on:
+  push:
+    branches: ['work/journal-safety-1-4-20260918']
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Package exact source for local review
+        shell: bash
+        run: |
+          git archive 2acb9769388c5a8c6b44c750e340ae9caf377a10 src supabase scripts .cursor AGENTS.md package.json package-lock.json tsconfig.app.json tsconfig.json tsconfig.node.json vitest.config.ts vite.config.ts eslint.config.js tailwind.config.ts postcss.config.js > "$RUNNER_TEMP/journal-safety-source.tar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: journal-safety-source
+          path: ${{ runner.temp }}/journal-safety-source.tar
