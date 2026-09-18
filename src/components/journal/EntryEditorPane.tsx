@@ -1,8 +1,8 @@
 import { loadJournalDocumentRow, patchJournalDocument, flushJournalDocument, refreshJournalDocument, peekJournalDocument, journalSnapshotRow, JOURNAL_DOCUMENT_CHANGED } from "@/lib/journal/journalDocuments";
 import { JournalSaveStatus } from "@/components/journal/JournalSaveStatus";
 import { mergeVideoTranscriptSafely } from "@/lib/journal/journalTextMerge";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useJournalEditorCaretScroll } from "@/hooks/useJournalEditorCaretScroll";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useJournalDeskWritingScroll } from "@/hooks/useJournalDeskWritingScroll";
 import { useJournalEntryTextareaAutosize, resizeJournalTextarea } from "@/hooks/useJournalEntryTextareaAutosize";
 import { useNavigate } from "react-router-dom";
 import {
@@ -169,7 +169,6 @@ export default function EntryEditorPane({
   const [videoSummarizing, setVideoSummarizing] = useState(false);
   const [videoRetranscribingId, setVideoRetranscribingId] = useState<string | null>(null);
   const paneScrollRef = useRef<HTMLElement | null>(null);
-  const bottomDockRef = useRef<HTMLDivElement | null>(null);
   const entryInitialFocusRef = useRef<string | null>(null);
   const sketchTranscribeAttemptedRef = useRef<string | null>(null);
   const [transcribingSketch, setTranscribingSketch] = useState(false);
@@ -583,17 +582,15 @@ export default function EntryEditorPane({
     inlineChatMode || (showSavedChatView && !bodyEditing) ? "" : bodyTextareaValue;
 
   const textareaAutosizeEnabled =
-    !inlineChatMode && !(showSavedChatView && !bodyEditing);
+    !!entry && !loadingEntry && !inlineChatMode && !(showSavedChatView && !bodyEditing);
 
   useJournalEntryTextareaAutosize(bodyRef, textareaAutosizeValue, textareaAutosizeEnabled);
 
-  const { scrollToCaretEnd } = useJournalEditorCaretScroll({
+  const { scrollToCaretEnd } = useJournalDeskWritingScroll({
     scrollRef: paneScrollRef,
-    bottomDockRef: plainWriteLayout ? bottomDockRef : undefined,
-    kbInset: 0,
-    enabled: !!entry && !inlineChatMode && (bodyFocused || (showSavedChatView && bodyEditing)),
+    enabled: textareaAutosizeEnabled,
+    value: textareaAutosizeValue,
     resetKey: entryId,
-    topInsetPx: 16,
   });
 
   const focusBodyEditor = useCallback(() => {
@@ -620,13 +617,6 @@ export default function EntryEditorPane({
     if (!entry.body?.trim()) return;
     requestAnimationFrame(() => focusBodyEditorRef.current());
   }, [entryId, loadingEntry, entry?.id, entry?.body, plainWriteLayout]);
-
-  useLayoutEffect(() => {
-    if (!plainWriteLayout || bodyFocused) return;
-    const el = bodyRef.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [plainWriteLayout, bodyFocused, entry?.id, entry?.body]);
 
   const handleDictateAppend = useCallback(
     (chunk: string) => {
@@ -858,7 +848,6 @@ export default function EntryEditorPane({
   const journal = journals.find((j) => j.id === entry?.journal_id) ?? null;
 
   const { sketches: sketchPhotos, attachments: attachmentPhotos } = partitionJournalPhotos(photos);
-  const sketchAfterBody = sketchPhotos.length > 0;
 
   // Toolbar markdown insert
   const insert = (before: string, after = "", placeholder = "") => {
@@ -1152,7 +1141,7 @@ export default function EntryEditorPane({
         ref={paneScrollRef}
         data-journal-editor-scroll
         className={cn(
-          "journal-pane-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          "journal-pane-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]",
           plainWriteLayout && "flex flex-col",
         )}
         onPointerDown={(e) => {
@@ -1171,8 +1160,9 @@ export default function EntryEditorPane({
       <div
         className={cn(
           "mx-auto flex w-full max-w-2xl flex-col px-8 pb-4 pt-6",
-          plainWriteLayout ? "flex-1" : "min-h-full",
+          plainWriteLayout ? "min-h-full shrink-0" : "min-h-full",
         )}
+        style={plainWriteLayout ? { paddingBottom: "var(--journal-writing-room, 160px)" } : undefined}
       >
           <div
             className="relative z-10 shrink-0"
@@ -1308,12 +1298,7 @@ export default function EntryEditorPane({
                 />
               ) : (
                 <>
-                  <div
-                    className={cn(
-                      "relative",
-                      plainWriteLayout && !bodyFocused && !sketchAfterBody && "flex min-h-0 flex-1 flex-col",
-                    )}
-                  >
+                  <div className="relative shrink-0">
                     <PolishedTextarea
                       ref={bodyRef}
                       polishResetKey={entry.id}
@@ -1339,20 +1324,8 @@ export default function EntryEditorPane({
                           ? "Reading your handwritten note…"
                           : "What happened today? Type #tag or @journal name to organize."
                       }
-                      wrapperClassName={
-                        plainWriteLayout && !bodyFocused && !sketchAfterBody
-                          ? "flex min-h-0 flex-1 flex-col"
-                          : undefined
-                      }
-                      className={cn(
-                        journalPlainWriteFieldClass,
-                        plainWriteLayout &&
-                          (bodyFocused
-                            ? "min-h-0"
-                            : sketchAfterBody
-                              ? "min-h-[8rem]"
-                              : "max-h-full min-h-0 flex-1 overflow-y-auto"),
-                      )}
+                      wrapperClassName="shrink-0"
+                      className={cn(journalPlainWriteFieldClass, "max-h-none")}
                     />
                     <JournalMarkerMenu
                       marker={bodyMarkers.activeMarker}
@@ -1509,7 +1482,6 @@ export default function EntryEditorPane({
 
       {plainWriteLayout ? (
         <JournalEntryMapDock
-          ref={bottomDockRef}
           lat={entry.lat} lng={entry.lng}
           journalName={journal?.name} journalColor={journal?.color}
           temperature={entry.weather_temp_c} weatherIcon={entry.weather_icon}
