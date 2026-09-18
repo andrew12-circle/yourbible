@@ -74,39 +74,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async (uid: string): Promise<Profile | null> => {
+  const loadProfile = useCallback(async (uid: string, isCurrent: () => boolean = () => true): Promise<Profile | null> => {
     const { data } = await supabase.from("profiles").select("*").eq("user_id", uid).maybeSingle();
     const next = data ? profileFromDbRow(data) : null;
-    setProfile(next);
+    if (isCurrent()) setProfile(next);
     return next;
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let receivedAuthEvent = false;
+    let activeUserId: string | null | undefined;
+    let generation = 0;
+    let profileTimer: ReturnType<typeof setTimeout> | undefined;
 
-    const applySession = async (sess: Session | null) => {
+    const applySession = (sess: Session | null) => {
+      if (cancelled) return;
+      const nextUserId = sess?.user.id ?? null;
+      const identityChanged = activeUserId !== nextUserId;
+      activeUserId = nextUserId;
       setSession(sess);
       setUser(sess?.user ?? null);
-      if (sess?.user) {
-        await loadProfile(sess.user.id);
-      } else {
-        setProfile(null);
+      // TOKEN_REFRESHED and repeated SIGNED_IN events are background updates,
+      // not navigation. Setting loading=true here unmounted the journal/map.
+      if (!identityChanged) return;
+
+      const currentGeneration = ++generation;
+      clearTimeout(profileTimer);
+      setProfile(null);
+      if (!nextUserId) {
+        setLoading(false);
+        return;
       }
-      if (!cancelled) setLoading(false);
+      setLoading(true);
+      const isCurrent = () => !cancelled && generation === currentGeneration;
+      // Leave the auth callback before making another Supabase request.
+      profileTimer = setTimeout(() => {
+        void loadProfile(nextUserId, isCurrent).catch((error: unknown) => {
+          if (isCurrent()) console.error("Could not load account profile", error);
+        }).finally(() => {
+          if (isCurrent()) setLoading(false);
+        });
+      }, 0);
     };
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
-      setLoading(true);
-      void applySession(sess);
+      receivedAuthEvent = true;
+      applySession(sess);
     });
 
     void (async () => {
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (!cancelled) await applySession(s);
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        // A newer auth event wins over a delayed bootstrap response.
+        if (!cancelled && !receivedAuthEvent) applySession(s);
+      } catch (error) {
+        if (!cancelled && !receivedAuthEvent) {
+          console.error("Could not restore account session", error);
+          applySession(null);
+        }
+      }
     })();
 
     return () => {
       cancelled = true;
+      clearTimeout(profileTimer);
       sub.subscription.unsubscribe();
     };
   }, [loadProfile]);

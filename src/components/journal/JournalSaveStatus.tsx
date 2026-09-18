@@ -20,25 +20,25 @@ export function JournalSaveStatus({ userId, entryId, liveCaption }: {
   }, [userId, entryId]);
   const getState = useCallback(() => userId && entryId ? peekJournalDocument(userId, entryId)?.getState() : undefined, [userId, entryId]);
   const state = useSyncExternalStore(subscribe, getState, () => undefined);
-  if (!state || !userId || !entryId) return null;
+  const needsAttention = state?.status === "error" || state?.status === "conflict";
+  // Normal autosave is silent and occupies no space above the toolbar. Keep
+  // actionable failures, conflict recovery, and recording captions available.
+  if (!state || !userId || !entryId || (!needsAttention && !liveCaption)) return null;
   const queue = peekJournalDocument(userId, entryId)!;
-  const label = state.status === "saved" ? "Saved"
-    : state.status === "saving" ? "Saving…"
-      : state.status === "conflict" ? "Changes need review — your local copy is retained"
-        : state.status === "error" ? state.durable ? "Saved on this device — cloud save needs attention" : "Not saved — keep this entry open"
-          : state.durable ? "Saved on this device — syncing" : "Saving on this device…";
-  const remote = queue.getRemoteConflict();
+  const label = state.status === "conflict" ? "Changes need review — your local copy is retained"
+    : state.durable ? "Cloud save needs attention — your local copy is retained" : "Not saved — keep this entry open";
+  const remote = state.status === "conflict" ? queue.getRemoteConflict() : null;
   return (
     <div className="shrink-0 px-4 py-1 text-xs text-muted-foreground" data-journal-save-status>
-      <div className="flex flex-wrap items-center gap-2">
+      {needsAttention && <div className="flex flex-wrap items-center gap-2">
         <span role="status" aria-live="polite">{label}</span>
         {state.status === "error" && <Button size="sm" variant="ghost" onClick={() => void flushJournalDocument(userId, entryId)}>Retry save</Button>}
         {state.status === "conflict" && <Button size="sm" variant="outline" onClick={() => {
           setReview(Object.fromEntries(state.conflicts.map((key) => [key, state.snapshot.values[key]])));
           setReviewOpen(true);
         }}>Review both versions</Button>}
-      </div>
-      {state.error && state.status !== "conflict" && <p className="mt-1" role="alert">{state.error}</p>}
+      </div>}
+      {needsAttention && state.error && state.status !== "conflict" && <p className="mt-1" role="alert">{state.error}</p>}
       {liveCaption && <p className="mt-2 whitespace-pre-wrap" aria-live="off"><span className="font-medium">Live captions — </span>{liveCaption}</p>}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto">
