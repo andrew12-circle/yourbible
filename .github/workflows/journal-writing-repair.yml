@@ -1,0 +1,83 @@
+name: Validate journal writing viewport
+on:
+  push:
+    branches: ['work/journal-writing-scroll-20260918']
+permissions:
+  contents: write
+concurrency:
+  group: journal-writing-scroll-repair
+  cancel-in-progress: true
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      BASE: bda52ac188bbaea827b102ce7aaa3891c43e7573
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply exact editor patch and build clean candidate
+        run: |
+          python scripts/journal-writing-repair.py
+          git read-tree "$BASE"
+          git add src scripts/test-journal-editor-scroll.mjs
+          git diff --cached --check
+          git diff --cached --stat
+          git config user.name 'Andrew Heisley'
+          git config user.email 'andrew12-circle@users.noreply.github.com'
+          TREE=$(git write-tree)
+          CANDIDATE=$(git commit-tree "$TREE" -p "$BASE" -m 'fix(journal): grow writing area and follow caret after layout')
+          echo "CANDIDATE=$CANDIDATE" >> "$GITHUB_ENV"
+          echo "$CANDIDATE" > "$RUNNER_TEMP/journal-writing-candidate.txt"
+          git diff "$BASE" "$CANDIDATE" > "$RUNNER_TEMP/journal-writing-changes.patch"
+      - run: npm ci
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/journal-writing-lint.log"
+      - name: Full repository tests
+        id: tests
+        continue-on-error: true
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/journal-writing-tests.log"
+      - name: No new TypeScript diagnostics
+        id: types
+        continue-on-error: true
+        run: node scripts/check-journal-type-regressions.mjs 540dcad4ba42eea28e8bae655c1a11c8e8dc3419
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/journal-writing-build.log"
+      - name: Install isolated browser test runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/journal-browser" --no-save --package-lock=false playwright@1.63.0
+          node "$RUNNER_TEMP/journal-browser/node_modules/playwright/cli.js" install --with-deps chromium
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/journal-browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+      - name: Actual editor typing in Chromium
+        id: browser
+        continue-on-error: true
+        run: node scripts/test-journal-editor-scroll.mjs 2>&1 | tee "$RUNNER_TEMP/journal-writing-browser.log"
+      - name: Require all checks and publish candidate to review branch only
+        run: |
+          test '${{ steps.lint.outcome }}' = success
+          test '${{ steps.tests.outcome }}' = success
+          test '${{ steps.types.outcome }}' = success
+          test '${{ steps.build.outcome }}' = success
+          test '${{ steps.browser.outcome }}' = success
+          git push origin "$CANDIDATE:refs/heads/fix/journal-writing-scroll-verified-20260918"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-writing-validation
+          path: |
+            ${{ runner.temp }}/journal-writing-*
+            ${{ runner.temp }}/journal-type*.log
