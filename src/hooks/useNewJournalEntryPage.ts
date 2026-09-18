@@ -1,3 +1,8 @@
+import { useJournalPhotoRecovery } from "./useJournalPhotoRecovery";
+import { requireJournalCloudAi } from "@/lib/journal/journalAiAccess";
+import { journalCloudAiAllowed } from "@/lib/journal/journalAiPolicy";
+import { attachJournalPhotos } from "@/lib/journal/attachJournalPhotos";
+import { removeJournalAttachment } from "@/lib/journal/journalAttachmentOperations";
 import { loadJournalDocumentRow, refreshJournalDocument } from "@/lib/journal/journalDocuments";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type SyntheticEvent } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -10,7 +15,7 @@ import { useMiniPhoneEmbed } from "@/contexts/MiniPhoneEmbedContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
+import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { shouldSuggestJournalPhotos } from "@/lib/journal/suggestPhotos";
 import { autosaveSketchPhoto, isJournalSketchAsset } from "@/lib/journal/sketchPhotos";
 import {
@@ -128,6 +133,7 @@ export function useNewJournalEntryPage() {
   const [body, setBody] = useState("");
   const [mood, setMood] = useState<number | null>(null);
   const [tags, setTags] = useState<string[]>([]);
+  const [loadedEncrypted, setLoadedEncrypted] = useState(false);
   const [entryKind, setEntryKind] = useState<JournalEntryKind | null>(null);
   const [entryAt, setEntryAt] = useState<string>(() => {
     const d = new Date();
@@ -230,7 +236,26 @@ export function useNewJournalEntryPage() {
 
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
-  const canReplyWithAi = !isVent && !isListening;
+  const cloudAiAllowed = journalCloudAiAllowed({ entry_kind: entryKind, journal_id: journalId, e2e_encrypted: loadedEncrypted });
+  const canReplyWithAi = cloudAiAllowed && !isListening;
+  useEffect(() => {
+    if (!cloudAiAllowed) {
+      abortAiRef.current?.abort();
+      videoLiveSnapRef.current = null;
+      setVideoCaptionPreview("");
+    }
+  }, [cloudAiAllowed]);
+  useEffect(() => {
+    const deleted = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string; entryId: string }>).detail;
+      if (detail?.userId !== user?.id || detail.entryId !== (editId ?? inlineEntryId)) return;
+      abortAiRef.current?.abort();
+      setBody(""); setTitle(""); setSummary(""); setExistingPhotos([]);
+      navigate("/journal", { replace: true });
+    };
+    window.addEventListener("yourbible:journal-entry-deleted", deleted);
+    return () => window.removeEventListener("yourbible:journal-entry-deleted", deleted);
+  }, [editId, inlineEntryId, user?.id, navigate]);
   const inlineChatMode = replyWithAi && canReplyWithAi;
   const visualViewportKeyboardLayout = journalComposeUsesVisualViewportLayout({
     isMobile,
@@ -546,6 +571,7 @@ export function useNewJournalEntryPage() {
       if (cancelled) return;
       if (!data) throw new Error("This journal entry could not be found.");
       composePersistence.initialize(data);
+      setLoadedEncrypted(data.e2e_encrypted);
       setTitle(data.title ?? "");
       setSummary((data as { summary?: string | null }).summary ?? "");
       const parsedBody = parseChatJournalEntry(data.body, (data as { summary?: string | null }).summary);
@@ -746,7 +772,8 @@ export function useNewJournalEntryPage() {
   }, [journalId]);
 
   const activeEntryId = editId ?? inlineEntryId;
-  const { videos, reload: reloadVideos, remove: removeVideo } = useJournalEntryVideos(activeEntryId);
+  useJournalPhotoRecovery(user?.id, activeEntryId, setExistingPhotos);
+  const { videos, error: videoLoadError, reload: reloadVideos, remove: removeVideo } = useJournalEntryVideos(activeEntryId);
 
   const bodyMarkers = useJournalBodyMarkers({
     userId: user?.id,
@@ -921,14 +948,19 @@ export function useNewJournalEntryPage() {
     );
   }, []);
 
-  const removeExistingPhoto = useCallback(async (photoId: string, storage_path: string) => {
-    setExistingPhotos((ps) => ps.filter((p) => p.id !== photoId));
-    await supabase.storage.from("journal-photos").remove([storage_path]).catch(() => {});
-    await supabase.from("journal_photos").delete().eq("id", photoId);
-  }, []);
+  const removeExistingPhoto = useCallback(async (photoId: string, _storagePath: string) => {
+    const id = editId ?? inlineEntryId;
+    if (!user?.id || !id) return;
+    try {
+      await removeJournalAttachment(user.id, id, photoId, "journal_photos");
+      setExistingPhotos((photos) => photos.filter((photo) => photo.id !== photoId));
+    } catch (error) {
+      toast({ title: "Photo removal needs attention", description: error instanceof Error ? error.message : "Retry removal.", variant: "destructive" });
+    }
+  }, [editId, inlineEntryId, user?.id]);
 
   const ensureChatEntry = useCallback(async (): Promise<{ entryId: string; chatId: string } | null> => {
-    if (!user) return null;
+    if (!user || !cloudAiAllowed) return null;
     let eId = inlineEntryId ?? editId ?? null;
     let cId = chatId;
     const ts = new Date(entryAt);
@@ -938,6 +970,7 @@ export function useNewJournalEntryPage() {
       if (!eId) return null;
     }
 
+    await requireJournalCloudAi(eId, user.id);
     if (!cId) {
       const { data: existing } = await supabase
         .from("my_ai_chats")
@@ -963,6 +996,7 @@ export function useNewJournalEntryPage() {
     }
     return { entryId: eId!, chatId: cId! };
   }, [
+    cloudAiAllowed,
     user,
     inlineEntryId,
     editId,
@@ -985,7 +1019,7 @@ export function useNewJournalEntryPage() {
 
   const sendToAi = useCallback(async () => {
     const text = body.trim();
-    if (!text || aiBusy) return;
+    if (!text || aiBusy || !cloudAiAllowed) return;
     dictateRef.current?.stop();
     assistantTtsRef.current.stop();
     setAiBusy(true);
@@ -1008,6 +1042,7 @@ export function useNewJournalEntryPage() {
         setChatTurns((prev) => prev.filter((t) => !t.id.startsWith("tmp-")));
         return;
       }
+      await requireJournalCloudAi(ensured.entryId, user?.id);
       const done = await streamMyAiChat({
         signal: abortAiRef.current.signal,
         body: {
@@ -1043,7 +1078,7 @@ export function useNewJournalEntryPage() {
       setStreamingAssistantId(null);
       setAiBusy(false);
     }
-  }, [body, aiBusy, ensureChatEntry, loadChatTurns, includeGeneral, responseDepth, chatId]);
+  }, [body, aiBusy, ensureChatEntry, loadChatTurns, includeGeneral, responseDepth, chatId, cloudAiAllowed, user?.id]);
 
   const stopAiReply = useCallback(() => {
     abortAiRef.current?.abort();
@@ -1055,7 +1090,7 @@ export function useNewJournalEntryPage() {
 
   const retryLastAiReply = useCallback(async () => {
     const entryId = editId ?? inlineEntryId;
-    if (!entryId || !chatId || aiBusy) return;
+    if (!entryId || !chatId || aiBusy || !cloudAiAllowed) return;
     if (!chatTurns.some((turn) => turn.role === "assistant")) return;
     assistantTtsRef.current.stop();
     dictateRef.current?.stop();
@@ -1076,6 +1111,7 @@ export function useNewJournalEntryPage() {
     abortAiRef.current?.abort();
     abortAiRef.current = new AbortController();
     try {
+      await requireJournalCloudAi(entryId, user?.id);
       const done = await streamMyAiChat({
         signal: abortAiRef.current.signal,
         body: {
@@ -1104,7 +1140,7 @@ export function useNewJournalEntryPage() {
       setStreamingAssistantId(null);
       setAiBusy(false);
     }
-  }, [editId, inlineEntryId, chatId, aiBusy, chatTurns, includeGeneral, responseDepth, loadChatTurns]);
+  }, [editId, inlineEntryId, chatId, aiBusy, chatTurns, includeGeneral, responseDepth, loadChatTurns, cloudAiAllowed, user?.id]);
 
   const save = useCallback(async () => {
     if (!user || manualSaveRef.current) return;
@@ -1134,17 +1170,7 @@ export function useNewJournalEntryPage() {
     if (pendingFiles.length && entryId) {
       setBusyLabel("Uploading photos");
       try {
-        const uploaded = await uploadEntryPhotos(user.id, entryId, pendingFiles);
-        const { error: attachmentError } = await supabase.from("journal_photos").insert(
-          uploaded.map((u) => ({
-            user_id: user.id,
-            entry_id: entryId!,
-            storage_path: u.storage_path,
-            width: u.width,
-            height: u.height,
-          })),
-        );
-        if (attachmentError) throw attachmentError;
+        await attachJournalPhotos(user.id, entryId, pendingFiles);
         setPendingFiles((files) => files.filter((file) => !pendingFiles.includes(file)));
         const { data: photoRows } = await supabase
           .from("journal_photos")
@@ -1380,6 +1406,7 @@ export function useNewJournalEntryPage() {
   }, []);
 
   const handleVideoRecordingStart = useCallback(() => {
+    if (!cloudAiAllowed) { videoLiveSnapRef.current = null; return; }
     const snap = {
       body: bodyRef.current,
       anchor: getVideoAnchorOffset(),
@@ -1390,9 +1417,9 @@ export function useNewJournalEntryPage() {
       updateJournalVideoRecordingBodySnapForEntry(entryId, snap.body, snap.anchor);
     }
     videoAutoTitle.onRecordingStart();
-  }, [getVideoAnchorOffset, videoAutoTitle, editId, inlineEntryId]);
+  }, [cloudAiAllowed, getVideoAnchorOffset, videoAutoTitle, editId, inlineEntryId]);
 
-  const handleVideoLiveTranscript = useCallback((live: string) => setVideoCaptionPreview(live), []);
+  const handleVideoLiveTranscript = useCallback((live: string) => { if (cloudAiAllowed) setVideoCaptionPreview(live); }, [cloudAiAllowed]);
   const handleVideoRecordingCancelled = useCallback(() => {
     setVideoCaptionPreview("");
     videoLiveSnapRef.current = null;
@@ -1526,7 +1553,7 @@ export function useNewJournalEntryPage() {
 
         await reloadVideos();
         const refreshed = await refreshJournalDocument(user.id, entryId);
-        const enrichResult = refreshed.e2e_encrypted ? undefined : await videoAutoTitle.onRecordingComplete(refreshed.body);
+        const enrichResult = !journalCloudAiAllowed(refreshed) ? undefined : await videoAutoTitle.onRecordingComplete(refreshed.body);
         videoLiveSnapRef.current = null;
         setVideoCaptionPreview("");
 
@@ -1692,6 +1719,7 @@ export function useNewJournalEntryPage() {
   }, [savePendingSketchFile]);
 
   return {
+    cloudAiAllowed,
     lat, lng, journalId,
     videoCaptionPreview,
     user,
@@ -1802,6 +1830,8 @@ export function useNewJournalEntryPage() {
     scoreNow,
     scoring,
     videos,
+    videoLoadError,
+    reloadVideos,
     removeVideo,
     videoOpen,
     setVideoOpen,

@@ -1,3 +1,4 @@
+import { requireJournalCloudAi } from "./journalAiAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
 
@@ -10,6 +11,8 @@ export async function suggestJournalEntryTitle(opts: {
   entryId?: string;
   body?: string;
 }): Promise<SuggestTitleResult> {
+  try { await requireJournalCloudAi(opts.entryId); }
+  catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Journal AI access unavailable" }; }
   const { data, error } = await supabase.functions.invoke("journal-suggest-title", {
     body: opts.entryId ? { entry_id: opts.entryId } : { body: opts.body },
   });

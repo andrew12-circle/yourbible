@@ -98,6 +98,8 @@ export function useJournalVideoCapture(
 ): UseJournalVideoCaptureApi {
   const { onInterim, language, onScreenShareEnded, onMaxDuration, settings: settingsProp } =
     options;
+  const transcriptAllowed = useRef(options.allowTranscription !== false);
+  transcriptAllowed.current = options.allowTranscription !== false;
   const onInterimRef = useRef(onInterim);
   const onScreenShareEndedRef = useRef(onScreenShareEnded);
   const onMaxDurationRef = useRef(onMaxDuration);
@@ -251,6 +253,7 @@ export function useJournalVideoCapture(
   }, []);
   const handleInterim = useCallback(
     (partial: string) => {
+      if (!transcriptAllowed.current) return;
       interimPartialRef.current = partial;
       syncLiveTranscriptDisplay();
     },
@@ -258,6 +261,7 @@ export function useJournalVideoCapture(
   );
   const speech = useSpeechDictation({
     onAppend: (chunk) => {
+      if (!transcriptAllowed.current) return;
       const { text, lastFinal } = appendVideoSpeechFinal(
         finalizedTranscriptRef.current,
         chunk,
@@ -278,7 +282,14 @@ export function useJournalVideoCapture(
   const speechListeningRef = useRef(false);
   speechListeningRef.current = speech.listening;
   const speechSupportedRef = useRef(speech.supported);
-  speechSupportedRef.current = speech.supported;
+  speechSupportedRef.current = speech.supported && transcriptAllowed.current;
+  useEffect(() => {
+    if (!options.allowTranscription && options.allowTranscription !== undefined) {
+      speechStopRef.current();
+      finalizedTranscriptRef.current = ""; interimPartialRef.current = ""; peakLiveTranscriptRef.current = "";
+      setInterim("");
+    }
+  }, [options.allowTranscription]);
   const openGenRef = useRef(0);
   const clearRecordingTick = useCallback(() => {
     if (recordingTickRef.current) {

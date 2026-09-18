@@ -1,3 +1,4 @@
+import { useJournalCloudAiPermission } from "./JournalAiPrivacy";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Monitor, Video, X } from "lucide-react";
@@ -46,6 +47,7 @@ export type JournalVideoCaptureDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: (result: JournalVideoCaptureResult, durationMs: number) => void | Promise<void>;
+  allowTranscription?: boolean;
   uploading?: boolean;
   transcribing?: boolean;
   transcribingLabel?: string;
@@ -88,6 +90,7 @@ function WebJournalVideoCaptureDialog({
   open,
   onOpenChange,
   onComplete,
+  allowTranscription = true,
   uploading = false,
   transcribing = false,
   transcribingLabel,
@@ -103,6 +106,7 @@ function WebJournalVideoCaptureDialog({
   stackElevated = false,
   forceInline = false,
 }: JournalVideoCaptureDialogProps) {
+  const cloudAllowed = useJournalCloudAiPermission() && allowTranscription;
   const isMobile = useIsMobile();
   const countdownStartedRef = useRef(false);
   const prevPhaseRef = useRef<JournalVideoCapturePhase>("idle");
@@ -116,6 +120,7 @@ function WebJournalVideoCaptureDialog({
   const [pauseReason, setPauseReason] = useState<JournalVideoPauseReason | null>(null);
 
   const capture = useJournalVideoCapture({
+    allowTranscription: cloudAllowed,
     onMaxDuration: () => {
       stopOnMaxRef.current();
     },

@@ -41,13 +41,13 @@ export function JournalEncryptionSection() {
             <p className="text-sm text-muted-foreground leading-relaxed">
               Like Day One: your journal is encrypted on this device with AES-256 before it syncs. A{" "}
               <strong className="font-medium text-foreground">Private</strong> notebook is always encrypted.
-              AI features work while unlocked because formatting runs on your device, then saves ciphertext.
+              Cloud AI processing is disabled for encrypted entries. Local text formatting remains available.
             </p>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
               <li>Unlock daily with a 6-digit PIN or biometrics on this device.</li>
               <li>Server and staff cannot read encrypted title, body, or summary.</li>
               <li>Encrypted entries skip server search, mirror scoring, and My AI retrieval.</li>
-              <li>Photos are not encrypted yet (coming next).</li>
+              <li>Photo and video files are not end-to-end encrypted; only title, body, and summary are encrypted.</li>
             </ul>
           </div>
         </div>
@@ -236,6 +236,12 @@ export function JournalEncryptionSection() {
           </div>
         )}
 
+        {vault.cryptoRecord && vault.isUnlocked && <div className="space-y-2 border-t pt-3">
+          <p className="text-sm">Verify and finish encryption of existing entries, including any interrupted conversion. Your existing key is reused.</p>
+          <Button disabled={vault.migrating} variant="secondary" onClick={() => void vault.finishEncryption().catch(() => {})}>
+            {vault.migrating ? "Encrypting existing entries…" : "Finish encrypting existing entries"}
+          </Button>
+        </div>}
         {vault.recoveryKeyDraft ? (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 space-y-2">
             <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">

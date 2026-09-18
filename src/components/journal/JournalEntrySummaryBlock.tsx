@@ -38,6 +38,7 @@ export function JournalEntrySummaryBlock({
           </p>
         ) : onSummaryChange ? (
           <PolishedTextarea
+            polishFieldKey="summary"
             value={summary}
             onChange={(e) => onSummaryChange(e.target.value)}
             placeholder="AI summary will appear here after your video is transcribed…"

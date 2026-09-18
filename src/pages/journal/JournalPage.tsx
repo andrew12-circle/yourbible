@@ -1,5 +1,6 @@
 import { notifyJournalListEntrySaved } from "@/lib/journal/journalListUpdates";
 import type { JournalSnapshot } from "@/lib/journal/journalSaveQueue";
+import { JournalMediaRetry } from "@/components/journal/JournalMediaRetry";
 import { useJournalListController } from "@/hooks/useJournalListController";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -271,7 +272,7 @@ function MobileJournalList({
   const navigate = useNavigate();
 
   const [q, setQ] = useState("");
-  const { entries, setEntries, photoUrls, videoUrls, hasMore, loadError, loading, loadingMore, load: loadEntries } = useJournalListController({
+  const { entries, setEntries, photoUrls, videoUrls, hasMore, loadError, mediaError, retryMedia, loading, loadingMore, load: loadEntries } = useJournalListController({
     userId: user?.id, journalId, excludeJournalIds: !journalId && notesJournalId ? [notesJournalId] : undefined, search: q,
   });
   const notesReturnTo = "/journal/notes";
@@ -391,6 +392,7 @@ function MobileJournalList({
         </div>
       </div>
 
+      <JournalMediaRetry error={mediaError} retry={retryMedia} />
       {loadError && filtered.length === 0 && (
         <div className="text-center py-16 px-6">
           <p className="text-[15px] font-semibold">Couldn&apos;t load entries</p>

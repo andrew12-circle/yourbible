@@ -1,3 +1,4 @@
+import { journalAiPrivacyResponse } from "../_shared/journalAiPrivacy.ts";
 import { appendJournalBlock } from "../_shared/journalAtomicBlock.ts";
 /**
  * Reads a saved journal sketch image (handwriting on paper) via Gemini vision
@@ -93,6 +94,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const privacy = await journalAiPrivacyResponse(supabase, u.user.id, entry_id);
+    if (privacy) return privacy;
 
     const { data: entry } = await supabase
       .from("journal_entries")

@@ -1,4 +1,6 @@
 import { create } from "zustand";
+import { prepareJournalPrivacyLock } from "@/lib/journal/journalPrivacyLifecycle";
+let lockingFlight: Promise<void> | null = null;
 import type { JournalCryptoRecord } from "@/lib/crypto/journalVaultCrypto";
 
 type JournalVaultState = {
@@ -19,11 +21,15 @@ type JournalVaultState = {
   setCryptoRecord: (record: JournalCryptoRecord | null) => void;
   setLockFlags: (flags: { pinEnabled?: boolean; biometricEnabled?: boolean }) => void;
   unlock: (dek: CryptoKey) => void;
-  lock: () => void;
-  reset: () => void;
+  locking: boolean;
+  lockEpoch: number;
+  lock: () => Promise<void>;
+  reset: () => Promise<void>;
 };
 
-export const useJournalVaultStore = create<JournalVaultState>((set) => ({
+export const useJournalVaultStore = create<JournalVaultState>((set, get) => ({
+  locking: false,
+  lockEpoch: 0,
   e2eEnabled: false,
   e2eRequiredJournalIds: new Set(),
   cryptoRecord: null,
@@ -38,9 +44,26 @@ export const useJournalVaultStore = create<JournalVaultState>((set) => ({
       pinEnabled: flags.pinEnabled ?? s.pinEnabled,
       biometricEnabled: flags.biometricEnabled ?? s.biometricEnabled,
     })),
-  unlock: (dek) => set({ dek }),
-  lock: () => set({ dek: null }),
-  reset: () =>
+  unlock: (dek) => {
+    if (get().locking) throw new Error("Wait for your journal to finish locking.");
+    set({ dek });
+  },
+  lock: () => {
+    if (lockingFlight) return lockingFlight;
+    // Guards synchronously capture edits and pause writers before the UI unmounts.
+    const pending = prepareJournalPrivacyLock();
+    set({ locking: true });
+    lockingFlight = pending.then(() => {
+      set({ dek: null, locking: false, lockEpoch: get().lockEpoch + 1 });
+    }, (error: unknown) => {
+      // Never discard the only recoverable draft or claim a failed lock succeeded.
+      set({ locking: false });
+      throw error;
+    }).finally(() => { lockingFlight = null; });
+    return lockingFlight;
+  },
+  reset: async () => {
+    await get().lock();
     set({
       e2eEnabled: false,
       e2eRequiredJournalIds: new Set(),
@@ -48,7 +71,8 @@ export const useJournalVaultStore = create<JournalVaultState>((set) => ({
       dek: null,
       pinEnabled: false,
       biometricEnabled: false,
-    }),
+    });
+  },
 }));
 
 export function isJournalE2eEnabled(): boolean {

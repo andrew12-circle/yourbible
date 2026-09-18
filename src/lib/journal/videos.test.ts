@@ -1,3 +1,4 @@
+vi.mock("@/lib/journal/journalAiAccess", () => ({ canUseJournalCloudAi: vi.fn(async () => true), requireJournalCloudAi: vi.fn(async () => {}), requireJournalVideoCloudAi: vi.fn(async () => {}), PRIVATE_JOURNAL_AI_MESSAGE: "Cloud AI disabled" }));
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 const uploadJournalVoiceMemoMock = vi.hoisted(() => vi.fn());

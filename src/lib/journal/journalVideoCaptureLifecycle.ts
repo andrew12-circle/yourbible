@@ -54,6 +54,7 @@ export type JournalVideoCaptureResult = {
 };
 
 export interface UseJournalVideoCaptureOptions {
+  allowTranscription?: boolean;
   onInterim?: (partial: string) => void;
   language?: string;
   onScreenShareEnded?: () => void;

@@ -1,7 +1,9 @@
+import { deleteJournalDocument } from "./journalDocuments";
 import { supabase } from "@/integrations/supabase/client";
 
 export async function deleteJournalEntry(entryId: string, userId: string) {
-  return supabase.from("journal_entries").delete().eq("id", entryId).eq("user_id", userId);
+  try { await deleteJournalDocument(userId, entryId); return { error: null }; }
+  catch (error) { return { error: error instanceof Error ? error : new Error(String((error as { message?: string })?.message ?? error)) }; }
 }
 
 export async function setJournalEntryPinned(

@@ -1,3 +1,4 @@
+import { requireJournalCloudAi } from "./journalAiAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
 import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
@@ -24,6 +25,8 @@ export async function transcribeJournalSketch(opts: {
   entryId: string;
   storagePath: string;
 }): Promise<SketchTranscriptionResult> {
+  try { await requireJournalCloudAi(opts.entryId); }
+  catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Journal AI access unavailable" }; }
   const { data, error } = await supabase.functions.invoke("journal-sketch-to-text", {
     body: { entry_id: opts.entryId, storage_path: opts.storagePath },
   });

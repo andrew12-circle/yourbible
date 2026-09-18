@@ -1,7 +1,13 @@
+import { supabase } from "@/integrations/supabase/client";
+import { canUseJournalCloudAi } from "@/lib/journal/journalAiAccess";
+import { preserveJournalAiEdit, loadJournalAiEdits } from "@/lib/journal/journalDraftStorage";
 import * as React from "react";
 import { Loader2 } from "lucide-react";
 import { Textarea, type TextareaProps } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useJournalCloudAiPermission, useJournalAiDocument } from "@/components/journal/JournalAiPrivacy";
+import { MAX_POLISH_CHARS } from "@/lib/ai/safePolish";
+import { mergeJournalText } from "@/lib/journal/journalTextMerge";
 import { polishText } from "@/lib/ai/polishText";
 import { useAiWritingAssistStore } from "@/lib/aiWritingAssistStore";
 import { mapCursorAfterEdit } from "@/lib/editor/mapCursorAfterEdit";
@@ -18,6 +24,7 @@ export type PolishedTextareaProps = Omit<TextareaProps, "value" | "onChange" | "
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   /** Wrapper around the textarea (e.g. flex-1 under pinned video journal). */
   wrapperClassName?: string;
+  polishFieldKey?: string;
   /** When AI assist is on, also polish after this many ms with no edits (default 2000). */
   idleDebounceMs?: number;
   enableIdlePolish?: boolean;
@@ -42,6 +49,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
       polishResetKey,
       className,
       wrapperClassName,
+      polishFieldKey = "body",
       disabled,
       onFocus,
       onBlur,
@@ -52,6 +60,19 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
     ref,
   ) => {
     const aiWritingAssistEnabled = useAiWritingAssistStore((s) => s.aiWritingAssistEnabled);
+    const journalDocument = useJournalAiDocument();
+    const cloudAllowed = useJournalCloudAiPermission() && allowAiPolish && !disabled;
+    const latestPermission = React.useRef(cloudAllowed);
+    latestPermission.current = cloudAllowed;
+    const requestGeneration = React.useRef(0);
+    const requestAbort = React.useRef<AbortController | null>(null);
+    const identity = React.useRef(polishResetKey);
+    if (identity.current !== polishResetKey) {
+      identity.current = polishResetKey;
+      requestGeneration.current += 1;
+      requestAbort.current?.abort();
+    }
+    const [aiHistory, setAiHistory] = React.useState<{ before: string; after: string; key: typeof polishResetKey }[]>([]);
     const valueRef = React.useRef(value);
     valueRef.current = value;
 
@@ -61,8 +82,28 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
     const [polishing, setPolishing] = React.useState(false);
 
     React.useEffect(() => {
+      let cancelled = false;
       lastPolishedRef.current = null;
-    }, [polishResetKey]);
+      setAiHistory([]);
+      if (journalDocument && cloudAllowed) {
+        void supabase.auth.getSession().then(async ({ data }) => {
+          if (!data.session || cancelled) return;
+          const edits = await loadJournalAiEdits(data.session.user.id, journalDocument, polishFieldKey);
+          if (!cancelled) setAiHistory(edits.filter((edit) => edit.before !== valueRef.current).map((edit) => ({ before: edit.before, after: edit.after, key: polishResetKey })));
+        }).catch(() => {});
+      }
+      return () => { cancelled = true; };
+    }, [polishResetKey, journalDocument, polishFieldKey, cloudAllowed]);
+
+    React.useEffect(() => {
+      if (!cloudAllowed) {
+        requestGeneration.current += 1;
+        requestAbort.current?.abort();
+        setPolishing(false);
+        setAiHistory([]);
+      }
+      return () => { requestGeneration.current += 1; requestAbort.current?.abort(); };
+    }, [cloudAllowed]);
 
     React.useEffect(() => {
       return () => {
@@ -76,6 +117,8 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
         const cursor = el?.selectionStart ?? snapshot.length;
         const selectionEnd = el?.selectionEnd ?? cursor;
 
+        // Keep the complete original before any AI replacement. Undo is field-scoped.
+        setAiHistory((history) => [...history.slice(-19), { before: snapshot, after: out, key: polishResetKey }]);
         onChange({
           target: { value: out },
           currentTarget: { value: out },
@@ -91,32 +134,51 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
           }
         });
       },
-      [onChange],
+      [onChange, polishResetKey],
     );
 
     const runPolish = React.useCallback(
       async (snapshot: string) => {
-        if (!allowAiPolish || useAiWritingAssistStore.getState().polishUnavailable) return;
+        if (!latestPermission.current || useAiWritingAssistStore.getState().polishUnavailable || snapshot.length > MAX_POLISH_CHARS) return;
         if (!useAiWritingAssistStore.getState().aiWritingAssistEnabled || disabled) return;
         const t = snapshot.trim();
         if (t.length < MIN_POLISH_CHARS) return;
         if (snapshot === lastPolishedRef.current) return;
+        requestAbort.current?.abort();
+        const controller = new AbortController();
+        requestAbort.current = controller;
+        const generation = ++requestGeneration.current;
+        const sourceKey = identity.current;
         setPolishing(true);
         try {
-          const out = await polishText(snapshot);
-          if (valueRef.current !== snapshot) return;
+          let requestOwner: string | undefined;
+          if (journalDocument) {
+            const session = await supabase.auth.getSession();
+            requestOwner = session.data.session?.user.id;
+            if (session.error || !requestOwner || !(await canUseJournalCloudAi(journalDocument, requestOwner))) return;
+          }
+          if (controller.signal.aborted || generation !== requestGeneration.current) return;
+          const out = await polishText(snapshot, controller.signal, journalDocument);
+          if (controller.signal.aborted || generation !== requestGeneration.current || sourceKey !== identity.current
+            || !latestPermission.current || valueRef.current !== snapshot) return;
           lastPolishedRef.current = out;
           if (out !== snapshot) {
+            if (journalDocument) {
+              const { data, error } = await supabase.auth.getSession();
+              if (error || !data.session || data.session.user.id !== requestOwner) return;
+              await preserveJournalAiEdit(data.session.user.id, journalDocument, polishFieldKey, snapshot, out);
+              if (controller.signal.aborted || generation !== requestGeneration.current || !latestPermission.current || valueRef.current !== snapshot) return;
+            }
             applyPolishedValue(snapshot, out);
           }
         } catch {
           // Background polish is optional — fail quietly and stop retrying.
-          useAiWritingAssistStore.getState().markPolishUnavailable();
+          if (!controller.signal.aborted && generation === requestGeneration.current) useAiWritingAssistStore.getState().markPolishUnavailable();
         } finally {
-          setPolishing(false);
+          if (generation === requestGeneration.current) setPolishing(false);
         }
       },
-      [allowAiPolish, applyPolishedValue, disabled],
+      [allowAiPolish, applyPolishedValue, disabled, journalDocument, polishFieldKey],
     );
 
     const scheduleWordPolish = React.useCallback(() => {
@@ -169,6 +231,9 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
 
     const privacyHandlers = bindPrivacyBlurHandlers({
       onChange: (e) => {
+        requestGeneration.current += 1;
+        requestAbort.current?.abort();
+        setPolishing(false);
         onChange(e);
         const next = e.target.value;
         valueRef.current = next;
@@ -208,6 +273,22 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
             polishing && "opacity-[0.92]",
           )}
         />
+        {aiHistory.length > 0 && aiHistory[aiHistory.length - 1].key === polishResetKey && cloudAllowed && (
+          <button type="button" className="mt-1 text-xs text-muted-foreground underline" onClick={() => {
+            const edit = aiHistory[aiHistory.length - 1];
+            const current = valueRef.current;
+            const restored = mergeJournalText(edit.after, current, edit.before);
+            if (restored === null && !window.confirm("Restore the original text before this AI edit? This replaces later edits in this field too.")) return;
+            const next = restored ?? edit.before;
+            requestGeneration.current += 1;
+            requestAbort.current?.abort();
+            setPolishing(false);
+            lastPolishedRef.current = next;
+            valueRef.current = next;
+            onChange({ target: { value: next }, currentTarget: { value: next } } as React.ChangeEvent<HTMLTextAreaElement>);
+            setAiHistory((history) => history.slice(0, -1));
+          }}>Undo AI edit</button>
+        )}
         {polishing && (
           <div
             className="pointer-events-none absolute right-2 top-2 flex items-center gap-1 rounded-md bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shadow-sm ring-1 ring-border/60"

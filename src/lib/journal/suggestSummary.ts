@@ -1,3 +1,4 @@
+import { requireJournalCloudAi } from "./journalAiAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
 
@@ -19,6 +20,8 @@ export async function suggestJournalEntrySummary(opts: {
   source?: "video" | "default";
   force?: boolean;
 }): Promise<SuggestSummaryResult> {
+  try { await requireJournalCloudAi(opts.entryId); }
+  catch (error) { return { ok: false, error: error instanceof Error ? error.message : "Journal AI access unavailable" }; }
   const { data, error } = await supabase.functions.invoke("journal-suggest-summary", {
     body: {
       entry_id: opts.entryId,

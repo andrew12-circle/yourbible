@@ -1,3 +1,4 @@
+import { journalAiPrivacyResponse } from "../_shared/journalAiPrivacy.ts";
 /**
  * Transcribes journal voice/video audio with provider retry + fallback.
  */
@@ -93,9 +94,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { storage_path, bucket: bucketRaw } = (await req.json()) as {
+    const { storage_path, bucket: bucketRaw, entry_id } = (await req.json()) as {
       storage_path?: string;
       bucket?: string;
+      entry_id?: string;
     };
     const bucket = bucketRaw === "journal-videos" ? "journal-videos" : "voice-memos";
     if (!storage_path) {
@@ -111,6 +113,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    let journalId = typeof entry_id === "string" ? entry_id : null;
+    if (bucket === "journal-videos") {
+      const video = await userClient.from("journal_videos").select("entry_id,user_id").eq("storage_path", storage_path).eq("user_id", u.user.id).maybeSingle();
+      if (video.error || !video.data) return new Response(JSON.stringify({ error: "Video ownership could not be verified" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      journalId = video.data.entry_id;
+    }
+    const privacy = await journalAiPrivacyResponse(userClient, u.user.id, journalId);
+    if (privacy) return privacy;
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
     const { data: file, error: dlErr } = await admin.storage.from(bucket).download(storage_path);
     if (dlErr || !file) {

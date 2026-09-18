@@ -1,3 +1,4 @@
+import { journalAiPrivacyResponse } from "../_shared/journalAiPrivacy.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson, callOpenAiWebResearchChat, getChatConfig } from "../_shared/aiProvider.ts";
 import { clearAiUsageContext, setAiUsageContext } from "../_shared/logAiUsage.ts";
@@ -641,6 +642,22 @@ Deno.serve(async (req) => {
     const userId = userData.user.id;
 
     const body = (await req.json()) as RequestBody;
+    // A journal-linked chat remains private even when opened from the general AI page.
+    let privacyEntryId = typeof body.journal_entry_id === "string" ? body.journal_entry_id
+      : typeof body.finalize_journal_entry_id === "string" ? body.finalize_journal_entry_id : null;
+    if (typeof body.chat_id === "string") {
+      const linked = await supabase.from("my_ai_chats").select("journal_entry_id").eq("id", body.chat_id).eq("user_id", userId).maybeSingle();
+      if (linked.error) return jsonResponse({ error: "Chat privacy could not be verified" }, 503);
+      if (linked.data?.journal_entry_id) {
+        const privacy = await journalAiPrivacyResponse(supabase, userId, linked.data.journal_entry_id);
+        if (privacy) return privacy;
+        privacyEntryId ??= linked.data.journal_entry_id;
+      }
+    }
+    if (privacyEntryId || body.mode === "journal") {
+      const privacy = await journalAiPrivacyResponse(supabase, userId, privacyEntryId);
+      if (privacy) return privacy;
+    }
     setAiUsageContext({
       functionName: "my-ai-chat",
       userId,

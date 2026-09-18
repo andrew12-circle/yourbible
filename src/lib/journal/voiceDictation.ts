@@ -52,12 +52,13 @@ export async function probeJournalVoiceEdge(): Promise<boolean> {
 export async function transcribeJournalVoiceMemo(
   storagePath: string,
   bucket: "voice-memos" | "journal-videos" = "voice-memos",
+  entryId?: string,
 ): Promise<VoiceDictationResult> {
   const auth = await ensureVoiceDictationSession();
   if (!auth.ok) return auth;
 
   const { data, error } = await supabase.functions.invoke(JOURNAL_VOICE_FN, {
-    body: { storage_path: storagePath, bucket },
+    body: { storage_path: storagePath, bucket, ...(entryId ? { entry_id: entryId } : {}) },
   });
   if (error) {
     return { ok: false, error: await edgeFunctionErrorMessage(JOURNAL_VOICE_FN, error, data) };

@@ -83,7 +83,7 @@ describe("acknowledged journal edits do not reload thumbnails", () => {
     h.metadataError = true;
     await act(async () => { await list.load(); });
     expect(screen.getByTestId("row").querySelector("video")).toBe(video);
-    expect(list.refreshError).toContain("Media temporarily unavailable");
+    expect(list.mediaError).toContain("Media temporarily unavailable");
   });
   it("rejects other-account snapshots and does not reuse URL caches across account/vault changes", async () => {
     const { rerender } = await open();

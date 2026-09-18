@@ -1,3 +1,4 @@
+import { journalAiPrivacyResponse } from "../_shared/journalAiPrivacy.ts";
 /**
  * Suggests a short journal entry title from body text via Gemini.
  * Persists only when the authenticated user's entry has not changed meanwhile.
@@ -43,6 +44,8 @@ Deno.serve(async (req) => {
     const body = (await req.json()) as { entry_id?: string; body?: string };
     let prose = typeof body.body === "string" ? stripForTitle(body.body) : "";
     const entryId = typeof body.entry_id === "string" ? body.entry_id : null;
+    const privacy = await journalAiPrivacyResponse(supabase, u.user.id, entryId);
+    if (privacy) return privacy;
     let revision: number | null = null;
     if (entryId) {
       const { data: entry } = await supabase.from("journal_entries").select("id,title,body,summary,user_id,e2e_encrypted,revision").eq("id", entryId).maybeSingle();
@@ -55,6 +58,8 @@ Deno.serve(async (req) => {
     if (prose.length < 20) return new Response(JSON.stringify({ error: "Not enough text for a title" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     const title = await geminiTitle(prose);
     if (!title) return new Response(JSON.stringify({ error: "Could not generate title" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const afterPrivacy = await journalAiPrivacyResponse(supabase, u.user.id, entryId);
+    if (afterPrivacy) return afterPrivacy;
     let persisted = false;
     if (entryId && revision != null) {
       const { data: updated } = await supabase.from("journal_entries").update({ title }).eq("id", entryId).eq("user_id", u.user.id).eq("revision", revision).select("id").maybeSingle();

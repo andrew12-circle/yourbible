@@ -24,6 +24,7 @@ export type JournalTextFields = {
 
 export type JournalRowWithE2e = JournalTextFields & {
   e2e_encrypted?: boolean | null;
+  journal_id?: string | null;
 };
 
 export type DecryptedJournalRow<T extends JournalRowWithE2e> = T & {
@@ -86,7 +87,7 @@ export async function maybeEncryptJournalPayload<T extends Record<string, unknow
 export async function decryptJournalRow<T extends JournalRowWithE2e>(
   row: T,
 ): Promise<DecryptedJournalRow<T>> {
-  if (!row.e2e_encrypted) return row;
+  if (!row.e2e_encrypted && !(journalEntryMustEncrypt(row.journal_id) && !isJournalVaultUnlocked())) return row;
 
   if (!isJournalVaultUnlocked()) {
     return {
@@ -109,13 +110,15 @@ export async function decryptJournalRow<T extends JournalRowWithE2e>(
     };
   }
 
-  return {
+  const result = {
     ...row,
     title: await decryptTextField(dek, row.title),
     body: (await decryptTextField(dek, row.body)) ?? "",
     summary: row.summary != null ? await decryptTextField(dek, row.summary) : row.summary,
     contentLocked: false,
   };
+  if (getJournalDek() !== dek) return lockedListPreview(row);
+  return result;
 }
 
 export async function decryptJournalRows<T extends JournalRowWithE2e>(
@@ -138,7 +141,7 @@ export function lockedListPreview<T extends JournalRowWithE2e>(row: T): Decrypte
 export async function decryptJournalListRow<T extends JournalRowWithE2e>(
   row: T,
 ): Promise<DecryptedJournalRow<T>> {
-  if (!row.e2e_encrypted) return row;
+  if (!row.e2e_encrypted && !(journalEntryMustEncrypt(row.journal_id) && !isJournalVaultUnlocked())) return row;
   if (!isJournalVaultUnlocked()) return lockedListPreview(row);
   return decryptJournalRow(row);
 }

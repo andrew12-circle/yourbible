@@ -1,3 +1,4 @@
+import { requireJournalCloudAi } from "./journalAiAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { edgeFunctionErrorMessage } from "@/lib/supabase/edgeFunctions";
@@ -88,6 +89,7 @@ async function ensureLinkedJournalChatSession(
   params: EnsureInlineChatParams & { markAsChatEntry: boolean },
 ): Promise<{ entryId: string; chatId: string } | null> {
   const { userId, entryId, journalId: _journalId, title, existingChatId, markAsChatEntry } = params;
+  await requireJournalCloudAi(entryId, userId);
 
   if (markAsChatEntry) {
     const { error: kindErr } = await supabase
@@ -179,6 +181,7 @@ export async function bootstrapJournalReflectionOpener(params: {
   includeGeneralKnowledge?: boolean;
   responseDepth?: ResponseDepthSetting;
 }): Promise<void> {
+  await requireJournalCloudAi(params.entryId);
   const snapshot = params.entrySnapshot;
   const hasSnapshot = Boolean(
     snapshot?.title?.trim() || snapshot?.summary?.trim() || snapshot?.body?.trim(),
@@ -213,6 +216,7 @@ export async function sendInlineJournalChatMessage(params: {
   responseDepth?: ResponseDepthSetting;
   includeGeneralKnowledge?: boolean;
 }): Promise<void> {
+  await requireJournalCloudAi(params.entryId);
   const { data, error } = await supabase.functions.invoke("my-ai-chat", {
     body: {
       chat_id: params.chatId,

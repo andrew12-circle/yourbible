@@ -78,6 +78,7 @@ export function reconcileJournalPatch(
  * operations are serialized too: an old acknowledgement cannot delete a new draft.
  */
 export class JournalSaveQueue {
+  private lifecycle: "active" | "paused" | "closed" = "active";
   private base: JournalSnapshot;
   private pending: JournalValues;
   private mutation = 0;
@@ -99,6 +100,21 @@ export class JournalSaveQueue {
     };
   }
 
+  pause = (): void => { if (this.lifecycle !== "closed") this.lifecycle = "paused"; };
+  resume = (): void => { if (this.lifecycle === "paused") this.lifecycle = "active"; };
+  waitForIdle = async (): Promise<void> => { await this.flight; await this.chain.catch(() => {}); };
+  dispose = (): void => {
+    this.lifecycle = "closed";
+    this.base = { ...this.base, values: {} };
+    this.pending = {};
+    this.remoteConflict = null;
+    this.emit({ status: "error", error: "Reopen this entry after unlocking your journal.", conflicts: [] });
+    this.listeners.clear();
+  };
+  private requireActive() {
+    if (this.lifecycle !== "active") throw new Error("Journal is locking or this entry was closed. Reopen it before editing.");
+  }
+
   current = (): JournalSnapshot => ({
     ...this.base, values: structuredClone({ ...this.base.values, ...this.pending }),
   });
@@ -117,6 +133,7 @@ export class JournalSaveQueue {
   }
 
   patch = (patch: JournalValues): void => {
+    this.requireActive();
     const next = { ...this.pending };
     for (const [key, value] of Object.entries(patch)) {
       if (value === undefined) throw new Error(`Cannot persist an undefined journal field: ${key}`);
@@ -134,6 +151,7 @@ export class JournalSaveQueue {
 
   /** Also used before navigation; failures are visible and retain the in-memory copy. */
   persist = (): Promise<void> => {
+    if (this.lifecycle === "closed") return Promise.reject(new Error("This journal entry is closed."));
     const mutation = this.mutation;
     const draft: JournalPendingDraft | null = this.isDirty() ? {
       version: 1, base: structuredClone(this.base), pending: structuredClone(this.pending),
@@ -157,6 +175,7 @@ export class JournalSaveQueue {
 
   /** Fetching another version never destroys an unacknowledged local patch. */
   acceptRemote = (remote: JournalSnapshot): boolean => {
+    this.requireActive();
     if (remote.id !== this.base.id || remote.userId !== this.base.userId) {
       throw new Error("Journal response belongs to another entry or account.");
     }
@@ -177,6 +196,7 @@ export class JournalSaveQueue {
 
   /** Explicit user resolution only; automatic retry must never call this. */
   resolveConflict = async (merged: JournalValues): Promise<JournalFlushResult> => {
+    this.requireActive();
     if (!this.remoteConflict) return this.flush();
     const remote = this.remoteConflict;
     const preserved = reconcileJournalPatch(this.base.values, this.pending, remote.values);
@@ -191,11 +211,13 @@ export class JournalSaveQueue {
   getRemoteConflict = (): JournalSnapshot | null => this.remoteConflict && structuredClone(this.remoteConflict);
 
   flush = (): Promise<JournalFlushResult> => {
+    if (this.lifecycle !== "active") return Promise.resolve({ ok: false, entryId: this.base.id, error: new Error("This journal entry is paused or closed.") });
     if (this.flight) return this.flight;
     const run = async (): Promise<JournalFlushResult> => {
       try {
         if (this.remoteConflict) throw new JournalConflictError();
         for (let attempt = 0; attempt < 8; attempt += 1) {
+          this.requireActive();
           await this.persist();
           if (!this.isDirty()) {
             this.emit({ status: "saved", error: null });
@@ -206,6 +228,7 @@ export class JournalSaveQueue {
           this.emit({ status: "saving", error: null });
           let saved: JournalSnapshot;
           try {
+            this.requireActive();
             saved = await this.deps.write(base, sent);
           } catch (error) {
             if (!(error instanceof JournalConflictError)) throw error;

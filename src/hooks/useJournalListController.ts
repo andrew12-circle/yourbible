@@ -13,6 +13,7 @@ type ListState = {
   scope: string; dek: CryptoKey | null; rows: JournalEntryListRow[]; hasMore: boolean;
   photoUrls: Record<string, string>; videoUrls: Record<string, string>; error: string | null;
   errorKind?: "load" | "refresh";
+  mediaError?: string | null;
 };
 const EMPTY: JournalEntryListRow[] = [];
 
@@ -30,7 +31,28 @@ export function useJournalListController(options: JournalListOptions & { reloadK
   const stateRef = useRef(state); stateRef.current = state;
   const request = useRef<{ controller: AbortController; scope: string; dek: CryptoKey | null } | null>(null);
   const [busy, setBusy] = useState<"initial" | "more" | "refresh" | null>(null);
+  const mediaGeneration = useRef(0);
   const isCurrent = state?.scope === scope && state?.dek === dek;
+
+  const loadMedia = useCallback(async (rows: JournalEntryListRow[]) => {
+    const current = latest.current;
+    const generation = ++mediaGeneration.current;
+    const matches = () => generation === mediaGeneration.current && latest.current.scope === current.scope && latest.current.dek === current.dek;
+    try {
+      const media = await fetchEntryListMediaUrls(rows.filter((row) => !row.contentLocked).map((row) => row.id), current.mediaCache);
+      if (!matches()) return;
+      setState((value) => value?.scope === current.scope && value.dek === current.dek
+        ? { ...value, photoUrls: media.photoUrls, videoUrls: media.videoUrls, mediaError: null } : value);
+    } catch (cause) {
+      if (matches()) setState((value) => value?.scope === current.scope && value.dek === current.dek
+        ? { ...value, mediaError: formatJournalLoadError(cause) } : value);
+    }
+  }, []);
+  const retryMedia = useCallback(() => {
+    const current = latest.current, value = stateRef.current;
+    if (value?.scope === current.scope && value.dek === current.dek) return loadMedia(value.rows);
+    return Promise.resolve();
+  }, [loadMedia]);
 
   const load = useCallback(async (append = false) => {
     const current = latest.current;
@@ -56,13 +78,14 @@ export function useJournalListController(options: JournalListOptions & { reloadK
         if (!matches()) return;
         rows.push(...page.rows);
       }
-      const media = await fetchEntryListMediaUrls(rows.filter((row) => !row.contentLocked).map((row) => row.id), current.mediaCache);
-      if (!matches()) return;
       const combined = append ? [...(previous?.rows ?? []), ...rows] : rows;
-      setState({ scope: current.scope, dek: current.dek, rows: [...new Map(combined.map((row) => [row.id, row])).values()],
-        hasMore: page.hasMore, error: null,
-        photoUrls: append ? { ...previous?.photoUrls, ...media.photoUrls } : media.photoUrls,
-        videoUrls: append ? { ...previous?.videoUrls, ...media.videoUrls } : media.videoUrls });
+      const nextRows = [...new Map(combined.map((row) => [row.id, row])).values()];
+      const visibleIds = new Set(nextRows.filter((row) => !row.contentLocked).map((row) => row.id));
+      const keepVisible = (urls: Record<string, string> = {}) => Object.fromEntries(Object.entries(urls).filter(([id]) => visibleIds.has(id)));
+      setState({ scope: current.scope, dek: current.dek, rows: nextRows, hasMore: page.hasMore, error: null,
+        photoUrls: keepVisible(previous?.photoUrls), videoUrls: keepVisible(previous?.videoUrls), mediaError: null });
+      // Media is optional decoration, never a prerequisite for reading journal text.
+      void loadMedia(nextRows);
     } catch (cause) {
       if (matches()) setState({ scope: current.scope, dek: current.dek, rows: previous?.rows ?? [],
         hasMore: previous?.hasMore ?? false, photoUrls: previous?.photoUrls ?? {}, videoUrls: previous?.videoUrls ?? {},
@@ -70,11 +93,11 @@ export function useJournalListController(options: JournalListOptions & { reloadK
     } finally {
       if (request.current?.controller === controller) { request.current = null; setBusy(null); }
     }
-  }, []);
+  }, [loadMedia]);
 
   useEffect(() => {
     const timeout = setTimeout(() => void load(), options.search?.trim() ? 250 : 0);
-    return () => { clearTimeout(timeout); request.current?.controller.abort(); };
+    return () => { clearTimeout(timeout); request.current?.controller.abort(); mediaGeneration.current += 1; };
   }, [scope, dek, options.reloadKey, load]); // scope isolates filters; reloadKey refreshes in place
 
   useEffect(() => {
@@ -103,6 +126,23 @@ export function useJournalListController(options: JournalListOptions & { reloadK
     return () => window.removeEventListener(JOURNAL_LIST_ENTRY_SAVED, onSaved);
   }, [load]);
 
+  useEffect(() => {
+    const recovered = () => { void load(); };
+    const removed = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string; entryId: string }>).detail;
+      if (detail?.userId !== latest.current.options.userId) return;
+      request.current?.controller.abort();
+      setState((value) => value ? { ...value, rows: value.rows.filter((row) => row.id !== detail.entryId) } : value);
+      void load();
+    };
+    window.addEventListener("yourbible:journal-attachments-recovered", recovered);
+    window.addEventListener("yourbible:journal-entry-deleted", removed);
+    return () => {
+      window.removeEventListener("yourbible:journal-attachments-recovered", recovered);
+      window.removeEventListener("yourbible:journal-entry-deleted", removed);
+    };
+  }, [load]);
+
   const setEntries = useCallback((change: SetStateAction<JournalEntryListRow[]>) => {
     const current = latest.current;
     setState((value) => value?.scope === current.scope && value.dek === current.dek
@@ -117,5 +157,6 @@ export function useJournalListController(options: JournalListOptions & { reloadK
     loadError: isCurrent && state.errorKind !== "refresh" ? state.error : null,
     refreshError: isCurrent && state.errorKind === "refresh" ? state.error : null,
     loading: Boolean(options.userId) && (!isCurrent || busy === "initial"), loadingMore: busy === "more",
+    mediaError: isCurrent ? state.mediaError ?? null : null, retryMedia,
     refreshing: busy === "refresh", load };
 }

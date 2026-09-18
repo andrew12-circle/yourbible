@@ -18,7 +18,7 @@ vi.mock("@/integrations/supabase/client", () => ({ supabase: {
   },
   from: () => ({ select: () => ({ eq: (_column: string, userId: string) => ({ maybeSingle: () => harness.readProfile(userId) }) }) }),
 } }));
-vi.mock("@/stores/journalVaultStore", () => ({ useJournalVaultStore: { getState: () => ({ reset: harness.resetVault }) } }));
+vi.mock("@/stores/journalVaultStore", () => ({ useJournalVaultStore: Object.assign((select: (state: { locking: boolean; lockEpoch: number }) => unknown) => select({ locking: false, lockEpoch: 0 }), { getState: () => ({ reset: harness.resetVault }) }) }));
 vi.mock("@/lib/aiWritingAssistStore", () => ({ useAiWritingAssistStore: { getState: () => ({ initForUser: harness.initForUser }) } }));
 vi.mock("@/lib/framework/identitySummary", () => ({ parseIdentitySummaryPayload: () => null }));
 vi.mock("@/lib/maps/googleMaps", () => ({
@@ -56,6 +56,7 @@ beforeEach(() => {
   harness.getSession.mockReset().mockResolvedValue({ data: { session: session("user-a") }, error: null });
   harness.readProfile.mockReset().mockImplementation(async (id: string) => profile(id));
   harness.unsubscribe.mockReset();
+  harness.resetVault.mockReset().mockResolvedValue(undefined);
   harness.initForUser.mockReset();
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });

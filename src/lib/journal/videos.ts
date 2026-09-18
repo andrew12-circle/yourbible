@@ -1,3 +1,6 @@
+import { requireJournalVideoCloudAi } from "./journalAiAccess";
+import { stableMediaUrls, type StableMediaUrlCache } from "./stableMediaUrls";
+import { removeJournalAttachment } from "./journalAttachmentOperations";
 import { supabase } from "@/integrations/supabase/client";
 import {
   JOURNAL_VIDEO_BITS_PER_SECOND,
@@ -532,7 +535,7 @@ export async function getSignedVideoUrls(paths: string[]): Promise<Record<string
   return map;
 }
 
-export async function fetchEntryVideos(entryId: string): Promise<JournalVideoRow[]> {
+export async function fetchEntryVideos(entryId: string, cache?: StableMediaUrlCache): Promise<JournalVideoRow[]> {
   const { data, error } = await supabase
     .from("journal_videos")
     .select("id,entry_id,storage_path,duration_ms,mime_type,transcript,anchor_offset,created_at")
@@ -540,7 +543,7 @@ export async function fetchEntryVideos(entryId: string): Promise<JournalVideoRow
     .order("created_at", { ascending: true });
   if (error) throw new Error(formatVideoStorageError(error.message));
   const rows = (data ?? []) as JournalVideoRow[];
-  const urls = await getSignedVideoUrls(rows.map((r) => r.storage_path));
+  const urls = cache ? await stableMediaUrls(rows.map((r) => r.storage_path), "video", cache, getSignedVideoUrls) : await getSignedVideoUrls(rows.map((r) => r.storage_path));
   return rows.map((r) => ({
     ...(r as JournalVideoRow),
     anchor_offset: (r as JournalVideoRow).anchor_offset ?? 0,
@@ -700,6 +703,7 @@ export async function transcribeJournalVideo(
   storagePath: string,
   opts: TranscribeJournalVideoOptions = {},
 ): Promise<TranscribeJournalVideoResult> {
+  const entryId = await requireJournalVideoCloudAi(storagePath, opts.userId);
   const live = pickBestVideoJournalTranscript(opts.liveTranscript, opts.peakLiveTranscript);
   const audio = opts.audioBlob;
   const candidates: TranscriptCandidate[] = [];
@@ -717,7 +721,7 @@ export async function transcribeJournalVideo(
     let sidecarPath: string | null = null;
     try {
       sidecarPath = await uploadJournalVoiceMemo(opts.userId, audio);
-      const result = await transcribeJournalVoiceMemo(sidecarPath, "voice-memos");
+      const result = await transcribeJournalVoiceMemo(sidecarPath, "voice-memos", entryId);
       if (result.ok && result.text.trim()) {
         candidates.push({ text: result.text.trim(), source: "audio-sidecar" });
         serverTranscriptSucceeded = true;
@@ -748,7 +752,7 @@ export async function transcribeJournalVideo(
 
   if (storagePath && opts.userId) {
     try {
-      const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos");
+      const result = await transcribeJournalVoiceMemo(storagePath, "journal-videos", entryId);
       if (result.ok && result.text.trim()) {
         candidates.push({ text: result.text.trim(), source: "storage-video" });
         serverTranscriptSucceeded = true;
@@ -815,15 +819,11 @@ export async function transcribeVideoBlob(userId: string, blob: Blob): Promise<s
   }
 }
 
-export async function deleteEntryVideo(id: string, storagePath: string): Promise<void> {
-  const { error } = await supabase.from("journal_videos").delete().eq("id", id);
-  if (error) throw new Error(formatVideoStorageError(error.message));
-  const { error: storageError } = await supabase.storage
-    .from(JOURNAL_VIDEOS_BUCKET)
-    .remove([storagePath]);
-  if (storageError) {
-    // The entry no longer points at the object. Retaining an orphaned source is
-    // safer than deleting storage first and leaving a broken database row.
-    console.warn("[journal-video] removed database row but could not clean storage", storageError);
-  }
+export async function deleteEntryVideo(id: string, _storagePath: string): Promise<void> {
+  const { data: auth, error: authError } = await supabase.auth.getSession();
+  const userId = auth.session?.user.id;
+  if (authError || !userId) throw new Error("Sign in before removing this recording.");
+  const { data, error } = await supabase.from("journal_videos").select("entry_id").eq("id", id).eq("user_id", userId).maybeSingle();
+  if (error) throw error;
+  if (data) await removeJournalAttachment(userId, data.entry_id, id, "journal_videos");
 }

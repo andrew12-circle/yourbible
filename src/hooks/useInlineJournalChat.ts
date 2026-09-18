@@ -1,3 +1,4 @@
+import { requireJournalCloudAi } from "@/lib/journal/journalAiAccess";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -52,6 +53,7 @@ export function useInlineJournalChat({
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const chatBottomRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  useEffect(() => () => { abortRef.current?.abort(); }, [entryId, userId]);
 
   const scrollToBottom = useCallback(() => {
     const el = chatScrollRef.current;
@@ -107,6 +109,7 @@ export function useInlineJournalChat({
 
   const ensureSession = useCallback(async () => {
     if (!userId || !entryId) return null;
+    await requireJournalCloudAi(entryId, userId);
     const ensure = reflectionMode ? ensureJournalReflectionChatSession : ensureInlineJournalChatSession;
     const ensured = await ensure({
       userId,

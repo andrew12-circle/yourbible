@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { parseIdentitySummaryPayload, type IdentitySummaryPayload } from "@/lib/framework/identitySummary";
+import { queryClient } from "@/lib/queryClient";
 import { useJournalVaultStore } from "@/stores/journalVaultStore";
 import { useAiWritingAssistStore } from "@/lib/aiWritingAssistStore";
 
@@ -69,10 +70,14 @@ function profileFromDbRow(data: unknown): Profile | null {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const locking = useJournalVaultStore((s) => s.locking);
+  const lockEpoch = useJournalVaultStore((s) => s.lockEpoch);
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [privacyError, setPrivacyError] = useState<string | null>(null);
+  useEffect(() => { queryClient.clear(); }, [lockEpoch]);
 
   const loadProfile = useCallback(async (uid: string, isCurrent: () => boolean = () => true): Promise<Profile | null> => {
     const { data } = await supabase.from("profiles").select("*").eq("user_id", uid).maybeSingle();
@@ -91,8 +96,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const applySession = (sess: Session | null) => {
       if (cancelled) return;
       const nextUserId = sess?.user.id ?? null;
+      const previousUserId = activeUserId;
       const identityChanged = activeUserId !== nextUserId;
       activeUserId = nextUserId;
+      // Capture pending editor state before the account change unmounts its view.
+      const privacyTransition = identityChanged && previousUserId
+        ? useJournalVaultStore.getState().reset() : Promise.resolve();
+      void privacyTransition.catch((error) => setPrivacyError(error instanceof Error ? error.message : "Journal draft protection failed"));
       setSession(sess);
       setUser(sess?.user ?? null);
       // TOKEN_REFRESHED and repeated SIGNED_IN events are background updates,
@@ -110,7 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isCurrent = () => !cancelled && generation === currentGeneration;
       // Leave the auth callback before making another Supabase request.
       profileTimer = setTimeout(() => {
-        void loadProfile(nextUserId, isCurrent).catch((error: unknown) => {
+        const prepare = privacyTransition;
+        void prepare.catch((error: unknown) => {
+          if (isCurrent()) setPrivacyError(error instanceof Error ? error.message : "Previous journal drafts could not be protected.");
+          throw error;
+        }).then(() => isCurrent() ? loadProfile(nextUserId, isCurrent) : null).catch((error: unknown) => {
           if (isCurrent()) console.error("Could not load account profile", error);
         }).finally(() => {
           if (isCurrent()) setLoading(false);
@@ -177,7 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null, profile: loaded };
     },
     signOut: async () => {
-      useJournalVaultStore.getState().reset();
+      await useJournalVaultStore.getState().reset();
       await supabase.auth.signOut();
     },
     requestPasswordReset: async (email) => {
@@ -227,7 +241,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   }), [user, session, profile, loading, loadProfile]);
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>
+    {privacyError ? <div role="alert" className="p-6 space-y-3"><p>{privacyError}</p>
+      <p>Previous journal drafts are retained. Finish protecting them before opening this account.</p>
+      <button type="button" onClick={async () => {
+        try { await useJournalVaultStore.getState().reset(); setPrivacyError(null); if (user) await loadProfile(user.id); }
+        catch (error) { setPrivacyError(error instanceof Error ? error.message : "Please retry."); }
+      }}>Retry protecting drafts</button>
+    </div> : locking ? <div role="status">Protecting journal drafts…</div> : <Fragment key={`${user?.id ?? "signed-out"}:${lockEpoch}`}>{children}</Fragment>}
+  </AuthContext.Provider>;
 }
 
 export function useAuth() {

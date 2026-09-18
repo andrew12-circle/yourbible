@@ -23,7 +23,10 @@ export function JournalVaultUnlockGate({ children }: { children: React.ReactNode
   const [dismissed, setDismissed] = useState(false);
   const [bioAttempted, setBioAttempted] = useState(false);
 
-  const needsUnlock = e2eEnabled && !isUnlocked && !dismissed;
+  const locked = (e2eEnabled || Boolean(vault.cryptoRecord)) && !isUnlocked;
+  const needsUnlock = locked && !dismissed;
+
+  useEffect(() => { setDismissed(false); setBioAttempted(false); }, [isUnlocked, user?.id]);
 
   useEffect(() => {
     if (!needsUnlock || bioAttempted || !biometricEnabled) return;
@@ -35,7 +38,11 @@ export function JournalVaultUnlockGate({ children }: { children: React.ReactNode
 
   return (
     <>
-      {children}
+      {!locked ? children : <div className="p-6 text-center space-y-3">
+        <p>Your journal is locked.</p>
+        <Button onClick={() => setDismissed(false)}>Unlock journal</Button>
+        <Link to="/settings?section=privacy" className="block text-sm underline">Journal privacy settings</Link>
+      </div>}
       <Dialog open={needsUnlock} onOpenChange={(open) => !open && setDismissed(true)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -60,7 +67,7 @@ export function JournalVaultUnlockGate({ children }: { children: React.ReactNode
 
           <DialogFooter className="sm:justify-center">
             <Button type="button" variant="ghost" className="w-full" onClick={() => setDismissed(true)}>
-              Browse locked (titles hidden)
+              Keep journal locked
             </Button>
             {!vault.pinEnabled ? (
               <Link

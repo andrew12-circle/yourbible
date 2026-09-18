@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const MAX_CHARS = 12_000;
+import { MAX_POLISH_CHARS, safePolishedText } from "./safePolish";
 
 const SYSTEM = `You lightly copyedit personal faith journaling or framework answers. Reply with ONLY a JSON object: {"polished":"..."}.
 Rules:
@@ -34,17 +34,19 @@ export function isDirectPolishEnvConfigured(): boolean {
   return Boolean(url && key);
 }
 
-export async function polishText(text: string): Promise<string> {
+export async function polishText(text: string, signal?: AbortSignal, journalEntryId?: string): Promise<string> {
   const trimmed = text.trim();
   if (!trimmed) return text;
-  const slice = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) : text;
+  // Never send a prefix that could replace a whole long entry. Native spelling remains available.
+  if (text.length > MAX_POLISH_CHARS) return text;
+  const slice = text;
 
   const directUrl = import.meta.env.VITE_AI_POLISH_URL?.trim();
   const directKey = import.meta.env.VITE_AI_POLISH_KEY?.trim();
   if (directUrl && directKey) {
     const model = import.meta.env.VITE_AI_POLISH_MODEL?.trim() || "gpt-4o-mini";
     const r = await fetch(directUrl, {
-      method: "POST",
+      method: "POST", signal,
       headers: { Authorization: `Bearer ${directKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
@@ -59,9 +61,10 @@ export async function polishText(text: string): Promise<string> {
     if (!r.ok) {
       throw new Error(rawText || `Polish failed (${r.status})`);
     }
-    const j = JSON.parse(rawText) as { choices?: { message?: { content?: string } }[] };
+    const j = JSON.parse(rawText) as { choices?: { finish_reason?: string; message?: { content?: string } }[] };
+    if (j.choices?.[0]?.finish_reason === "length") return text;
     const content = j.choices?.[0]?.message?.content ?? "{}";
-    return parsePolishedJson(content, slice);
+    return safePolishedText(text, parsePolishedJson(content, text));
   }
 
   const { data: sess } = await supabase.auth.getSession();
@@ -70,13 +73,13 @@ export async function polishText(text: string): Promise<string> {
 
   const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-text-polish`;
   const r = await fetch(url, {
-    method: "POST",
+    method: "POST", signal,
     headers: {
       Authorization: `Bearer ${token}`,
       apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ text: slice }),
+    body: JSON.stringify({ text: slice, ...(journalEntryId ? { journal_entry_id: journalEntryId } : {}) }),
   });
   const rawText = await r.text();
   if (!r.ok) {
@@ -90,6 +93,6 @@ export async function polishText(text: string): Promise<string> {
     throw new Error(msg);
   }
   const j = JSON.parse(rawText) as { polished?: string };
-  if (typeof j.polished === "string" && j.polished.length > 0) return j.polished;
+  if (typeof j.polished === "string") return safePolishedText(text, j.polished);
   return slice;
 }

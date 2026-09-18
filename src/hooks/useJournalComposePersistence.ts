@@ -1,3 +1,4 @@
+import { journalEntryWasDeleted } from "@/lib/journal/journalDraftStorage";
 import { JournalViewAdoption } from "@/lib/journal/journalViewAdoption";
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -158,6 +159,10 @@ export function useJournalComposePersistence(options: Options) {
     if (hasMeaningfulComposeContent(current.getSnapshot())) return null;
     let id: string | null = null;
     try { id = sessionStorage.getItem(pointerKey(current.userId)); } catch { /* fall back to legacy recovery */ }
+    if (id && await journalEntryWasDeleted(current.userId, id)) {
+      try { sessionStorage.removeItem(pointerKey(current.userId)); } catch { /* No content stored here. */ }
+      id = null;
+    }
     if (id) {
       const queue = await openJournalDocument(current.userId, id);
       identityRef.current = id;

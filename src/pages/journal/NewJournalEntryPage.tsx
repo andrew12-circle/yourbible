@@ -1,3 +1,5 @@
+import { JournalMediaRetry } from "@/components/journal/JournalMediaRetry";
+import { JournalAiPrivacy, JournalAiDocument } from "@/components/journal/JournalAiPrivacy";
 import { JournalSaveStatus } from "@/components/journal/JournalSaveStatus";
 import { DictateButton } from "@/components/journal/DictateButton";
 import { NewJournalEntryToolbar } from "@/components/journal/new-entry/NewJournalEntryToolbar";
@@ -77,6 +79,7 @@ export default function NewJournalEntryPage() {
   if (!p.user) return <Navigate to="/auth" replace />;
   const videoCaptureDialog = p.videoOpen ? (
     <JournalVideoCaptureDialog
+      allowTranscription={p.cloudAiAllowed}
       open={p.videoOpen}
       onOpenChange={(open) => {
         if (!open && !p.videoUploading && !p.videoTranscribing && !p.videoSummarizing) {
@@ -171,7 +174,7 @@ export default function NewJournalEntryPage() {
   });
 
   return (
-    <div
+    <JournalAiPrivacy.Provider value={p.cloudAiAllowed}><JournalAiDocument.Provider value={p.activeEntryId ?? undefined}><div
       className={journalEntryPageRoot(showHubShell, p.inMiniPhone)}
       data-journal-entry-page
       style={mobileVisualViewportPageStyle({
@@ -242,6 +245,7 @@ export default function NewJournalEntryPage() {
           )}
         </div>
       </header>
+      <JournalMediaRetry error={p.videoLoadError} retry={p.reloadVideos} />
       <JournalSaveStatus userId={p.user?.id} entryId={p.activeEntryId} liveCaption={p.videoCaptionPreview} />
 
       <main
@@ -655,6 +659,6 @@ export default function NewJournalEntryPage() {
         onUnsavedExit={p.handleSketchUnsavedExit}
         filename={p.editId ? `sketch-${p.editId}` : undefined}
       />
-    </div>
+    </div></JournalAiDocument.Provider></JournalAiPrivacy.Provider>
   );
 }

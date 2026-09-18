@@ -1,3 +1,4 @@
+import { journalAiPrivacyResponse } from "../_shared/journalAiPrivacy.ts";
 // Light copyedit + dictation formatting for journaling. Uses shared AI provider (Gemini/OpenAI).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.0";
 import { callChatJson } from "../_shared/aiProvider.ts";
@@ -98,9 +99,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = (await req.json()) as { text?: string; mode?: string };
+    const body = (await req.json()) as { text?: string; mode?: string; journal_entry_id?: string };
     const text = typeof body.text === "string" ? body.text : "";
     const mode = body.mode === "dictation" ? "dictation" : "polish";
+    if (typeof body.journal_entry_id === "string") {
+      const privacy = await journalAiPrivacyResponse(supabase, u.user.id, body.journal_entry_id);
+      if (privacy) return privacy;
+    }
     if (!text.trim()) {
       return new Response(JSON.stringify({ error: "text required" }), {
         status: 400,
@@ -125,7 +130,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const safe = polished.length > MAX_CHARS * 2 ? polished.slice(0, MAX_CHARS * 2) : polished;
+    const safe = !polished.trim() || polished.length > MAX_CHARS * 2 || polished.length < text.length * 0.85 ? text : polished;
     return new Response(JSON.stringify({ polished: safe }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

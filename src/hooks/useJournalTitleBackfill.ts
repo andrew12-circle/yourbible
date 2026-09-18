@@ -1,3 +1,4 @@
+import { journalCloudAiAllowed } from "@/lib/journal/journalAiPolicy";
 import { useEffect, useRef } from "react";
 import { suggestJournalEntryTitle } from "@/lib/journal/suggestTitle";
 import { shouldSuggestJournalTitle } from "@/lib/journal/entryDisplay";
@@ -9,6 +10,8 @@ type EntrySlice = {
   summary?: string | null;
   e2e_encrypted?: boolean;
   contentLocked?: boolean;
+  journal_id?: string | null;
+  entry_kind?: string | null;
 };
 
 const MAX_CONCURRENT = 2;
@@ -24,7 +27,7 @@ export function useJournalTitleBackfill(
   useEffect(() => {
     const candidates = entries.filter(
       (e) =>
-        !e.e2e_encrypted && !e.contentLocked &&
+        journalCloudAiAllowed(e) &&
         !attempted.current.has(e.id) &&
         shouldSuggestJournalTitle(e.title, e.body, e.summary),
     );

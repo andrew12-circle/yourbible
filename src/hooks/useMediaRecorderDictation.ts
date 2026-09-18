@@ -1,8 +1,10 @@
+import { requireJournalCloudAi } from "@/lib/journal/journalAiAccess";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { transcribeJournalVoiceMemo, uploadJournalVoiceMemo } from "@/lib/journal/voiceDictation";
 
 export interface UseMediaRecorderDictationOptions {
   userId: string | undefined;
+  entryId?: string;
   onAppend: (chunk: string) => void;
   onInterim?: (partial: string) => void;
 }
@@ -15,12 +17,16 @@ export interface UseMediaRecorderDictationApi {
   start: () => void;
   stop: () => void;
   toggle: () => void;
+  cancel: () => void;
 }
 
 export function useMediaRecorderDictation(
   options: UseMediaRecorderDictationOptions,
 ): UseMediaRecorderDictationApi {
-  const { userId, onAppend, onInterim } = options;
+  const { userId, entryId, onAppend, onInterim } = options;
+  const ownerKey = `${userId}:${entryId ?? ""}`;
+  const identity = useRef(ownerKey); identity.current = ownerKey;
+  const generation = useRef(0);
   const onAppendRef = useRef(onAppend);
   const onInterimRef = useRef(onInterim);
   onAppendRef.current = onAppend;
@@ -63,7 +69,19 @@ export function useMediaRecorderDictation(
     onInterimRef.current?.("");
   }, [cleanupStream]);
 
+  const cancel = useCallback(() => {
+    generation.current += 1;
+    const recorder = recorderRef.current;
+    if (recorder) { recorder.onstop = null; recorder.ondataavailable = null;
+      if (recorder.state !== "inactive") { try { recorder.stop(); } catch { /* Release tracks below. */ } }
+    }
+    cleanupStream(); setListening(false); setTranscribing(false);
+    onInterimRef.current?.("");
+  }, [cleanupStream]);
+
   const start = useCallback(async () => {
+    const token = ++generation.current;
+    const valid = () => token === generation.current && identity.current === ownerKey;
     if (!supported || !userId) {
       setError(userId ? "Recording isn't supported in this browser." : "Sign in to use voice dictation.");
       return;
@@ -71,6 +89,7 @@ export function useMediaRecorderDictation(
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!valid()) { stream.getTracks().forEach((track) => track.stop()); return; }
       streamRef.current = stream;
       const rec = new MediaRecorder(stream);
       chunksRef.current = [];
@@ -78,6 +97,7 @@ export function useMediaRecorderDictation(
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
       rec.onstop = async () => {
+        if (!valid()) return;
         setListening(false);
         const blob = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
         cleanupStream();
@@ -88,8 +108,12 @@ export function useMediaRecorderDictation(
         }
         setTranscribing(true);
         try {
+          if (entryId) await requireJournalCloudAi(entryId, userId);
+          if (!valid()) return;
           const path = await uploadJournalVoiceMemo(userId, blob);
-          const result = await transcribeJournalVoiceMemo(path);
+          if (!valid()) return;
+          const result = await transcribeJournalVoiceMemo(path, "voice-memos", entryId);
+          if (!valid()) return;
           onInterimRef.current?.("");
           if (!result.ok) {
             setError(result.error);
@@ -101,7 +125,7 @@ export function useMediaRecorderDictation(
           onInterimRef.current?.("");
           setError(e instanceof Error ? e.message : String(e));
         } finally {
-          setTranscribing(false);
+          if (valid()) setTranscribing(false);
         }
       };
       rec.start();
@@ -117,7 +141,7 @@ export function useMediaRecorderDictation(
           : "Could not access the microphone.",
       );
     }
-  }, [supported, userId, cleanupStream]);
+  }, [supported, userId, ownerKey, entryId, cleanupStream]);
 
   const toggle = useCallback(() => {
     if (transcribing) return;
@@ -125,7 +149,7 @@ export function useMediaRecorderDictation(
     else void start();
   }, [listening, transcribing, start, stop]);
 
-  useEffect(() => () => stop(), [stop]);
+  useEffect(() => () => cancel(), [cancel, userId, entryId]);
 
-  return { supported, listening, transcribing, error, start, stop, toggle };
+  return { supported, listening, transcribing, error, start, stop, toggle, cancel };
 }

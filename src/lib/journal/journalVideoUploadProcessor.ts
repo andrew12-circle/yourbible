@@ -1,3 +1,6 @@
+import { journalCloudAiAllowed } from "./journalAiPolicy";
+import { peekJournalDocument, journalSnapshotRow } from "./journalDocuments";
+import { canUseJournalCloudAi, PRIVATE_JOURNAL_AI_MESSAGE } from "./journalAiAccess";
 import type { JournalVideoCaptureResult } from "@/lib/journal/journalVideoCaptureLifecycle";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -109,7 +112,7 @@ async function mergeTranscriptIntoEntry(
   bodySnap: VideoJournalBodySnap | null,
   previousTranscript?: string,
 ): Promise<void> {
-  if (!transcript.trim()) return;
+  if (!transcript.trim() || !(await canUseJournalCloudAi(entryId, userId))) return;
   await persistVideoJournalTranscriptToEntry(userId, entryId, transcript, anchorOffset, bodySnap, previousTranscript);
 }
 
@@ -358,7 +361,8 @@ export async function saveJournalVideoCapture(
   onUploaded?: (checkpoint: { storagePath: string; videoId: string }) => void | Promise<void>,
   existingCheckpoint?: { storagePath: string; videoId: string },
 ): Promise<SaveJournalVideoCaptureResult> {
-  const liveCaptions = pickBestVideoJournalTranscript(liveTranscript, peakLiveTranscript);
+  const aiAllowed = await canUseJournalCloudAi(entryId, userId);
+  const liveCaptions = aiAllowed ? pickBestVideoJournalTranscript(liveTranscript, peakLiveTranscript) : "";
   let storagePath = existingCheckpoint?.storagePath;
   let videoId = existingCheckpoint?.videoId;
 
@@ -370,7 +374,7 @@ export async function saveJournalVideoCapture(
       durationMs,
       stableRecordingId,
     );
-    const placeholderTranscript = prepareVideoJournalTranscript(liveCaptions) || null;
+    const placeholderTranscript = (await canUseJournalCloudAi(entryId, userId)) ? prepareVideoJournalTranscript(liveCaptions) || null : null;
     const row = await insertEntryVideo(userId, entryId, uploaded, {
       anchor_offset: anchorOffset,
       transcript: placeholderTranscript,
@@ -381,12 +385,19 @@ export async function saveJournalVideoCapture(
     await onUploaded?.({ storagePath, videoId });
   }
 
+  if (!aiAllowed || !(await canUseJournalCloudAi(entryId, userId))) {
+    return { transcript: "", anchorOffset, sttError: PRIVATE_JOURNAL_AI_MESSAGE,
+      liveTranscript: "", peakLiveTranscript: "", status: "completed", uploaded: true, storagePath, videoId };
+  }
   const stt = await transcribeJournalVideo(storagePath, {
     userId,
     audioBlob: audio,
     liveTranscript: liveCaptions,
     peakLiveTranscript,
   });
+  if (!(await canUseJournalCloudAi(entryId, userId))) {
+    return { transcript: "", anchorOffset, sttError: PRIVATE_JOURNAL_AI_MESSAGE, liveTranscript: "", peakLiveTranscript: "", status: "completed", uploaded: true, storagePath, videoId };
+  }
   let transcript = pickBestVideoJournalTranscript(stt.text, liveCaptions);
   if (transcript && chapters.length > 0) {
     transcript = applyVideoChaptersToTranscript(transcript, chapters);
@@ -418,6 +429,9 @@ export async function saveJournalVideoCapture(
 export async function saveJournalVideoCaptureWithQueue(
   input: JournalVideoCaptureSaveInput,
 ): Promise<JournalVideoCaptureSaveOutcome> {
+  const document = peekJournalDocument(input.userId, input.entryId);
+  const localAllowed = journalCloudAiAllowed(document ? journalSnapshotRow(document.current()) : null);
+  if (!localAllowed) input = { ...input, bodySnap: null, result: { ...input.result, liveTranscript: "", peakLiveTranscript: "" } };
   const { result, durationMs, anchorOffset } = input;
   const recordedMs = result.durationMs || durationMs;
   // Reuse the crash-recovery id so a crash between enqueue and cleanup cannot

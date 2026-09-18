@@ -38,6 +38,7 @@ function JournalBodyTextSegment({
     <PolishedTextarea
       ref={ref}
       polishResetKey={polishResetKey}
+      polishFieldKey={`segment:${polishResetKey ?? "body"}`}
       value={slice}
       onChange={onChange}
       onSelect={onSelect}
@@ -108,7 +109,7 @@ export default function JournalBodyWithVideos({
             // Keeping it out of the key preserves the textarea, focus, and caret while typing.
             key={`text-${seg.start}`}
             slice={slice}
-            polishResetKey={polishResetKey}
+            polishResetKey={`${polishResetKey ?? "entry"}:${seg.start}`}
             bodyClassName={bodyClassName}
             isLast={isLast}
             onChange={(e) => {

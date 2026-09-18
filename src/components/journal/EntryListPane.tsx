@@ -1,3 +1,4 @@
+import { JournalMediaRetry } from "./JournalMediaRetry";
 import { useJournalListController } from "@/hooks/useJournalListController";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { List, Image as ImgIcon, Calendar, Search, X, Plus, RefreshCw, MessageCircle, Loader2 } from "lucide-react";
@@ -66,7 +67,7 @@ export default function EntryListPane({
   const [q, setQ] = useState("");
   const [view, setView] = useState<View>("list");
   const [searchOpen, setSearchOpen] = useState(false);
-  const { entries, setEntries, photoUrls, videoUrls, hasMore, loadError, loading, loadingMore, load } = useJournalListController({
+  const { entries, setEntries, photoUrls, videoUrls, hasMore, loadError, mediaError, retryMedia, loading, loadingMore, load } = useJournalListController({
     userId: user?.id, journalId, entryKindFilter, excludeJournalIds, search: q, reloadKey,
   });
 
@@ -194,6 +195,7 @@ export default function EntryListPane({
         </div>
       )}
 
+      <JournalMediaRetry error={mediaError} retry={retryMedia} />
       {/* Body — extra bottom padding so the last row isn't covered by the compose button */}
       <div className="journal-pane-scroll min-h-0 flex-1 overflow-y-auto pb-20">
         {loading && entries.length === 0 && !loadError && (

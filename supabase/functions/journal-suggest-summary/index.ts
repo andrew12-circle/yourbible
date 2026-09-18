@@ -1,3 +1,4 @@
+import { journalAiPrivacyResponse } from "../_shared/journalAiPrivacy.ts";
 /**
  * AI title + summary for journal entries (video transcripts, long dictation, etc.).
  * Persists only for the authenticated user's non-E2E entry.
@@ -78,6 +79,8 @@ Deno.serve(async (req) => {
 
     const body = (await req.json()) as { entry_id?: string; body?: string; text?: string; source?: string; force?: boolean };
     const entryId = typeof body.entry_id === "string" ? body.entry_id : null;
+    const privacy = await journalAiPrivacyResponse(supabase, u.user.id, entryId);
+    if (privacy) return privacy;
     const source = body.source === "video" ? "video" : "default";
     const force = body.force === true;
 
@@ -99,6 +102,8 @@ Deno.serve(async (req) => {
     if (!needsTitle && !needsSummary) return new Response(JSON.stringify({ ok: true, skipped: true, title: entry?.title?.trim() ?? null, summary: entry?.summary?.trim() ?? null }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const generated = await generateMeta({ prose, source, needsTitle, needsSummary });
+    const afterPrivacy = await journalAiPrivacyResponse(supabase, u.user.id, entryId);
+    if (afterPrivacy) return afterPrivacy;
     let persisted = false;
     if (entryId && entry && (generated.title || generated.summary)) {
       const patch: Record<string, string> = {};

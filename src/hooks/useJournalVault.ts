@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createJournalVault,
@@ -7,7 +7,7 @@ import {
   unlockJournalVaultWithRecovery,
   type JournalCryptoRecord,
 } from "@/lib/crypto/journalVaultCrypto";
-import { encryptTextField } from "@/lib/crypto/journalFieldCrypto";
+import { migratePlaintextEntriesToE2e } from "@/lib/journal/migrateJournalEncryption";
 import { bytesToBase64, randomBytes } from "@/lib/crypto/bytes";
 import {
   enrollJournalBiometric,
@@ -27,50 +27,9 @@ import { isJournalE2eSchemaError } from "@/lib/journal/journalE2eSchema";
 import { getJournalDek, useJournalVaultStore } from "@/stores/journalVaultStore";
 import { toast } from "@/hooks/use-toast";
 
-const ENTRY_BATCH = 40;
-
-async function migratePlaintextEntriesToE2e(userId: string, dek: CryptoKey): Promise<number> {
-  let offset = 0;
-  let migrated = 0;
-
-  for (;;) {
-    const { data, error } = await supabase
-      .from("journal_entries")
-      .select("id,title,body,summary")
-      .eq("user_id", userId)
-      .eq("e2e_encrypted", false)
-      .range(offset, offset + ENTRY_BATCH - 1);
-
-    if (error) throw error;
-    const rows = data ?? [];
-    if (!rows.length) break;
-
-    for (const row of rows) {
-      const { error: upErr } = await supabase
-        .from("journal_entries")
-        .update({
-          title: await encryptTextField(dek, row.title),
-          body: (await encryptTextField(dek, row.body)) ?? "",
-          summary: await encryptTextField(dek, row.summary),
-          e2e_encrypted: true,
-          analyze_for_mirror: false,
-          embedding: null,
-        })
-        .eq("id", row.id)
-        .eq("user_id", userId);
-      if (upErr) throw upErr;
-      migrated += 1;
-    }
-
-    if (rows.length < ENTRY_BATCH) break;
-    offset += ENTRY_BATCH;
-  }
-
-  return migrated;
-}
-
 /** Load vault metadata, unlock/lock, setup E2E encryption. */
 export function useJournalVault(userId: string | undefined) {
+  const activeUser = useRef(userId); activeUser.current = userId;
   const e2eEnabled = useJournalVaultStore((s) => s.e2eEnabled);
   const cryptoRecord = useJournalVaultStore((s) => s.cryptoRecord);
   const isUnlocked = useJournalVaultStore((s) => s.dek != null);
@@ -84,13 +43,23 @@ export function useJournalVault(userId: string | undefined) {
   const setLockFlags = useJournalVaultStore((s) => s.setLockFlags);
   const resetStore = useJournalVaultStore((s) => s.reset);
 
+  const acceptUnlock = useCallback(async (dek: CryptoKey, epoch: number) => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !userId || activeUser.current !== userId || data.session?.user.id !== userId ||
+      useJournalVaultStore.getState().lockEpoch !== epoch || useJournalVaultStore.getState().locking) {
+      throw new Error("Journal access changed. Sign in and unlock again.");
+    }
+    unlockStore(dek);
+  }, [userId, unlockStore]);
+
   const refreshE2eJournalIds = useCallback(async (uid: string) => {
     const ids = await loadE2eRequiredJournalIds(uid);
-    setE2eRequiredJournalIds(ids);
+    if (activeUser.current === uid) setE2eRequiredJournalIds(ids);
   }, [setE2eRequiredJournalIds]);
 
   const refreshDeviceLock = useCallback(async (uid: string) => {
     const record = await getDeviceLockRecord(uid);
+    if (activeUser.current !== uid) return;
     setLockFlags({
       pinEnabled: hasPinLock(record),
       biometricEnabled: hasBiometricLock(record),
@@ -103,7 +72,6 @@ export function useJournalVault(userId: string | undefined) {
 
   useEffect(() => {
     if (!userId) {
-      resetStore();
       return;
     }
 
@@ -117,12 +85,15 @@ export function useJournalVault(userId: string | undefined) {
       if (cancelled) return;
       const profileOk = !profileRes.error || isJournalE2eSchemaError(profileRes.error);
       const cryptoOk = !cryptoRes.error || isJournalE2eSchemaError(cryptoRes.error);
-      setE2eEnabled(profileOk ? !!profileRes.data?.journal_e2e_enabled : false);
+      if (!profileOk || !cryptoOk) throw new Error("Could not verify journal privacy settings. Please retry.");
+      setE2eEnabled(!!profileRes.data?.journal_e2e_enabled);
       setCryptoRecord(
         cryptoOk ? ((cryptoRes.data as JournalCryptoRecord | null) ?? null) : null,
       );
       await Promise.all([refreshE2eJournalIds(userId), refreshDeviceLock(userId)]);
-    })();
+    })().catch((error: unknown) => {
+      if (!cancelled) toast({ title: "Journal privacy settings unavailable", description: error instanceof Error ? error.message : "Reconnect and try again.", variant: "destructive" });
+    });
 
     return () => {
       cancelled = true;
@@ -132,10 +103,11 @@ export function useJournalVault(userId: string | undefined) {
   const unlockWithPassphrase = useCallback(
     async (passphrase: string) => {
       if (!cryptoRecord) throw new Error("Encryption not set up");
+      const epoch = useJournalVaultStore.getState().lockEpoch;
       setLoading(true);
       try {
         const dek = await unlockJournalVault(cryptoRecord, passphrase);
-        unlockStore(dek);
+        await acceptUnlock(dek, epoch);
         return true;
       } finally {
         setLoading(false);
@@ -147,6 +119,7 @@ export function useJournalVault(userId: string | undefined) {
   const unlockWithPin = useCallback(
     async (pin: string) => {
       if (!userId) throw new Error("Sign in required");
+      const epoch = useJournalVaultStore.getState().lockEpoch;
       setLoading(true);
       try {
         const record = await getDeviceLockRecord(userId);
@@ -154,7 +127,7 @@ export function useJournalVault(userId: string | undefined) {
           throw new Error("PIN not set up on this device");
         }
         const dek = await unwrapDekWithPin(pin, record.pinSalt, record.pinWrappedDek);
-        unlockStore(dek);
+        await acceptUnlock(dek, epoch);
         return true;
       } catch {
         toast({ title: "Wrong PIN", variant: "destructive" });
@@ -168,10 +141,11 @@ export function useJournalVault(userId: string | undefined) {
 
   const unlockWithBiometric = useCallback(async () => {
     if (!userId) throw new Error("Sign in required");
+    const epoch = useJournalVaultStore.getState().lockEpoch;
     setLoading(true);
     try {
       const dek = await unlockJournalWithBiometric(userId);
-      unlockStore(dek);
+      await acceptUnlock(dek, epoch);
       toast({ title: "Journal unlocked" });
       return true;
     } catch (err) {
@@ -213,6 +187,7 @@ export function useJournalVault(userId: string | undefined) {
       if (!userId) throw new Error("Sign in required");
       const dek = getJournalDek();
       if (!dek) throw new Error("Unlock your journal before enabling biometrics");
+      const epoch = useJournalVaultStore.getState().lockEpoch;
       setLoading(true);
       try {
         await enrollJournalBiometric(userId, userEmail, dek);
@@ -235,6 +210,7 @@ export function useJournalVault(userId: string | undefined) {
   const changePin = useCallback(
     async (currentPin: string, newPin: string) => {
       if (!userId) throw new Error("Sign in required");
+      const epoch = useJournalVaultStore.getState().lockEpoch;
       const record = await getDeviceLockRecord(userId);
       if (!hasPinLock(record) || !record) throw new Error("PIN not set up");
       const dek = await unwrapDekWithPin(currentPin, record.pinSalt, record.pinWrappedDek);
@@ -247,7 +223,7 @@ export function useJournalVault(userId: string | undefined) {
         bioWrappedDek: record.bioWrappedDek,
         bioLocalSecret: record.bioLocalSecret,
       });
-      unlockStore(dek);
+      await acceptUnlock(dek, epoch);
       await refreshDeviceLock(userId);
       toast({ title: "PIN updated" });
     },
@@ -257,10 +233,11 @@ export function useJournalVault(userId: string | undefined) {
   const unlockWithRecoveryKey = useCallback(
     async (recoveryKey: string) => {
       if (!cryptoRecord) throw new Error("Encryption not set up");
+      const epoch = useJournalVaultStore.getState().lockEpoch;
       setLoading(true);
       try {
         const dek = await unlockJournalVaultWithRecovery(cryptoRecord, recoveryKey);
-        unlockStore(dek);
+        await acceptUnlock(dek, epoch);
         return true;
       } finally {
         setLoading(false);
@@ -274,15 +251,24 @@ export function useJournalVault(userId: string | undefined) {
       if (!userId) throw new Error("Sign in required");
       if (passphrase.length < 8) throw new Error("Use at least 8 characters");
 
+      const epoch = useJournalVaultStore.getState().lockEpoch;
       setMigrating(true);
       try {
+        const { data: existing, error: existingError } = await supabase.from("user_journal_crypto")
+          .select("*").eq("user_id", userId).maybeSingle();
+        if (existingError) throw existingError;
+        if (existing) throw new Error("Encryption is already set up. Unlock the existing vault and choose Finish encrypting existing entries.");
         const { dek, recoveryKey, record } = await createJournalVault(passphrase);
 
-        const { error: cryptoErr } = await supabase.from("user_journal_crypto").upsert({
+        const { error: cryptoErr } = await supabase.from("user_journal_crypto").insert({
           user_id: userId,
           ...record,
         });
         if (cryptoErr) throw cryptoErr;
+        // Expose the recovery key even when migration or the profile request later fails.
+        setRecoveryKeyDraft(recoveryKey);
+        setCryptoRecord({ user_id: userId, ...record });
+        await acceptUnlock(dek, epoch);
 
         const { error: profileErr } = await supabase
           .from("profiles")
@@ -290,8 +276,6 @@ export function useJournalVault(userId: string | undefined) {
           .eq("user_id", userId);
         if (profileErr) throw profileErr;
 
-        unlockStore(dek);
-        setCryptoRecord({ user_id: userId, ...record });
         setE2eEnabled(true);
 
         if (options?.pin) {
@@ -329,6 +313,7 @@ export function useJournalVault(userId: string | undefined) {
       if (!userId || !cryptoRecord) throw new Error("Encryption not set up");
       if (newPassphrase.length < 8) throw new Error("Use at least 8 characters");
 
+      const epoch = useJournalVaultStore.getState().lockEpoch;
       setLoading(true);
       try {
         const dek = getJournalDek() ?? (await unlockJournalVault(cryptoRecord, currentPassphrase));
@@ -338,7 +323,7 @@ export function useJournalVault(userId: string | undefined) {
           .update(rewrapped)
           .eq("user_id", userId);
         if (error) throw error;
-        unlockStore(dek);
+        await acceptUnlock(dek, epoch);
         setCryptoRecord({ user_id: userId, ...rewrapped });
         toast({ title: "Passphrase updated" });
       } finally {
@@ -348,10 +333,30 @@ export function useJournalVault(userId: string | undefined) {
     [userId, cryptoRecord, unlockStore, setCryptoRecord],
   );
 
-  const lock = useCallback(() => {
-    lockStore();
-    toast({ title: "Journal locked", description: "Enter your PIN or use biometrics to unlock." });
+  const lock = useCallback(async () => {
+    try {
+      await lockStore();
+      toast({ title: "Journal locked", description: "Enter your PIN or use biometrics to unlock." });
+    } catch (error) {
+      toast({ title: "Could not safely lock your journal", description: error instanceof Error ? error.message : "Keep this page open and retry.", variant: "destructive" });
+    }
   }, [lockStore]);
+
+  const finishEncryption = useCallback(async () => {
+    const dek = getJournalDek();
+    if (!userId || !dek) throw new Error("Unlock your existing journal vault first.");
+    setMigrating(true);
+    try {
+      const { error } = await supabase.from("profiles").update({ journal_e2e_enabled: true }).eq("user_id", userId);
+      if (error) throw error;
+      setE2eEnabled(true);
+      const count = await migratePlaintextEntriesToE2e(userId, dek);
+      toast({ title: "Encryption verified", description: `${count} entries encrypted. No unencrypted entries remain.` });
+    } catch (error) {
+      toast({ title: "Encryption is not finished", description: error instanceof Error ? error.message : "Unlock and retry to finish protecting existing entries.", variant: "destructive" });
+      throw error;
+    } finally { setMigrating(false); }
+  }, [userId, setE2eEnabled]);
 
   const clearDeviceLock = useCallback(async () => {
     if (!userId) return;
@@ -376,6 +381,7 @@ export function useJournalVault(userId: string | undefined) {
     unlockWithBiometric,
     unlockWithRecoveryKey,
     enableEncryption,
+    finishEncryption,
     enableDefaultEncryption,
     setupPin,
     changePin,

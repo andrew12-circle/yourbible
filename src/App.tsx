@@ -1,3 +1,4 @@
+import { JournalAttachmentRecovery } from "@/components/journal/JournalAttachmentRecovery";
 import { JournalDraftRecovery } from "@/components/journal/JournalDraftRecovery";
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
@@ -260,6 +261,7 @@ const App = () => (
                 <LifeWeekReviewGate />
                 <JournalVideoUploadRetry />
               <JournalDraftRecovery />
+              <JournalAttachmentRecovery />
               </Suspense>
               </JournalVideoLaunchProvider>
               </LifeWeekReviewProvider>

@@ -1,3 +1,4 @@
+import { useJournalCloudAiPermission, useJournalAiDocument } from "./JournalAiPrivacy";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Loader2, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -80,11 +81,16 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   { userId, onAppend, onInterim, onListeningChange, webSpeechOnly = false, language, size = "sm", className },
   ref,
 ) {
+  const cloudAllowed = useJournalCloudAiPermission();
+  const entryId = useJournalAiDocument();
+  const permitted = useRef(cloudAllowed); permitted.current = cloudAllowed;
+  const safeAppend = useCallback((text: string) => { if (permitted.current) onAppend(text); }, [onAppend]);
   const onListeningChangeRef = useRef(onListeningChange);
   onListeningChangeRef.current = onListeningChange;
   const interimRef = useRef("");
 
   const handleInterim = (text: string) => {
+    if (!permitted.current) return;
     interimRef.current = text;
     onInterim?.(text);
   };
@@ -101,10 +107,11 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
     if (webSpeechOnly) clearPersistedMediaFallback();
   }, [webSpeechOnly]);
 
-  const speech = useSpeechDictation({ onAppend, onInterim: handleInterim, language });
+  const speech = useSpeechDictation({ onAppend: safeAppend, onInterim: handleInterim, language });
   const media = useMediaRecorderDictation({
-    userId: webSpeechOnly ? undefined : userId,
-    onAppend,
+    userId: webSpeechOnly || !cloudAllowed ? undefined : userId,
+    entryId,
+    onAppend: safeAppend,
     onInterim: handleInterim,
   });
 
@@ -123,7 +130,8 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
     stop();
   }, [onInterim, stop]);
 
-  useImperativeHandle(ref, () => ({ stop, cancel, toggle }), [stop, cancel, toggle]);
+  useImperativeHandle(ref, () => ({ stop, cancel, toggle: () => { if (permitted.current) toggle(); } }), [stop, cancel, toggle]);
+  useEffect(() => { if (!cloudAllowed) { interimRef.current = ""; speech.stop(); media.cancel(); } }, [cloudAllowed]);
 
   useEffect(() => {
     onListeningChangeRef.current?.(listening || transcribing);
@@ -135,7 +143,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
     prevListeningRef.current = activeNow;
     if (wasActive && !activeNow) {
       const interim = interimRef.current.trim();
-      if (interim) {
+      if (interim && permitted.current) {
         onAppend(`${interim} `);
         interimRef.current = "";
         onInterim?.("");
@@ -189,7 +197,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
   const iconClass = size === "md" ? "h-5 w-5" : "h-4 w-4";
   const btnClass = size === "md" ? "h-10 w-10" : "h-8 w-8";
 
-  const tip = webSpeechOnly && !speech.supported
+  const tip = !cloudAllowed ? "Cloud dictation is disabled for this private entry" : webSpeechOnly && !speech.supported
     ? "Live dictation needs Chrome, Edge, or Safari"
     : !supported
       ? "Voice dictation isn't supported in this browser yet."
@@ -210,7 +218,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
           type="button"
           variant="ghost"
           size="icon"
-          disabled={webSpeechOnly ? !speech.supported || transcribing : !supported || transcribing}
+          disabled={!cloudAllowed || (webSpeechOnly ? !speech.supported || transcribing : !supported || transcribing)}
           aria-pressed={listening}
           aria-label={listening ? "Stop dictation" : "Dictate"}
           className={cn(
@@ -228,7 +236,7 @@ export const DictateButton = forwardRef<DictateButtonHandle, DictateButtonProps>
               });
               return;
             }
-            if (supported) toggle();
+            if (supported && permitted.current) toggle();
           }}
         >
           {transcribing ? (

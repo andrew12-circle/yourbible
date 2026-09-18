@@ -1,3 +1,10 @@
+import { useJournalPhotoRecovery } from "@/hooks/useJournalPhotoRecovery";
+import { JournalAiPrivacy, JournalAiDocument } from "./JournalAiPrivacy";
+import { journalCloudAiAllowed } from "@/lib/journal/journalAiPolicy";
+import { JournalMediaRetry } from "./JournalMediaRetry";
+import { attachJournalPhotos } from "@/lib/journal/attachJournalPhotos";
+import { removeJournalAttachment } from "@/lib/journal/journalAttachmentOperations";
+import { deleteJournalEntry } from "@/lib/journal/entryActions";
 import { loadJournalDocumentRow, patchJournalDocument, flushJournalDocument, refreshJournalDocument, peekJournalDocument, journalSnapshotRow, JOURNAL_DOCUMENT_CHANGED } from "@/lib/journal/journalDocuments";
 import { JournalSaveStatus } from "@/components/journal/JournalSaveStatus";
 import { mergeVideoTranscriptSafely } from "@/lib/journal/journalTextMerge";
@@ -44,7 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MoodPicker } from "./MoodPicker";
 import { TagInput } from "./TagInput";
-import { uploadEntryPhotos, getSignedPhotoUrls } from "@/lib/journal/photos";
+import { getSignedPhotoUrls } from "@/lib/journal/photos";
 import { formatTemp } from "@/lib/journal/context";
 import { coerceJournalEntryKind, ENTRY_KIND_META } from "@/lib/journal/entryKinds";
 import { DictateButton, type DictateButtonHandle } from "@/components/journal/DictateButton";
@@ -138,7 +145,8 @@ export default function EntryEditorPane({
   const navigate = useNavigate();
   const [entry, setEntry] = useState<EntryRow | null>(null);
   const [photos, setPhotos] = useState<{ id: string; storage_path: string; url?: string }[]>([]);
-  const { videos, reload: reloadVideos, remove: removeVideo } = useJournalEntryVideos(entryId);
+  useJournalPhotoRecovery(user?.id, entryId, setPhotos);
+  const { videos, error: videoLoadError, reload: reloadVideos, remove: removeVideo } = useJournalEntryVideos(entryId);
   const [showMeta, setShowMeta] = useState(false);
   const [scoring, setScoring] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -258,7 +266,7 @@ export default function EntryEditorPane({
     if (titleSuggestTimer.current) clearTimeout(titleSuggestTimer.current);
     titleSuggestTimer.current = setTimeout(async () => {
       const cur = entryRef.current;
-      if (!user?.id || !cur || cur.id !== row.id || cur.title?.trim()) return;
+      if (!user?.id || !cur || cur.id !== row.id || cur.title?.trim() || !journalCloudAiAllowed(cur)) return;
       const res = await suggestJournalEntryTitle({ entryId: cur.id, body: cur.body });
       if (!res.ok || !res.title || entryRef.current?.id !== cur.id) return;
       // Read the acknowledged row through the coordinator. Never restore the
@@ -289,6 +297,32 @@ export default function EntryEditorPane({
     }
   };
   queueSaveRef.current = queueSave;
+
+  useEffect(() => {
+    const recovered = async () => {
+      const id = entryRef.current?.id;
+      if (!id) return;
+      const { data, error } = await supabase.from("journal_photos").select("id,storage_path").eq("entry_id", id);
+      if (error || entryRef.current?.id !== id) return;
+      const urls = await getSignedPhotoUrls((data ?? []).map((row) => row.storage_path));
+      if (entryRef.current?.id === id) setPhotos((data ?? []).map((row) => ({ ...row, url: urls[row.storage_path] })));
+      onChangedRef.current();
+    };
+    const changed = () => { void recovered().catch(() => {}); };
+    window.addEventListener("yourbible:journal-attachments-recovered", changed);
+    return () => window.removeEventListener("yourbible:journal-attachments-recovered", changed);
+  }, []);
+
+  useEffect(() => {
+    const removed = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string; entryId: string }>).detail;
+      if (detail?.userId === user?.id && detail.entryId === entryId) {
+        entryRef.current = null; setEntry(null); setPhotos([]); setEntryNotFound(true);
+      }
+    };
+    window.addEventListener("yourbible:journal-entry-deleted", removed);
+    return () => window.removeEventListener("yourbible:journal-entry-deleted", removed);
+  }, [user?.id, entryId]);
 
   const lastAcknowledgedRevision = useRef<number | null>(null);
   const acknowledgedBodyRef = useRef<string | null>(null);
@@ -430,7 +464,7 @@ export default function EntryEditorPane({
   }, [photos]);
 
   const needsSketchTranscription =
-    !!entry && !entry.e2e_encrypted && !entry.contentLocked &&
+    journalCloudAiAllowed(entry) &&
     sketchStoragePaths.length > 0 &&
     !entryBodyHasSketchTranscription(entry.body);
 
@@ -476,8 +510,8 @@ export default function EntryEditorPane({
     onChanged,
   ]);
 
-  const canReplyWithAi =
-    !!entry && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
+  const cloudAiAllowed = journalCloudAiAllowed(entry);
+  const canReplyWithAi = cloudAiAllowed && entry.entry_kind !== "vent" && entry.entry_kind !== "listening";
   const reflectionMode = !!entry && isJournalReflectionKind(entry.entry_kind);
   const inlineChatMode = replyWithAi && canReplyWithAi;
   const showSavedChatView =
@@ -648,7 +682,7 @@ export default function EntryEditorPane({
 
   const handleVideoRecordingStart = useCallback(() => {
     const cur = entryRef.current;
-    if (!cur) return;
+    if (!cur || !journalCloudAiAllowed(cur)) { videoLiveSnapRef.current = null; return; }
     const snap = {
       body: cur.body,
       anchor: resolveBodyVideoAnchor(),
@@ -675,7 +709,7 @@ export default function EntryEditorPane({
       if (entryRef.current?.id === id) {
         entryRef.current = row as EntryRow;
         setEntry(row as EntryRow);
-        if (!row.e2e_encrypted) await videoAutoTitle.onRecordingComplete(row.body);
+        if (journalCloudAiAllowed(row)) await videoAutoTitle.onRecordingComplete(row.body);
       }
     }
     setVideoCaptionPreview("");
@@ -868,40 +902,36 @@ export default function EntryEditorPane({
   const onPickPhotos = async (files: FileList | null): Promise<{ storage_path: string }[] | undefined> => {
     if (!files || !files.length || !entry || !user) return undefined;
     try {
-      const uploaded = await uploadEntryPhotos(user.id, entry.id, Array.from(files));
-      const { data } = await supabase
-        .from("journal_photos")
-        .insert(uploaded.map((u) => ({
-          user_id: user.id,
-          entry_id: entry.id,
-          storage_path: u.storage_path,
-          width: u.width,
-          height: u.height,
-        })))
-        .select("id,storage_path");
-      const urls = await getSignedPhotoUrls((data ?? []).map((p: { storage_path: string }) => p.storage_path));
-      setPhotos((p) => [...p, ...((data ?? []).map((d: { id: string; storage_path: string }) => ({ ...d, url: urls[d.storage_path] })))]);
+      const ownerEntryId = entry.id;
+      const attached = await attachJournalPhotos(user.id, ownerEntryId, Array.from(files));
+      if (entryRef.current?.id === ownerEntryId) setPhotos((previous) => [...new Map([...previous, ...attached].map((item) => [item.id, item])).values()]);
       onChangedRef.current();
-      return (data ?? []).map((d: { storage_path: string }) => ({ storage_path: d.storage_path }));
+      return attached.map((item) => ({ storage_path: item.storage_path }));
     } catch (e) {
       toast({ title: "Photo upload failed", description: String(e), variant: "destructive" });
       return undefined;
     }
   };
 
-  const removePhoto = async (id: string, storage_path: string) => {
-    setPhotos((p) => p.filter((x) => x.id !== id));
-    await supabase.storage.from("journal-photos").remove([storage_path]).catch(() => {});
-    await supabase.from("journal_photos").delete().eq("id", id);
-    onChangedRef.current();
+  const removePhoto = async (id: string, _storagePath: string) => {
+    const ownerEntryId = entryRef.current?.id;
+    if (!user?.id || !ownerEntryId) return;
+    try {
+      await removeJournalAttachment(user.id, ownerEntryId, id, "journal_photos");
+      if (entryRef.current?.id === ownerEntryId) setPhotos((previous) => previous.filter((photo) => photo.id !== id));
+      onChangedRef.current();
+    } catch (error) {
+      toast({ title: "Photo removal needs attention", description: error instanceof Error ? error.message : "Retry removal. Your file has been retained.", variant: "destructive" });
+    }
   };
 
   const remove = async () => {
-    if (!entry) return;
+    const current = entryRef.current;
+    if (!current || !user?.id || !confirm("Delete this entry permanently?")) return;
     dictateRef.current?.stop();
-    if (!confirm("Delete this entry permanently?")) return;
-    await supabase.from("journal_entries").delete().eq("id", entry.id).eq("user_id", user.id);
-    onDeleted();
+    const { error } = await deleteJournalEntry(current.id, user.id);
+    if (error) { toast({ title: "Entry was not deleted", description: error.message, variant: "destructive" }); return; }
+    if (!entryRef.current || entryRef.current.id === current.id) onDeleted();
   };
 
   const togglePin = async () => {
@@ -1018,7 +1048,7 @@ export default function EntryEditorPane({
   const mood = moodMeta(entry.mood);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
+    <JournalAiPrivacy.Provider value={cloudAiAllowed}><JournalAiDocument.Provider value={entry.id}><div className="relative flex h-full min-h-0 flex-col">
       {/* Header */}
       <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/90 px-3 backdrop-blur-md">
         <button
@@ -1083,6 +1113,7 @@ export default function EntryEditorPane({
 
       <JournalSaveStatus userId={user?.id} entryId={entry.id} liveCaption={videoCaptionPreview} />
 
+      <JournalMediaRetry error={videoLoadError} retry={reloadVideos} />
       {/* Toolbar */}
       <div className="flex h-10 shrink-0 items-center gap-0.5 overflow-x-auto border-b border-border/60 bg-background/90 px-3 backdrop-blur-md scrollbar-hide">
         <TBtn title="Heading" onClick={() => insert("\n# ", "", "Heading")}><Heading1 className="w-4 h-4" /></TBtn>
@@ -1588,7 +1619,7 @@ export default function EntryEditorPane({
         filename={`sketch-${entry.id}`}
       />
 
-    </div>
+    </div></JournalAiDocument.Provider></JournalAiPrivacy.Provider>
   );
 }
 
