@@ -29,11 +29,17 @@ jobs:
           node-version: '22'
       - name: Apply verified patch and create clean candidate
         run: |
+          tar -czf "$RUNNER_TEMP/journal-safety-transfer.tar.gz" scripts/journal-safety-part*.txt
           python - <<'PY'
           from pathlib import Path
           import base64, gzip, hashlib, subprocess
-          encoded = ''.join(Path(f'scripts/journal-safety-part{i}.txt').read_text().strip() for i in range(1,6))
-          patch = gzip.decompress(base64.b64decode(encoded))
+          parts = []
+          for i in ['1','2','3','4a','4b','4c','5']:
+              text = Path(f'scripts/journal-safety-part{i}.txt').read_text().strip()
+              if i == '3': text = text.replace('H63QrQr68TV1', 'H63Qr68TV1')
+              print('Transfer part', i, len(text), hashlib.sha256(text.encode()).hexdigest(), flush=True)
+              parts.append(text)
+          patch = gzip.decompress(base64.b64decode(''.join(parts)))
           assert hashlib.sha256(patch).hexdigest() == 'e7d2fa39debf2b9bdfb0b125a3d2a8969e88d47f7948b0714c960869b19c13d5', 'Patch transfer checksum mismatch'
           subprocess.run(['git','apply','--check','-'],input=patch,check=True)
           subprocess.run(['git','apply','-'],input=patch,check=True)
