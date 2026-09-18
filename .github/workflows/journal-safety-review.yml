@@ -13,11 +13,15 @@ jobs:
         with:
           ref: 2acb9769388c5a8c6b44c750e340ae9caf377a10
           persist-credentials: false
-      - name: Package exact source for local review
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Package locked test runtime
         shell: bash
-        run: |
-          git archive HEAD src supabase scripts .cursor AGENTS.md package.json package-lock.json tsconfig.app.json tsconfig.json tsconfig.node.json vitest.config.ts vite.config.ts eslint.config.js tailwind.config.ts postcss.config.js > "$RUNNER_TEMP/journal-safety-source.tar"
+        run: tar -czf "$RUNNER_TEMP/journal-safety-dependencies.tar.gz" node_modules
       - uses: actions/upload-artifact@v4
         with:
-          name: journal-safety-source
-          path: ${{ runner.temp }}/journal-safety-source.tar
+          name: journal-safety-dependencies
+          compression-level: 0
+          path: ${{ runner.temp }}/journal-safety-dependencies.tar.gz
