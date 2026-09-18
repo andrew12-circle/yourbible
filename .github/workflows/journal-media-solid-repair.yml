@@ -11,6 +11,9 @@ jobs:
   repair:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
     env:
       BASE: 7ca5d0441a0e98fd8b7b17923ee1dd677b1bbdba
       VITE_SUPABASE_URL: https://example.supabase.co
@@ -26,6 +29,14 @@ jobs:
       - name: Apply precise source patch and build clean candidate commit
         run: |
           python scripts/journal-media-solid-repair.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/components/journal/EntryMiniMap.tsx')
+          text = p.read_text()
+          old = 'map: google.maps.Map;'
+          assert text.count(old) == 1
+          p.write_text(text.replace(old, 'map: NonNullable<ReturnType<typeof useMap>>;'))
+          PY
           git read-tree "$BASE"
           git add src
           git diff --cached --check
