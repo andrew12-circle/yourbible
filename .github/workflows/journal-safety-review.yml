@@ -11,11 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: 2acb9769388c5a8c6b44c750e340ae9caf377a10
           persist-credentials: false
       - name: Package exact source for local review
         shell: bash
         run: |
-          git archive 2acb9769388c5a8c6b44c750e340ae9caf377a10 src supabase scripts .cursor AGENTS.md package.json package-lock.json tsconfig.app.json tsconfig.json tsconfig.node.json vitest.config.ts vite.config.ts eslint.config.js tailwind.config.ts postcss.config.js > "$RUNNER_TEMP/journal-safety-source.tar"
+          git archive HEAD src supabase scripts .cursor AGENTS.md package.json package-lock.json tsconfig.app.json tsconfig.json tsconfig.node.json vitest.config.ts vite.config.ts eslint.config.js tailwind.config.ts postcss.config.js > "$RUNNER_TEMP/journal-safety-source.tar"
       - uses: actions/upload-artifact@v4
         with:
           name: journal-safety-source
