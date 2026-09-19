@@ -1,0 +1,59 @@
+name: Journal video implementation checks
+on:
+  push:
+    branches: [fix/journal-video-stability-20260919]
+    paths: ['.github/workflows/journal-video-workbench.yml', 'scripts/journal-video-workbench.patch']
+permissions:
+  contents: write
+jobs:
+  workbench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Export exact source for implementation
+        run: git archive --format=tar HEAD | gzip > "$RUNNER_TEMP/journal-video-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: journal-video-source
+          path: ${{ runner.temp }}/journal-video-source.tar.gz
+      - name: Apply reviewed implementation
+        if: hashFiles('scripts/journal-video-workbench.patch') != ''
+        run: |
+          git apply --check scripts/journal-video-workbench.patch
+          git apply scripts/journal-video-workbench.patch
+          npm install --package-lock-only --ignore-scripts tus-js-client@4.3.1
+          git rm scripts/journal-video-workbench.patch .github/workflows/journal-video-workbench.yml
+          git add src scripts docs package.json package-lock.json .github/workflows
+          git -c user.name='Andrew Heisley' -c user.email='andrew12-circle@users.noreply.github.com' commit -m 'fix(journal): harden video capture, recovery, upload and playback'
+          git push origin HEAD:fix/journal-video-stability-20260919
+      - name: Install dependencies
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: npm ci
+      - name: Regression tests
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: npm test -- src/lib/journal src/components/journal src/hooks/useJournal src/hooks/useNewJournal src/hooks/useVideoJournal 2>&1 | tee "$RUNNER_TEMP/video-tests.log"
+      - name: TypeScript regression comparison
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: node scripts/check-journal-type-regressions.mjs 3ff5601aec0d2d46e1ab9377e5660ad7a5c0c6a4
+      - name: Production build
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/video-build.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-video-implementation-validation
+          path: ${{ runner.temp }}/video-*.log
+          if-no-files-found: ignore
