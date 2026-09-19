@@ -1,0 +1,57 @@
+name: Journal recovery validation
+on:
+  push:
+    branches: [main, 'fix/journal-*']
+    paths: ['src/**', 'supabase/**', 'scripts/test-journal-*', 'package*.json', '.github/workflows/journal-recovery-validation.yml']
+  pull_request:
+    paths: ['src/**', 'supabase/**', 'scripts/test-journal-*', 'package*.json', '.github/workflows/journal-recovery-validation.yml']
+permissions:
+  contents: read
+concurrency:
+  group: journal-recovery-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser_database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Isolated verification tools
+        run: |
+          npm install --prefix "$RUNNER_TEMP/journal-tools" --no-save --package-lock=false playwright@1.55.1 @electric-sql/pglite@0.4.5
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/journal-tools/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          echo "PGLITE_MODULE=$RUNNER_TEMP/journal-tools/node_modules/@electric-sql/pglite/dist/index.js" >> "$GITHUB_ENV"
+          cd "$RUNNER_TEMP/journal-tools"
+          npm pack @electric-sql/pglite@0.4.5 --pack-destination "$RUNNER_TEMP"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: journal-verification-tooling
+          path: ${{ runner.temp }}/electric-sql-pglite-*.tgz
+          retention-days: 3
+      - name: Install Chromium
+        run: node "$RUNNER_TEMP/journal-tools/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Real browser writing regression
+        run: node scripts/test-journal-editor-scroll.mjs
+      - name: Database migration and ownership regression
+        run: node scripts/test-journal-recovery-database.mjs
+      - name: Recovery and backup browser regression
+        run: node scripts/test-journal-recovery-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-recovery-validation
+          path: |
+            ${{ runner.temp }}/journal-*.json
+            ${{ runner.temp }}/journal-*.png
+            ${{ runner.temp }}/journal-*.html
+            ${{ runner.temp }}/journal-*.log
