@@ -20,6 +20,7 @@ type Props = {
     anchorOffset: number;
     liveTranscript?: string;
     peakLiveTranscript?: string;
+    locallyQueued?: boolean;
   }) => void;
   onRecordingStart?: (anchorOffset: number) => void;
   onLiveTranscript?: (text: string) => void;
@@ -66,10 +67,6 @@ export default function JournalVideoCaptureButton({
     const anchorOffset = anchorRef.current;
     const recordedMs = result.durationMs || durationMs;
     setUploading(true);
-    toast({
-      title: "Recording saved on this device",
-      description: "Uploading your video…",
-    });
     try {
       const { saved, queued } = await saveJournalVideoCaptureWithQueue({
         userId,
@@ -78,17 +75,18 @@ export default function JournalVideoCaptureButton({
         durationMs: recordedMs,
         anchorOffset,
         bodySnap: getBodySnap?.() ?? null,
+        deferUpload: true,
       });
 
-      onVideoSaved(saved);
+      onVideoSaved({ ...saved, locallyQueued: saved.status === "queued" });
 
-      if (queued) {
+      if (queued && saved.status !== "queued") {
         toast({
           title: "Upload delayed",
           description:
             "Your recording is safe on this device. We'll upload and finish the transcript automatically.",
         });
-      } else {
+      } else if (!queued) {
         toast({
           title: saved.transcript ? "Video and transcript saved" : "Video saved",
           description: saved.transcript

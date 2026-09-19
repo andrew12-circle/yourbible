@@ -1,3 +1,4 @@
+import { JournalVideoTransferStatus } from "./JournalVideoTransferStatus";
 import { useJournalCaptionPreview } from "@/hooks/useJournalCaptionPreview";
 import { useJournalPhotoRecovery } from "@/hooks/useJournalPhotoRecovery";
 import { JournalAiPrivacy, JournalAiDocument } from "./JournalAiPrivacy";
@@ -702,8 +703,13 @@ export default function EntryEditorPane({
     videoLiveSnapRef.current = null;
   }, [clearVideoCaption]);
   const handleVideoSaved = useCallback(async (_payload: {
-    transcript: string; anchorOffset: number; liveTranscript?: string; peakLiveTranscript?: string;
+    transcript: string; anchorOffset: number; liveTranscript?: string; peakLiveTranscript?: string; locallyQueued?: boolean;
   }) => {
+    if (_payload.locallyQueued) {
+      clearVideoCaption();
+      videoLiveSnapRef.current = null;
+      return;
+    }
     await reloadVideos();
     onChangedRef.current(); // A real attachment change refreshes media metadata.
     const id = entryRef.current?.id;
@@ -1198,6 +1204,7 @@ export default function EntryEditorPane({
         )}
         style={plainWriteLayout ? { paddingBottom: "var(--journal-writing-room, 160px)" } : undefined}
       >
+          <JournalVideoTransferStatus userId={user?.id} entryId={entry.id} />
           <div
             className="relative z-10 shrink-0"
             data-journal-title

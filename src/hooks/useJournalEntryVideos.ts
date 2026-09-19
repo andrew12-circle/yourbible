@@ -36,10 +36,13 @@ export function useJournalEntryVideos(entryId: string | null) {
   }, [entryId, cache, blocked]);
   useEffect(() => {
     void reload();
-    const recovered = () => { void reload(); };
+    const recovered = (event: Event) => {
+      const changedEntryId = (event as CustomEvent<{ entryId?: string }>).detail?.entryId;
+      if (!changedEntryId || changedEntryId === entryId) void reload();
+    };
     window.addEventListener("yourbible:journal-attachments-recovered", recovered);
     return () => { generation.current += 1; window.removeEventListener("yourbible:journal-attachments-recovered", recovered); };
-  }, [reload]);
+  }, [reload, entryId]);
   const remove = useCallback(async (id: string, storagePath: string) => {
     if (!window.confirm("Remove this video from the journal entry? This cannot be undone.")) return;
     const owner = latest.current;

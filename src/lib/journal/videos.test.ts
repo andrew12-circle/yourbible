@@ -482,8 +482,8 @@ describe("tuneJournalVideoStream", () => {
 
     expect(applyConstraints).toHaveBeenCalledWith({
       aspectRatio: { ideal: 9 / 16 },
-      width: { max: 720 },
-      height: { max: 1280 },
+      width: { ideal: 720, max: 720 },
+      height: { ideal: 1280, max: 1280 },
       frameRate: { max: 30 },
     });
   });

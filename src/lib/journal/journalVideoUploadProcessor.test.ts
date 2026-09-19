@@ -35,6 +35,7 @@ vi.mock("@/lib/journal/journalVideoRecordingRecovery", () => ({
 }));
 
 vi.mock("@/lib/journal/journalVideoUploadQueue", () => ({
+  journalVideoQueueNextRetryDelay: () => 0,
   enqueueJournalVideoUpload: (...args: unknown[]) => enqueueMock(...args),
   listQueuedJournalVideoUploads: (...args: unknown[]) => listQueueMock(...args),
   readQueuedJournalVideoUpload: (...args: unknown[]) => readQueueMock(...args),
@@ -343,5 +344,32 @@ describe("journal video durable upload processing", () => {
     expect(removeQueueMock).not.toHaveBeenCalled();
     expect(outcome.queued).toBe(true);
     expect(outcome.saved.status).toBe("deferred-retry");
+  });
+});
+
+
+describe("queue-first journal video save", () => {
+  it("returns only after the durable queue succeeds, without uploading or transcribing", async () => {
+    enqueueMock.mockReset().mockResolvedValue(undefined);
+    clearRecoveryMock.mockReset().mockResolvedValue(undefined);
+    uploadEntryVideoMock.mockClear(); transcribeJournalVideoMock.mockClear();
+    const saved = await saveJournalVideoCaptureWithQueue({
+      userId: "u1", entryId: "e1", anchorOffset: 0, durationMs: 5000, deferUpload: true,
+      result: { video, audio: null, liveTranscript: "", peakLiveTranscript: "", chapters: [], durationMs: 5000, recoveryDraftId: "take-queue-first" },
+    });
+    expect(saved.saved.status).toBe("queued");
+    expect(saved.queued).toBe(true);
+    expect(enqueueMock).toHaveBeenCalledOnce();
+    expect(uploadEntryVideoMock).not.toHaveBeenCalled();
+    expect(transcribeJournalVideoMock).not.toHaveBeenCalled();
+  });
+  it("does not report local success or release recovery after a quota failure", async () => {
+    enqueueMock.mockRejectedValueOnce(new Error("Device storage is full"));
+    clearRecoveryMock.mockClear();
+    await expect(saveJournalVideoCaptureWithQueue({
+      userId: "u1", entryId: "e1", anchorOffset: 0, durationMs: 5000, deferUpload: true,
+      result: { video, audio: null, liveTranscript: "", peakLiveTranscript: "", chapters: [], durationMs: 5000, recoveryDraftId: "take-full" },
+    })).rejects.toThrow("Device storage is full");
+    expect(clearRecoveryMock).not.toHaveBeenCalled();
   });
 });

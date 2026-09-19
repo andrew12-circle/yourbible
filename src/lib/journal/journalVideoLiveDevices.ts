@@ -16,7 +16,9 @@ import {
 export type JournalVideoLivePhase = "preview" | "countdown" | "recording" | "paused";
 
 export function canChangeJournalVideoDevices(phase: JournalVideoLivePhase | string): boolean {
-  return phase === "preview" || phase === "countdown" || phase === "recording" || phase === "paused";
+  // Adding/removing tracks from a MediaRecorder stream terminates recording.
+  // Paused recorders still own their original tracks.
+  return phase === "preview" || phase === "countdown";
 }
 
 export function isJournalVideoLiveCapture(phase: JournalVideoLivePhase | string): boolean {

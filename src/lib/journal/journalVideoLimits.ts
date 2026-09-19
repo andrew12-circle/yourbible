@@ -48,7 +48,10 @@ export function journalVideoTargetBytesPerMs(): number {
 export function journalVideoEffectiveRemainingMs(elapsedMs: number, bytes: number): number {
   const byTime = journalVideoRemainingMs(elapsedMs);
   const bytesLeft = Math.max(0, JOURNAL_VIDEO_RECORD_STOP_BYTES - bytes);
-  const bySize = bytesLeft / journalVideoTargetBytesPerMs();
+  // Use observed output, not just the requested bitrate (which browsers may ignore).
+  // The target remains a conservative floor during startup and variable-rate silence.
+  const observedBytesPerMs = elapsedMs >= 1_000 ? bytes / elapsedMs : 0;
+  const bySize = bytesLeft / Math.max(journalVideoTargetBytesPerMs(), observedBytesPerMs);
   return Math.min(byTime, bySize);
 }
 
@@ -65,5 +68,5 @@ export function isJournalVideoUploadTooLarge(bytes: number): boolean {
 export function journalVideoUploadTooLargeMessage(durationMs: number, bytes?: number): string {
   const mins = Math.max(1, Math.round(durationMs / 60_000));
   const sizePart = bytes != null ? ` (${formatJournalVideoSizeMb(bytes, 1)})` : "";
-  return `This ${mins}-minute video${sizePart} is too large to upload (max ~${Math.round(JOURNAL_VIDEO_MAX_UPLOAD_BYTES / (1024 * 1024))} MB). Recording stops automatically before the limit — try again after a fresh deploy, or record at a lower resolution.`;
+  return `This ${mins}-minute video${sizePart} is too large to upload (max ~${Math.round(JOURNAL_VIDEO_MAX_UPLOAD_BYTES / (1024 * 1024))} MB). Keep or download this recording before starting a shorter clip.`;
 }

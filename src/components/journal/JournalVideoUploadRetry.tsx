@@ -12,6 +12,8 @@ import {
   journalVideoQueueStorageAddedIds,
   JOURNAL_VIDEO_UPLOAD_QUEUE_CHANGED_EVENT,
   JOURNAL_VIDEO_UPLOAD_QUEUE_META_KEY,
+  JOURNAL_VIDEO_RETRY_REQUEST_EVENT,
+  updateQueuedJournalVideoUpload,
   JOURNAL_VIDEO_QUEUE_RETRY_DELAYS_MS,
   listQueuedJournalVideoUploads,
   withJournalVideoUploadQueueLock,
@@ -233,21 +235,6 @@ function showRecoverySummary(summary: RecoverySummary): void {
 }
 
 function showQueueSummary(queue: ProcessJournalVideoUploadResult): void {
-  if (queue.completed > 0) {
-    toast({
-      title:
-        queue.completed === 1
-          ? "Queued video journal finished saving"
-          : `${queue.completed} queued video journals finished saving`,
-      description: "Video and transcript are attached to your journal.",
-    });
-  }
-  if (queue.deferredTranscription > 0) {
-    toast({
-      title: "Video uploaded; transcription is still retrying",
-      description: "Your video is safe and remains in the retry queue.",
-    });
-  }
   if (queue.failed > 0) {
     toast({
       title: "Some video journals still need to upload",
@@ -395,7 +382,16 @@ export function JournalVideoUploadRetry() {
       }
     };
 
+    const retryRequested = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string; entryId: string; id: string }>).detail;
+      if (!detail || latestRef.current.userId !== detail.userId) return;
+      const item = listQueuedJournalVideoUploads(detail.userId).find((row) => row.id === detail.id && row.entryId === detail.entryId);
+      if (!item || (item.stage !== "failed" && item.stage !== "deferred-transcription" && item.stage !== "queued")) return;
+      updateQueuedJournalVideoUpload(item.id, { lastAttemptAt: undefined });
+      scheduleQueueRun(0, true);
+    };
     runAll();
+    window.addEventListener(JOURNAL_VIDEO_RETRY_REQUEST_EVENT, retryRequested);
     window.addEventListener("online", runAll);
     window.addEventListener("focus", runAll);
     window.addEventListener("storage", onStorage);
@@ -408,6 +404,7 @@ export function JournalVideoUploadRetry() {
       triggerRef.current = () => undefined;
       if (recoveryEventTimer != null) window.clearTimeout(recoveryEventTimer);
       if (queueEventTimer != null) window.clearTimeout(queueEventTimer);
+      window.removeEventListener(JOURNAL_VIDEO_RETRY_REQUEST_EVENT, retryRequested);
       window.removeEventListener("online", runAll);
       window.removeEventListener("focus", runAll);
       window.removeEventListener("storage", onStorage);

@@ -1,40 +1,13 @@
-import { forwardRef, useEffect, useMemo, useState } from "react";
-import {
-  Bookmark,
-  Camera,
-  ChevronDown,
-  FlipHorizontal,
-  Loader2,
-  Mic,
-  Monitor,
-  Pause,
-  Play,
-  Settings2,
-  SkipForward,
-  Square,
-  Video,
-} from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { Bookmark, FlipHorizontal, Loader2, Pause, Play, Settings2, Square, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { JournalVideoLiveMicWaveform } from "@/components/journal/JournalVideoLiveMicWaveform";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { JournalVideoLiveMicWaveform } from "./JournalVideoLiveMicWaveform";
 import type { UseJournalVideoCaptureApi } from "@/hooks/useJournalVideoCapture";
-import { toast } from "@/hooks/use-toast";
 import { listAudioInputDevices, listVideoInputDevices } from "@/lib/journal/journalVideoDevices";
-import type {
-  BubbleCorner,
-  BubbleSize,
-  JournalVideoCountdown,
-  JournalVideoQuality,
-} from "@/lib/journal/journalVideoCaptureSettings";
-import { writeJournalVideoCaptureSettings } from "@/lib/journal/journalVideoCaptureSettings";
+import { canChangeJournalVideoDevices } from "@/lib/journal/journalVideoLiveDevices";
+import { writeJournalVideoCaptureSettings, type JournalVideoCaptureSettings, type JournalVideoQuality,
+  type JournalVideoCountdown, type BubbleCorner, type BubbleSize } from "@/lib/journal/journalVideoCaptureSettings";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -45,489 +18,155 @@ type Props = {
   active?: boolean;
   paused?: boolean;
   processing?: boolean;
-  /** Preview is ready but countdown was paused — show Start button. */
   countdownDeferred?: boolean;
   onStartCountdown?: () => void;
   onPauseResume?: () => void;
   onStop?: () => void;
-  /** Raise settings/camera menus above the video pane and floating recorder. */
   menuElevated?: boolean;
 };
 
-/** Menus must sit above the floating recorder (z-200) and elevated dialogs (z-100). */
-const VIDEO_CAPTURE_MENU_Z = "z-[250]";
-
-function SmartBarDivider() {
-  return <div className="mx-0.5 h-6 w-px shrink-0 bg-white/20" aria-hidden />;
-}
-
-const SmartBarIconButton = forwardRef<
-  HTMLButtonElement,
-  {
-    label: string;
-    title?: string;
-    onClick?: () => void;
-    disabled?: boolean;
-    touchTarget?: boolean;
-    children: React.ReactNode;
-  }
->(function SmartBarIconButton(
-  { label, title, onClick, disabled, touchTarget = false, children },
-  ref,
-) {
-  return (
-    <Button
-      ref={ref}
-      type="button"
-      size="icon"
-      variant="ghost"
-      className={cn(
-        "h-9 w-9 shrink-0 rounded-full text-white hover:bg-white/20 hover:text-white disabled:opacity-40",
-        touchTarget && "h-11 w-11",
-      )}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={title ?? label}
-    >
-      {children}
-    </Button>
-  );
-});
-
-function deviceLabel(device: MediaDeviceInfo, fallback: string): string {
-  return device.label?.trim() || fallback;
-}
-
-/** Unified recorder bar: camera/source controls, quality, settings, and pause/stop transport. */
+/** Transport stays visible; optional controls live in one keyboard/touch-accessible settings panel. */
 export function JournalVideoCaptureToolbar({
-  capture,
-  isMobile,
-  videoRef: _videoRef,
-  className,
-  active = false,
-  paused = false,
-  processing = false,
-  countdownDeferred = false,
-  onStartCountdown,
-  onPauseResume,
-  onStop,
-  menuElevated = true,
+  capture, isMobile, className, active = false, paused = false, processing = false,
+  countdownDeferred = false, onStartCountdown, onPauseResume, onStop, menuElevated = true,
 }: Props) {
+  const id = useId();
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
-  const previewActive =
-    capture.phase === "recording" ||
-    capture.phase === "paused" ||
-    capture.phase === "preview" ||
-    capture.phase === "countdown";
-  const micMeterActive =
-    capture.phase === "preview" ||
-    capture.phase === "countdown" ||
-    capture.phase === "recording" ||
-    capture.phase === "paused";
-  const qualityLocked = capture.phase === "recording" || capture.phase === "paused";
-  const showCountdown = capture.phase === "countdown";
-  const showStartNow = showCountdown && capture.countdown != null;
-  const showPreviewStart =
-    capture.phase === "preview" && countdownDeferred && !processing && !showCountdown;
-
-  const activeVideoDeviceId = useMemo(
-    () => capture.previewStream?.getVideoTracks()[0]?.getSettings().deviceId ?? capture.deviceId ?? "",
-    [capture.previewStream, capture.deviceId],
-  );
-  const activeAudioDeviceId = useMemo(
-    () =>
-      capture.previewStream?.getAudioTracks()[0]?.getSettings().deviceId ?? capture.audioDeviceId ?? "",
-    [capture.previewStream, capture.audioDeviceId],
-  );
-  const activeAudioLabel = useMemo(() => {
-    const match = audioDevices.find((d) => d.deviceId === activeAudioDeviceId);
-    if (match?.label) return match.label;
-    const trackLabel = capture.previewStream?.getAudioTracks()[0]?.label;
-    return trackLabel?.trim() || "Default microphone";
-  }, [audioDevices, activeAudioDeviceId, capture.previewStream]);
+  const previewActive = ["preview", "countdown", "recording", "paused"].includes(capture.phase);
+  const devicesLocked = !canChangeJournalVideoDevices(capture.phase) || processing || Boolean(capture.configuringQuality);
+  const screenCapture = capture.mode === "screen";
+  const videoTrack = capture.previewStream?.getVideoTracks()[0];
+  const audioTrack = capture.previewStream?.getAudioTracks()[0];
+  const cameraId = videoTrack?.getSettings().deviceId ?? capture.deviceId ?? "";
+  const microphoneId = audioTrack?.getSettings().deviceId ?? capture.audioDeviceId ?? "";
+  const resolution = capture.captureResolution;
+  const persist = (patch: Partial<JournalVideoCaptureSettings>) => {
+    writeJournalVideoCaptureSettings(patch);
+    capture.patchSettings(patch);
+  };
 
   useEffect(() => {
     if (!previewActive) return;
-    void listVideoInputDevices().then(setVideoDevices);
-    void listAudioInputDevices().then(setAudioDevices);
+    let disposed = false;
+    const refresh = () => {
+      void listVideoInputDevices().then((devices) => { if (!disposed) setVideoDevices(devices); }).catch(() => undefined);
+      void listAudioInputDevices().then((devices) => { if (!disposed) setAudioDevices(devices); }).catch(() => undefined);
+    };
+    refresh();
+    navigator.mediaDevices?.addEventListener?.("devicechange", refresh);
+    return () => { disposed = true; navigator.mediaDevices?.removeEventListener?.("devicechange", refresh); };
   }, [previewActive, capture.previewStream]);
 
-  const persist = (patch: Parameters<typeof writeJournalVideoCaptureSettings>[0]) => {
-    const next = writeJournalVideoCaptureSettings(patch);
-    capture.patchSettings(next);
-  };
-
-  const cycleQuality = () => {
-    const next: JournalVideoQuality = capture.settings.quality === "720p" ? "1080p" : "720p";
-    persist({ quality: next });
-  };
-
-  const menuClass = menuElevated ? VIDEO_CAPTURE_MENU_Z : undefined;
-  const showCameraPicker = videoDevices.length > 0;
-  const showCameraControls = capture.mode === "camera" || capture.mode === "screen";
-  const showScreenControls = capture.mode === "screen";
-
+  const selectClass = "h-11 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm disabled:opacity-50";
   return (
-    <div
-      className={cn(
-        "inline-flex max-w-[min(100%,42rem)] items-center gap-1 rounded-full",
-        "bg-black/55 px-2 py-1.5 shadow-lg backdrop-blur-md",
-        isMobile && (active || processing)
-          ? "w-full overflow-hidden px-1.5"
-          : "overflow-x-auto scrollbar-none [&::-webkit-scrollbar]:hidden",
-        className,
-      )}
-      style={
-        isMobile
-          ? {
-              maxWidth:
-                "calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))",
-            }
-          : undefined
-      }
-    >
-      <div
-        className={cn(
-          "flex items-center gap-1",
-          isMobile && (active || processing)
-            ? "min-w-0 flex-1 overflow-x-auto overscroll-x-contain scrollbar-none [&::-webkit-scrollbar]:hidden"
-            : "shrink-0",
-        )}
-      >
-        <div className="flex shrink-0 items-center gap-0.5">
-        {showPreviewStart && onStartCountdown ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className={cn("h-8 shrink-0 gap-1 rounded-full px-3 text-xs", isMobile && "h-11")}
-            onClick={onStartCountdown}
-          >
-            <Video className="h-3.5 w-3.5" />
-            Start countdown
-          </Button>
-        ) : null}
-
-        {showStartNow ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className={cn("h-8 shrink-0 gap-1 rounded-full px-3 text-xs", isMobile && "h-11")}
-            onClick={capture.skipCountdown}
-          >
-            <SkipForward className="h-3.5 w-3.5" />
-            Start now
-          </Button>
-        ) : null}
-
-        {previewActive ? (
-          <div className="mx-1 flex flex-col items-center gap-0.5" title={activeAudioLabel}>
-            <JournalVideoLiveMicWaveform
-              stream={capture.previewStream}
-              active={micMeterActive}
-              maxBarHeight={active ? 16 : 18}
-            />
-            {!active && !showCountdown ? (
-              <span className="max-w-[5.5rem] truncate text-[9px] text-white/70">{activeAudioLabel}</span>
-            ) : null}
-          </div>
-        ) : null}
-
-        {active ? (
-          <SmartBarIconButton
-            label="Mark chapter"
-            touchTarget={isMobile}
-            onClick={() => {
-              const label = capture.markChapter();
-              if (label) {
-                toast({ title: `Chapter marked: ${label}` });
-              }
-            }}
-          >
-            <Bookmark className="h-4 w-4" />
-          </SmartBarIconButton>
-        ) : null}
-
-        {showCameraControls ? (
-          <>
-            {isMobile ? (
-              <SmartBarIconButton
-                label="Flip camera"
-                touchTarget
-                onClick={() => void capture.switchFacing()}
-              >
-                <FlipHorizontal className="h-4 w-4" />
-              </SmartBarIconButton>
-            ) : showCameraPicker ? (
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    className="h-9 max-w-[128px] shrink-0 gap-1 rounded-full px-2.5 text-xs text-white hover:bg-white/20 hover:text-white disabled:opacity-40"
-                  >
-                    <Camera className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{capture.mode === "screen" ? "Bubble cam" : "Webcam"}</span>
-                    <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className={menuClass}>
-                  <DropdownMenuLabel>Camera</DropdownMenuLabel>
-                  <DropdownMenuRadioGroup
-                    value={activeVideoDeviceId}
-                    onValueChange={(id) => void capture.selectDevice(id)}
-                  >
-                    {videoDevices.map((d) => (
-                      <DropdownMenuRadioItem key={d.deviceId} value={d.deviceId}>
-                        {deviceLabel(d, `Camera ${d.deviceId.slice(0, 6)}`)}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <SmartBarIconButton label="Webcam" touchTarget={isMobile}>
-                <Camera className="h-4 w-4" />
-              </SmartBarIconButton>
-            )}
-          </>
-        ) : null}
-
-        {showScreenControls && active ? (
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <SmartBarIconButton label="Camera bubble layout" touchTarget={isMobile}>
-                <Monitor className="h-4 w-4" />
-              </SmartBarIconButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className={menuClass}>
-              <DropdownMenuLabel>Camera bubble</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={capture.settings.bubbleCorner}
-                onValueChange={(v) => {
-                  capture.setBubbleLayout({ corner: v as BubbleCorner });
-                  persist({ bubbleCorner: v as BubbleCorner });
-                }}
-              >
-                <DropdownMenuRadioItem value="bottom-left">Bottom left</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="bottom-right">Bottom right</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="top-left">Top left</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="top-right">Top right</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuRadioGroup
-                value={capture.settings.bubbleSize}
-                onValueChange={(v) => {
-                  capture.setBubbleLayout({ size: v as BubbleSize });
-                  persist({ bubbleSize: v as BubbleSize });
-                }}
-              >
-                <DropdownMenuRadioItem value="sm">Small</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="md">Medium</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="lg">Large</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => {
-                  const visible = !capture.settings.bubbleVisible;
-                  capture.setBubbleLayout({ visible });
-                  persist({ bubbleVisible: visible });
-                }}
-              >
-                {capture.settings.bubbleVisible ? "Hide bubble" : "Show bubble"}
-              </Button>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-        </div>
-
-        {!qualityLocked ? (
-          <>
-            <SmartBarDivider />
-            <div className="flex shrink-0 items-center gap-0.5">
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className={cn(
-                  "h-8 shrink-0 rounded-full px-2.5 text-[11px] font-semibold tabular-nums text-white hover:bg-white/20 hover:text-white",
-                  isMobile && "h-11",
-                )}
-                onClick={cycleQuality}
-                aria-label={`Video quality ${capture.settings.quality}. Tap to switch.`}
-                title="Tap to switch quality"
-              >
-                {capture.settings.quality}
-              </Button>
-            </div>
-          </>
-        ) : null}
+    <div className={cn("inline-flex max-w-full items-center gap-2 overflow-hidden rounded-2xl bg-black/65 p-2 text-white shadow-lg backdrop-blur-md", className)}>
+      <div className="hidden min-w-0 shrink items-center min-[360px]:flex" title={audioTrack?.label || "Microphone level"}>
+        {previewActive ? <JournalVideoLiveMicWaveform stream={capture.previewStream} active={previewActive} maxBarHeight={18} /> : null}
       </div>
-
-      {active || processing ? (
-        <>
-          <SmartBarDivider />
-          <div className="flex shrink-0 items-center gap-1">
-            {processing ? (
-              <div className="flex h-9 w-9 items-center justify-center text-white/90">
-                <Loader2 className="h-5 w-5 animate-spin" />
-              </div>
-            ) : onPauseResume && onStop ? (
-              <>
-                <SmartBarIconButton
-                  label={paused ? "Resume recording" : "Pause recording"}
-                  onClick={onPauseResume}
-                  touchTarget={isMobile}
-                >
-                  {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
-                </SmartBarIconButton>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className={cn(
-                    "h-9 w-9 shrink-0 rounded-full bg-red-500/90 text-white hover:bg-red-500 hover:text-white",
-                    isMobile && "h-11 w-11",
-                  )}
-                  onClick={onStop}
-                  aria-label="Stop recording"
-                >
-                  <Square className="h-4 w-4 fill-current" />
-                </Button>
-              </>
-            ) : null}
-          </div>
-        </>
+      {capture.phase === "preview" && countdownDeferred && onStartCountdown ? (
+        <Button type="button" className="h-11 gap-2" variant="secondary" disabled={devicesLocked} onClick={onStartCountdown}>
+          <Video className="h-4 w-4" />{capture.settings.countdown === 0 ? "Start recording" : "Start countdown"}
+        </Button>
       ) : null}
-
-      <SmartBarDivider />
-
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <SmartBarIconButton label="Recording settings" touchTarget={isMobile}>
-            <Settings2 className="h-4 w-4" />
-          </SmartBarIconButton>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className={cn(
-            "max-h-[min(70vh,28rem)] overflow-y-auto",
-            isMobile &&
-              "max-h-[calc(100dvh_-_env(safe-area-inset-top,0px)_-_env(safe-area-inset-bottom,0px)_-_1rem)]",
-            menuClass,
-          )}
-        >
-          {!qualityLocked ? (
-            <>
-              <DropdownMenuLabel>Quality</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={capture.settings.quality}
-                onValueChange={(v) => persist({ quality: v as JournalVideoQuality })}
-              >
-                <DropdownMenuRadioItem value="720p">720p HD</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="1080p">1080p Full HD</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Countdown</DropdownMenuLabel>
-              <DropdownMenuRadioGroup
-                value={String(capture.settings.countdown)}
-                onValueChange={(v) => persist({ countdown: Number(v) as JournalVideoCountdown })}
-              >
-                <DropdownMenuRadioItem value="0">None — start immediately</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="1">1 second</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="3">3 seconds</DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value="5">5 seconds</DropdownMenuRadioItem>
-              </DropdownMenuRadioGroup>
-            </>
-          ) : (
-            <>
-              <DropdownMenuLabel>While recording</DropdownMenuLabel>
-              <p className="px-2 pb-2 text-[11px] leading-snug text-muted-foreground">
-                Switch camera or microphone below. Quality and countdown apply on your next recording.
-              </p>
-            </>
-          )}
-          {audioDevices.length > 0 && capture.screenUsesCameraAudio ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel className="flex items-center gap-1.5">
-                <Mic className="h-3.5 w-3.5" />
-                Microphone
-              </DropdownMenuLabel>
-              <div className="px-2 pb-2">
-                <div className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1.5">
-                  <JournalVideoLiveMicWaveform
-                    stream={capture.previewStream}
-                    active={micMeterActive}
-                    className="[&_span]:bg-muted-foreground/40"
-                    maxBarHeight={14}
-                  />
-                  <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{activeAudioLabel}</span>
-                </div>
-                <p className="mt-1 px-0.5 text-[10px] leading-snug text-muted-foreground">
-                  Speak to test your mic — green bars mean it is picking you up.
-                </p>
-              </div>
-              <DropdownMenuRadioGroup
-                value={activeAudioDeviceId}
-                onValueChange={(id) => {
-                  persist({ audioDeviceId: id });
-                  void capture.selectAudioDevice(id);
-                }}
-              >
-                {audioDevices.map((d) => (
-                  <DropdownMenuRadioItem key={d.deviceId} value={d.deviceId}>
-                    {deviceLabel(d, `Microphone ${d.deviceId.slice(0, 6)}`)}
-                  </DropdownMenuRadioItem>
-                ))}
-              </DropdownMenuRadioGroup>
-            </>
-          ) : null}
-          {!isMobile && !qualityLocked ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Desktop</DropdownMenuLabel>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => persist({ floatingRecorder: !capture.settings.floatingRecorder })}
-              >
-                {capture.settings.floatingRecorder ? "Floating recorder on" : "Floating recorder off"}
-              </Button>
-              {showScreenControls ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => persist({ includeSystemAudio: !capture.settings.includeSystemAudio })}
-                >
-                  {capture.settings.includeSystemAudio ? "System audio on" : "Mic only"}
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="w-full justify-start"
-                onClick={() => persist({ silenceAutoPause: !capture.settings.silenceAutoPause })}
-              >
-                {capture.settings.silenceAutoPause ? "Auto-pause on silence" : "Silence auto-pause off"}
-              </Button>
-            </>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {capture.phase === "countdown" && capture.countdown != null ? (
+        <Button type="button" className="h-11" variant="secondary" disabled={Boolean(capture.configuringQuality)} onClick={capture.skipCountdown}>Start now</Button>
+      ) : null}
+      {processing ? <div className="flex h-11 items-center gap-2 text-sm"><Loader2 className="h-5 w-5 animate-spin" />Finishing…</div> : active ? (
+        <div className="flex shrink-0 items-center gap-2" data-video-transport>
+          <Button type="button" variant="ghost" className="h-11 min-w-11 gap-2 px-3 text-white hover:bg-white/20 hover:text-white"
+            aria-label={paused ? "Resume recording" : "Pause recording"}
+            disabled={!onPauseResume || (paused && !capture.canResume)} onClick={onPauseResume}>
+            {paused ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}
+            <span className="hidden min-[380px]:inline">{paused ? "Resume" : "Pause"}</span>
+          </Button>
+          <Button type="button" className="h-11 gap-2 bg-red-600 px-3 text-white hover:bg-red-700"
+            aria-label="Stop recording" onClick={onStop} disabled={!onStop}>
+            <Square className="h-4 w-4 fill-current" /><span>Stop &amp; review</span>
+          </Button>
+        </div>
+      ) : null}
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="ghost" className="h-11 w-11 shrink-0 rounded-full p-0 text-white hover:bg-white/20 hover:text-white"
+            aria-label="Recording settings" disabled={processing}><Settings2 className="h-5 w-5" /></Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" side="top" className={cn("w-[min(340px,calc(100vw-2rem))] max-h-[min(70dvh,34rem)] overflow-y-auto overscroll-contain space-y-4", menuElevated && "z-[250]")}>
+          <div>
+            <p className="font-semibold">Recording settings</p>
+            {active ? <p className="mt-1 text-xs text-muted-foreground">Camera, microphone, and quality are locked until this take is finished. Pausing does not unlock them.</p> : null}
+          </div>
+          <div className="space-y-1">
+            <label htmlFor={`${id}-camera`} className="text-sm font-medium">Camera</label>
+            <select id={`${id}-camera`} className={selectClass} value={cameraId} disabled={devicesLocked}
+              onChange={(event) => void capture.selectDevice(event.target.value)}>
+              <option value="">Default camera</option>
+              {videoDevices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Camera ${index + 1}`}</option>)}
+            </select>
+            {isMobile && !screenCapture ? <Button type="button" variant="outline" className="h-11 w-full gap-2" disabled={devicesLocked}
+              onClick={() => void capture.switchFacing()}><FlipHorizontal className="h-4 w-4" />Flip camera</Button> : null}
+          </div>
+          {capture.screenUsesCameraAudio !== false ? <div className="space-y-1">
+            <label htmlFor={`${id}-mic`} className="text-sm font-medium">Microphone</label>
+            <select id={`${id}-mic`} className={selectClass} value={microphoneId} disabled={devicesLocked}
+              onChange={(event) => { persist({ audioDeviceId: event.target.value || null }); void capture.selectAudioDevice(event.target.value); }}>
+              <option value="">Default microphone</option>
+              {audioDevices.map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Microphone ${index + 1}`}</option>)}
+            </select>
+          </div> : null}
+          {!screenCapture ? <div className="space-y-1">
+            <label htmlFor={`${id}-quality`} className="text-sm font-medium">Requested resolution</label>
+            <select id={`${id}-quality`} className={selectClass} value={capture.settings.quality} disabled={devicesLocked}
+              onChange={(event) => persist({ quality: event.target.value as JournalVideoQuality })}>
+              <option value="720p">720p</option><option value="1080p">1080p</option>
+            </select>
+            <p className="text-xs text-muted-foreground" aria-live="polite">
+              {capture.configuringQuality ? "Applying camera resolution…" : resolution ? `Camera output: ${resolution.width} × ${resolution.height}` : "Actual camera dimensions appear when available."}
+            </p>
+            <p className="text-xs text-muted-foreground">Video is compressed to fit the recording limit. Resolution alone does not determine detail.</p>
+          </div> : <p className="text-xs text-muted-foreground">Screen dimensions follow the shared display.</p>}
+          <div className="space-y-1">
+            <label htmlFor={`${id}-countdown`} className="text-sm font-medium">Countdown</label>
+            <select id={`${id}-countdown`} className={selectClass} value={String(capture.settings.countdown ?? 3)} disabled={devicesLocked}
+              onChange={(event) => persist({ countdown: Number(event.target.value) as JournalVideoCountdown })}>
+              <option value="0">None</option><option value="1">1 second</option><option value="3">3 seconds</option><option value="5">5 seconds</option>
+            </select>
+          </div>
+          {!screenCapture ? <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input type="checkbox" checked={Boolean(capture.settings.silenceAutoPause)}
+              onChange={(event) => persist({ silenceAutoPause: event.target.checked })} />
+            Pause after 30 seconds of silence
+          </label> : null}
+          {!isMobile ? <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input type="checkbox" disabled={devicesLocked} checked={Boolean(capture.settings.floatingRecorder)}
+              onChange={(event) => persist({ floatingRecorder: event.target.checked })} />Floating desktop recorder
+          </label> : null}
+          {screenCapture ? <>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input type="checkbox" disabled={active} checked={Boolean(capture.settings.includeSystemAudio)}
+                onChange={(event) => persist({ includeSystemAudio: event.target.checked })} />Include system audio on next screen share
+            </label>
+            <label className="block space-y-1 text-sm">Camera bubble position
+              <select className={selectClass} value={capture.settings.bubbleCorner}
+                onChange={(event) => { const corner = event.target.value as BubbleCorner; capture.setBubbleLayout({ corner }); persist({ bubbleCorner: corner }); }}>
+                <option value="bottom-left">Bottom left</option><option value="bottom-right">Bottom right</option>
+                <option value="top-left">Top left</option><option value="top-right">Top right</option>
+              </select>
+            </label>
+            <label className="block space-y-1 text-sm">Camera bubble size
+              <select className={selectClass} value={capture.settings.bubbleSize}
+                onChange={(event) => { const size = event.target.value as BubbleSize; capture.setBubbleLayout({ size }); persist({ bubbleSize: size }); }}>
+                <option value="sm">Small</option><option value="md">Medium</option><option value="lg">Large</option>
+              </select>
+            </label>
+            <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={Boolean(capture.settings.bubbleVisible)}
+              onChange={(event) => { capture.setBubbleLayout({ visible: event.target.checked }); persist({ bubbleVisible: event.target.checked }); }} />Show camera bubble</label>
+          </> : null}
+          {active ? <Button type="button" variant="outline" className="h-11 w-full gap-2" onClick={() => capture.markChapter()}>
+            <Bookmark className="h-4 w-4" />Mark chapter{capture.chapters?.length ? ` (${capture.chapters.length})` : ""}
+          </Button> : null}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

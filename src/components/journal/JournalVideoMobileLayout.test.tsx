@@ -98,9 +98,10 @@ describe("mobile journal video layouts", () => {
     const stop = screen.getByRole("button", { name: "Stop recording" });
 
     expect(toolbar).toHaveClass("overflow-hidden");
-    expect(secondaryControls).toHaveClass("min-w-0", "overflow-x-auto");
-    expect(pause).toHaveClass("h-11", "w-11");
-    expect(stop).toHaveClass("h-11", "w-11");
+    expect(secondaryControls).toHaveClass("min-w-0");
+    expect(pause).toHaveClass("h-11", "min-w-11");
+    expect(stop).toHaveClass("h-11");
+    expect(stop).toHaveTextContent("Stop & review");
     expect(secondaryControls).not.toContainElement(pause);
     expect(secondaryControls).not.toContainElement(stop);
   });
@@ -166,4 +167,18 @@ describe("mobile journal video layouts", () => {
     expect(screen.getByRole("button", { name: "Detecting microphones…" })).toHaveClass("h-11");
     expect(screen.getByRole("button", { name: "Looks good — continue" })).toHaveClass("min-h-11");
   });
+});
+
+
+it("confirms retaking a recorded video and lets the user cancel without losing it", () => {
+  const retake = vi.fn();
+  render(<JournalVideoCaptureReview result={{ video: new Blob(["video"], { type: "video/mp4" }), audio: null,
+    liveTranscript: "", peakLiveTranscript: "", chapters: [], durationMs: 5000 }} durationMs={5000} onRetake={retake} onConfirm={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Retake" }));
+  expect(retake).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Keep recording" }));
+  expect(retake).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Retake" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discard and retake" }));
+  expect(retake).toHaveBeenCalledOnce();
 });

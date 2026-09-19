@@ -79,6 +79,9 @@ export interface UseJournalVideoCaptureApi {
   recordingRemainingMs: number;
   maxDurationMs: number;
   previewStream: MediaStream | null;
+  /** Actual camera dimensions, not merely the requested quality label. */
+  captureResolution?: { width: number; height: number } | null;
+  configuringQuality?: boolean;
   facingMode: "user" | "environment";
   deviceId: string | null;
   audioDeviceId: string | null;
