@@ -29,7 +29,11 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import base64, gzip, hashlib, json
-          plan = json.loads(gzip.decompress(base64.b64decode(Path('scripts/journal-video-workbench.patch').read_text())))
+          parts = sorted(Path('scripts').glob('journal-video-workbench.part-*'))
+          encoded = ''.join(path.read_text().strip() for path in parts) + Path('scripts/journal-video-workbench.patch').read_text().strip()
+          raw = gzip.decompress(base64.b64decode(encoded))
+          assert hashlib.sha256(raw).hexdigest() == 'c8621357b6c2d0fa5a86393c89e75c0e3b027cfa7b7d168876afc5258b607e55', 'Implementation checksum mismatch'
+          plan = json.loads(raw)
           results = {}
           for filename, patch in plan.items():
               path = Path(filename)
@@ -45,7 +49,7 @@ jobs:
               path.write_text(text)
           PY
           npm install --package-lock-only --ignore-scripts tus-js-client@4.3.1
-          git rm scripts/journal-video-workbench.patch .github/workflows/journal-video-workbench.yml
+          git rm scripts/journal-video-workbench.patch scripts/journal-video-workbench.part-* .github/workflows/journal-video-workbench.yml .github/workflows/journal-video-unit-workspace.yml
           git add src scripts docs package.json package-lock.json .github/workflows
           git diff --cached --check
           git -c user.name='Andrew Heisley' -c user.email='andrew12-circle@users.noreply.github.com' commit -m 'fix(journal): harden video capture, recovery, upload and playback'
