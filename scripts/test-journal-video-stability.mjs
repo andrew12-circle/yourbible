@@ -90,7 +90,7 @@ try {
   await page.getByRole('button',{name:/Retry camera|Try again|Retry camera or screen/}).waitFor();
   await page.evaluate(()=>{window.__denyCamera=false;});
   await page.getByRole('button',{name:/Retry camera|Try again|Retry camera or screen/}).click();
-  await page.getByRole('button',{name:'Looks good — continue',exact:true}).click();
+  // Retrying permission opens a ready preview directly; it must not reopen or discard a take.
   await page.getByRole('button',{name:'Start recording',exact:true}).click();
   await page.waitForTimeout(2200);
   await visibleTransport();
@@ -119,7 +119,6 @@ try {
   await page.screenshot({path:join(output,'journal-video-save-recovery.png'),fullPage:true});
   await page.evaluate(()=>{window.__failSave=false;window.__saveCount=0;});
   await page.getByRole('button',{name:'Save video',exact:true}).evaluate(button=>{button.click();button.click();});
-  await page.getByRole('button',{name:'Open camera',exact:true}).waitFor();
   await page.waitForFunction(()=>window.__saved?.size>0);
   assert.equal(await page.evaluate(()=>window.__saveCount),1,'Repeated Save started another handoff');
   reports.push({case:'camera-denial-retry-pause-resume-safe-review-backup-queue',saved:await page.evaluate(()=>window.__saved)});
@@ -140,7 +139,7 @@ try {
   await page.screenshot({path:join(output,'journal-video-mobile-landscape.png'),fullPage:true});
   const keptId=await page.evaluate(()=>window.__review.recoveryDraftId);
   await page.getByRole('button',{name:'Keep for later',exact:true}).click();
-  await page.getByRole('button',{name:'Open camera',exact:true}).waitFor();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
   assert(await page.evaluate(async id=>(await window.__readQueued(id))?.video.size>0,keptId),'Keep for later closed without durable media');
   reports.push({case:'mobile-rotation-preserves-stream-review-and-keep-for-later'});
 
@@ -151,7 +150,7 @@ try {
   await page.getByRole('button',{name:'Save video',exact:true}).waitFor();
   assert(await page.evaluate(()=>window.__review.video.size>0),'Stop sharing did not preserve its recording');
   await page.getByRole('button',{name:'Save video',exact:true}).click();
-  await page.getByRole('button',{name:'Open screen',exact:true}).waitFor();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
   reports.push({case:'browser-stop-sharing-opens-review-and-persists-one-clip'});
   assert.equal(errors.length,0,errors.join('\n'));
   console.log(JSON.stringify({passed:reports.length, reports},null,2));
