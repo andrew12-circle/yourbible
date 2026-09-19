@@ -24,11 +24,21 @@ jobs:
         with:
           node-version: '22'
       - name: Export exact source for implementation
-        run: git archive --format=tar HEAD | gzip > "$RUNNER_TEMP/journal-video-source.tar.gz"
+        run: |
+          python - <<'PY'
+          import os, subprocess, tarfile
+          paths = subprocess.check_output(['git','ls-tree','-r','--name-only','HEAD'],text=True).splitlines()
+          with tarfile.open(os.environ['RUNNER_TEMP']+'/journal-video-source.tar.gz','w:gz') as archive:
+              for path in paths:
+                  if path.startswith(('src/','scripts/','docs/','ios/','.github/')) or '/' not in path:
+                      if path.endswith(('.ts','.tsx','.js','.mjs','.cjs','.json','.css','.html','.md','.yml','.yaml','.swift','.sh','.sql')):
+                          archive.add(path, arcname=path)
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: journal-video-source
           path: ${{ runner.temp }}/journal-video-source.tar.gz
+          retention-days: 1
       - name: Apply reviewed implementation
         if: hashFiles('scripts/journal-video-workbench.patch') != ''
         run: |
