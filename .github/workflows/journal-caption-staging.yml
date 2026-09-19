@@ -1,0 +1,87 @@
+name: Journal caption candidate verification
+on:
+  push:
+    branches: ['work/journal-caption-stage-20260919']
+permissions:
+  contents: write
+concurrency:
+  group: journal-caption-candidate
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+      VITE_SUPABASE_ANON_KEY: journal-test-placeholder
+      CAPTION_BASE: 3000fecac5731d9ef72648ef8b34d7ea19c92bd4
+      CAPTION_TREE: 3622faa044cd13baac11b95e40ae601ace4755a0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply the reviewed patch to the pinned source
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import zlib from 'node:zlib';
+          import crypto from 'node:crypto';
+          const encoded = [1,2,3].map(i => fs.readFileSync(`scripts/journal-caption-patch/${i}.txt`, 'utf8').trim()).join('');
+          const patch = zlib.gunzipSync(Buffer.from(encoded, 'base64'));
+          const digest = crypto.createHash('sha256').update(patch).digest('hex');
+          if (digest !== '77eacc3fbe0b8c09ca51095dcc76e687b8d8015106476135720c2ee56b259815') throw Error('Patch integrity mismatch');
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/journal-caption-reviewed.patch`, patch);
+          NODE
+          git checkout --detach "$CAPTION_BASE"
+          git apply --index "$RUNNER_TEMP/journal-caption-reviewed.patch"
+          git diff --cached --stat
+      - run: npm ci
+      - name: Caption unit and integration tests
+        shell: bash
+        run: npm test -- src/lib/journal/journalCaptionPreview.test.ts src/hooks/useJournalCaptionPreview.test.tsx src/components/journal/JournalBodyWithVideos.captions.test.tsx src/components/journal/JournalSaveStatus.quiet.test.tsx 2>&1 | tee "$RUNNER_TEMP/journal-caption-tests.log"
+      - name: Install browser verification tools
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/journal-caption-tools" --no-save --package-lock=false playwright@1.55.1
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/journal-caption-tools/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          node "$RUNNER_TEMP/journal-caption-tools/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Verify actual desktop and mobile caption rendering
+        shell: bash
+        run: node scripts/test-journal-captions.mjs 2>&1 | tee "$RUNNER_TEMP/journal-caption-browser.log"
+      - name: Verify existing long-entry writing behavior
+        shell: bash
+        run: node scripts/test-journal-editor-scroll.mjs 2>&1 | tee "$RUNNER_TEMP/journal-caption-scroll.log"
+      - name: Prepare a clean candidate without changing any branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs');
+            const cp = require('node:child_process');
+            const paths = cp.execFileSync('git', ['diff','--cached','--name-only','--diff-filter=ACM'], {encoding:'utf8'}).trim().split('\n');
+            if (paths.length !== 17 || paths.some(p => p.includes('journal-caption-patch') || p.includes('staging'))) throw Error('Unexpected candidate files');
+            const entries = [];
+            const files = {};
+            for (const path of paths) {
+              const { data: blob } = await github.rest.git.createBlob({...context.repo, encoding:'base64', content:fs.readFileSync(path).toString('base64')});
+              entries.push({path,mode:'100644',type:'blob',sha:blob.sha});
+              files[path] = blob.sha;
+            }
+            const { data: tree } = await github.rest.git.createTree({...context.repo, base_tree:process.env.CAPTION_TREE, tree:entries});
+            const { data: commit } = await github.rest.git.createCommit({...context.repo, message:'fix(journal): stream live recording text inside the writing area', tree:tree.sha, parents:[process.env.CAPTION_BASE]});
+            const result = {sha:commit.sha,tree:tree.sha,parent:process.env.CAPTION_BASE,files};
+            fs.writeFileSync(`${process.env.RUNNER_TEMP}/journal-caption-candidate.json`, JSON.stringify(result,null,2));
+            core.info(`Verified unreferenced candidate: ${commit.sha}`);
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: journal-caption-candidate-validation
+          path: |
+            ${{ runner.temp }}/journal-caption-*
+            ${{ runner.temp }}/journal-writing-*
+          retention-days: 7
