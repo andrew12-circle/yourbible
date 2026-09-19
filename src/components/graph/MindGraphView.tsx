@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import ForceGraph2D, { type ForceGraphMethods } from "react-force-graph-2d";
-import { Loader2, Network } from "lucide-react";
+import { Loader2, Network, Orbit } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { fetchUnifiedMindGraph } from "@/lib/graph/fetchUnifiedMindGraph";
+import { useMindGraphData } from "@/hooks/useMindGraphData";
+import { MindSpaceBoundary } from "@/components/graph/space/MindSpaceBoundary";
+import { Button } from "@/components/ui/button";
+const MindSpaceDialog = lazy(() => import("@/components/graph/space/MindSpaceDialog"));
 import {
   buildUnifiedMindGraph,
   DEFAULT_MIND_GRAPH_FILTERS,
@@ -38,8 +41,10 @@ export default function MindGraphView({
 }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [busy, setBusy] = useState(true);
-  const [raw, setRaw] = useState<Awaited<ReturnType<typeof fetchUnifiedMindGraph>> | null>(null);
+  const { raw, busy, blocked, error, retry, sessionKey } = useMindGraphData(user?.id, journalId);
+  const [spaceSession, setSpaceSession] = useState<string | null>(null);
+  const spaceOpen = spaceSession === sessionKey && Boolean(raw) && !blocked;
+  const spaceButtonRef = useRef<HTMLButtonElement>(null);
   const [filters, setFilters] = useState<MindGraphFilters>(DEFAULT_MIND_GRAPH_FILTERS);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 520 });
   const [hover, setHover] = useState<MindGraphNode | null>(null);
@@ -53,26 +58,20 @@ export default function MindGraphView({
     [fill],
   );
 
-  useEffect(() => {
-    if (!user) return;
-    setBusy(true);
-    fetchUnifiedMindGraph(user.id, { journalId })
-      .then((data) => {
-        setRaw(data);
-        setBusy(false);
-      })
-      .catch(() => setBusy(false));
-  }, [user, journalId]);
-
   const graphData = useMemo(() => {
     if (!raw) return { nodes: [], links: [] };
     const built = buildUnifiedMindGraph(raw, filters);
     if (!journalId) return built;
-    return pruneMindGraphToEntryRoots(
-      built,
-      raw.entries.map((e) => e.id),
-    );
+    // Compute journal reachability before type filters hide the entry roots.
+    const scoped = pruneMindGraphToEntryRoots(buildUnifiedMindGraph(raw, { entry: true, belief: true, artifact: true, entity: true, verse: true, claim: true }), raw.entries.map((entry) => entry.id));
+    const keep = new Set(scoped.nodes.map((node) => node.id));
+    return { nodes: built.nodes.filter((node) => keep.has(node.id)), links: built.links.filter((link) => keep.has(link.source) && keep.has(link.target)) };
   }, [raw, filters, journalId]);
+  const mapData = useMemo(() => ({ nodes: graphData.nodes.map((node) => ({ ...node })), links: graphData.links.map((link) => ({ ...link })) }), [graphData]);
+  useEffect(() => {
+    if (spaceOpen) fgRef.current?.pauseAnimation();
+    else fgRef.current?.resumeAnimation();
+  }, [spaceOpen, mapData]);
 
   const hasGraph = !busy && graphData.nodes.length > 0;
 
@@ -117,6 +116,15 @@ export default function MindGraphView({
         className,
       )}
     >
+      <div className="flex shrink-0 items-center justify-between gap-3 rounded-xl border border-border/60 bg-card px-3 py-2">
+        <div className="min-w-0"><p className="text-sm font-medium">Step inside your mind map</p><p className="hidden text-xs text-muted-foreground sm:block">Explore thoughts in space and follow their saved connections.</p></div>
+        <Button ref={spaceButtonRef} type="button" className="min-h-11 shrink-0 gap-2" disabled={!raw || blocked || busy} onClick={() => setSpaceSession(sessionKey)}><Orbit className="h-4 w-4" />Enter space</Button>
+      </div>
+      {spaceOpen ? <MindSpaceBoundary onClose={() => setSpaceSession(null)}><Suspense fallback={<p role="status" className="p-3 text-sm">Opening mind space…</p>}>
+        <MindSpaceDialog key={sessionKey} graph={graphData} filters={filters} onToggleFilter={toggle}
+          onResetFilters={() => setFilters(DEFAULT_MIND_GRAPH_FILTERS)} returnFocusRef={spaceButtonRef} journalScoped={Boolean(journalId)}
+          onClose={() => setSpaceSession(null)} onOpenNode={(node) => navigate(mindNodeRoute(node))} />
+      </Suspense></MindSpaceBoundary> : null}
       {!fill ? (
         <>
           <div className="hidden flex-wrap items-center gap-x-4 gap-y-2 px-1 md:flex">
@@ -150,7 +158,11 @@ export default function MindGraphView({
         </>
       ) : null}
 
-      {busy ? (
+      {blocked ? (
+        <p className="p-8 text-center text-sm text-muted-foreground">Unlock your journal to explore its connections.</p>
+      ) : error ? (
+        <div className="p-8 text-center" role="alert"><p>Couldn’t load your mind map. Your saved connections are unchanged.</p><Button className="mt-3 min-h-11" variant="outline" onClick={retry}>Retry loading map</Button></div>
+      ) : busy ? (
         <div className="flex flex-1 items-center justify-center py-24">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
         </div>
@@ -215,7 +227,7 @@ export default function MindGraphView({
               ref={fgRef}
               width={canvasSize.w}
               height={Math.max(canvasSize.h, 280)}
-              graphData={graphData}
+              graphData={mapData}
               nodeId="id"
               nodeVal="val"
               nodeColor="color"

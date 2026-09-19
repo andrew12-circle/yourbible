@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { decryptJournalRows } from "@/lib/journal/journalEntryCrypto";
 import type { UnifiedMindGraphInput } from "@/lib/graph/unifiedMindGraph";
 
 export async function fetchUnifiedMindGraph(
@@ -7,7 +8,7 @@ export async function fetchUnifiedMindGraph(
 ): Promise<UnifiedMindGraphInput> {
   let entryQ = supabase
     .from("journal_entries")
-    .select("id,title,body,summary,belief_id,verse_ref,journal_id")
+    .select("id,title,body,summary,belief_id,verse_ref,journal_id,e2e_encrypted")
     .eq("user_id", userId)
     .or("entry_kind.is.null,entry_kind.neq.vent")
     .order("entry_at_ts", { ascending: false })
@@ -47,10 +48,15 @@ export async function fetchUnifiedMindGraph(
       .select("entity_id,journal_entry_id,artifact_id,belief_id")
       .eq("user_id", userId)
       .limit(800),
-  ]);
+  ]).then((results) => {
+    // A failed read is not an empty mind map. Never silently present missing relationships as fact.
+    if (results.some((result) => result.error)) throw new Error("Could not load the complete mind map. Please retry.");
+    return results;
+  });
+  const readableEntries = await decryptJournalRows((entries ?? []).map((entry) => ({ ...entry, body: entry.body ?? "" })));
 
   return {
-    entries: (entries ?? []).map((e) => ({
+    entries: readableEntries.filter((entry) => !entry.contentLocked).map((e) => ({
       id: e.id,
       title: e.title,
       body: e.body ?? "",
