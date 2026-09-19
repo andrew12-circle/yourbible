@@ -1,29 +1,105 @@
-name: Journal recovery workspace
+name: Journal complete recovery validation
 on:
   push:
     branches: ['work/journal-complete-recovery-20260918']
-    paths: ['.github/workflows/journal-expansion-review.yml']
+    paths: ['.github/workflows/journal-expansion-review.yml', '.journal-review/validate']
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: journal-complete-recovery-review
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+  VITE_SUPABASE_ANON_KEY: journal-test-placeholder
 jobs:
-  source:
+  validation:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 3000fecac5731d9ef72648ef8b34d7ea19c92bd4
-          persist-credentials: false
-      - name: Package source and bounded test assets
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify source bundle and create clean candidate
         run: |
           python3 - <<'PY'
-          import os,subprocess,tarfile
-          names=subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
-          with tarfile.open(os.environ['RUNNER_TEMP']+'/journal-expansion-source.tar','w') as tar:
-            for name in names:
-              if name and os.path.isfile(name) and os.path.getsize(name)<2*1024*1024:
-                tar.add(name,arcname=name,recursive=False)
+          import base64,hashlib,lzma,os,pathlib
+          parts=sorted(pathlib.Path('.journal-review').glob('part-*.xz64'))
+          assert len(parts)==11
+          patch=lzma.decompress(base64.b64decode(''.join(p.read_text().strip() for p in parts),validate=True))
+          assert hashlib.sha256(patch).hexdigest()=='2581b67d715d231c258f91a0af6637dbb5005fb907280a6e624e2148c3b3f61e'
+          pathlib.Path(os.environ['RUNNER_TEMP'],'journal-recovery.patch').write_bytes(patch)
           PY
+          git checkout --detach 3000fecac5731d9ef72648ef8b34d7ea19c92bd4
+          git apply --check "$RUNNER_TEMP/journal-recovery.patch"
+          git apply "$RUNNER_TEMP/journal-recovery.patch"
+          git config user.name 'Andrew Heisley'
+          git config user.email 'andrew12-circle@users.noreply.github.com'
+          git add src scripts docs/journal-complete-recovery.md supabase/migrations/20260919000000_journal_archive_recovery.sql .github/workflows/journal-reliability.yml
+          git commit -m 'feat(journal): encrypted media, saved history, recovery and portable backups'
+          git rev-parse HEAD > "$RUNNER_TEMP/journal-recovery-candidate.log"
+          cp supabase/migrations/20260919000000_journal_archive_recovery.sql "$RUNNER_TEMP/"
+      - run: npm ci
+      - name: Full repository tests
+        id: tests
+        continue-on-error: true
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/journal-recovery-tests.log"
+      - name: Full repository lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/journal-recovery-lint.log"
+      - name: No new TypeScript diagnostics
+        id: types
+        continue-on-error: true
+        run: node scripts/check-journal-type-regressions.mjs 3000fecac5731d9ef72648ef8b34d7ea19c92bd4 2>&1 | tee "$RUNNER_TEMP/journal-recovery-types.log"
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/journal-recovery-build.log"
+      - name: Install isolated browser runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/journal-browser" playwright@1.56.1
+          "$RUNNER_TEMP/journal-browser/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Chromium writing and recording recovery
+        id: chromium
+        continue-on-error: true
+        run: |
+          mkdir -p "$RUNNER_TEMP/chromium"
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/journal-browser/node_modules/playwright/index.mjs"
+          export JOURNAL_TEST_BROWSER=chromium
+          node scripts/test-journal-editor-scroll.mjs 2>&1 | tee "$RUNNER_TEMP/journal-recovery-chromium-writing.log"
+          node scripts/test-journal-recording-recovery.mjs 2>&1 | tee "$RUNNER_TEMP/journal-recovery-chromium-recording.log"
+      - name: WebKit writing and recording recovery
+        id: webkit
+        continue-on-error: true
+        run: |
+          export PLAYWRIGHT_MODULE="$RUNNER_TEMP/journal-browser/node_modules/playwright/index.mjs"
+          export JOURNAL_TEST_BROWSER=webkit
+          node scripts/test-journal-editor-scroll.mjs 2>&1 | tee "$RUNNER_TEMP/journal-recovery-webkit-writing.log"
+          node scripts/test-journal-recording-recovery.mjs 2>&1 | tee "$RUNNER_TEMP/journal-recovery-webkit-recording.log"
+      - name: Publish only a fully verified candidate
+        if: always()
+        run: |
+          test '${{ steps.tests.outcome }}' = success
+          test '${{ steps.lint.outcome }}' = success
+          test '${{ steps.types.outcome }}' = success
+          test '${{ steps.build.outcome }}' = success
+          test '${{ steps.chromium.outcome }}' = success
+          test '${{ steps.webkit.outcome }}' = success
+          git push origin HEAD:refs/heads/fix/journal-complete-recovery-verified-20260919
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: journal-expansion-source-small
-          path: ${{ runner.temp }}/journal-expansion-source.tar
+          name: journal-complete-recovery-validation
+          path: |
+            ${{ runner.temp }}/journal-recovery-*.log
+            ${{ runner.temp }}/journal-*-results.json
+            ${{ runner.temp }}/journal-*.png
+            ${{ runner.temp }}/journal-recovery.patch
+            ${{ runner.temp }}/20260919000000_journal_archive_recovery.sql
