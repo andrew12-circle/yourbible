@@ -1,0 +1,71 @@
+name: Spatial mind map
+on:
+  push:
+    branches: [main, 'fix/mind-*']
+    paths: ['src/components/graph/**', 'src/lib/graph/**', 'src/hooks/useMindGraphData*', 'scripts/test-mind-space.mjs', '.github/workflows/mind-space.yml', 'package*.json']
+  pull_request:
+    paths: ['src/components/graph/**', 'src/lib/graph/**', 'src/hooks/useMindGraphData*', 'scripts/test-mind-space.mjs', '.github/workflows/mind-space.yml', 'package*.json']
+permissions:
+  contents: read
+concurrency:
+  group: mind-space-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: graph-test-placeholder
+  VITE_SUPABASE_ANON_KEY: graph-test-placeholder
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Full repository tests
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/mind-space-tests.log"
+      - name: No new TypeScript diagnostics
+        run: node scripts/check-journal-type-regressions.mjs 0d038d6eea43f0b8c6443fdcf5e29b731e7eb233 2>&1 | tee "$RUNNER_TEMP/mind-space-types.log"
+      - name: Production build
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/mind-space-build.log"
+      - name: Full repository lint
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/mind-space-lint.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mind-space-regression
+          path: ${{ runner.temp }}/mind-space-*.log
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Install isolated browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser" --no-save --package-lock=false playwright@1.55.1
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          node "$RUNNER_TEMP/browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Desktop and phone spatial graph interaction
+        run: node scripts/test-mind-space.mjs 2>&1 | tee "$RUNNER_TEMP/mind-space-browser.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mind-space-browser
+          path: ${{ runner.temp }}/mind-space-*

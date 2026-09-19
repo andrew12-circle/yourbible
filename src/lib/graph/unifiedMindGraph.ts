@@ -1,3 +1,4 @@
+import { parseBibleReference } from "@/lib/bible/parseBibleReference";
 import { graphNodeValFromDegree } from "@/lib/journal/wikilinks";
 
 export type MindNodeKind =
@@ -17,6 +18,9 @@ export type MindGraphNode = {
   /** Raw uuid or verse ref for navigation */
   ref: string;
   artifactKind?: string;
+  /** Plain-text source preview, retained only for this authenticated view. */
+  detail?: string;
+  sourceArtifactId?: string;
 };
 
 export type MindGraphLink = {
@@ -186,11 +190,15 @@ export function buildUnifiedMindGraph(
       e.body.trim().slice(0, 60) ||
       "Journal entry";
     ensure(id, "entry", label, e.id);
+    const node = nodeMap.get(id);
+    if (node) node.detail = (e.summary?.trim() || e.body.trim()).slice(0, 2400);
   }
 
   for (const b of input.beliefs) {
     const id = mindNodeId.belief(b.id);
     ensure(id, "belief", b.statement || b.topic || "Belief", b.id);
+    const node = nodeMap.get(id);
+    if (node) node.detail = [b.topic, b.statement].filter(Boolean).join("\n\n");
   }
 
   for (const a of input.artifacts) {
@@ -307,6 +315,8 @@ export function buildUnifiedMindGraph(
     for (const c of input.claims) {
       const cid = mindNodeId.claim(c.id);
       ensure(cid, "claim", c.claim, c.id);
+      const node = nodeMap.get(cid);
+      if (node) { node.detail = c.claim; node.sourceArtifactId = c.artifact_id; }
       link(cid, mindNodeId.artifact(c.artifact_id), "claim");
       if (c.matched_belief_id) {
         link(cid, mindNodeId.belief(c.matched_belief_id), c.claim.slice(0, 24));
@@ -336,7 +346,7 @@ export function pruneMindGraphToEntryRoots(
   graph: { nodes: MindGraphNode[]; links: MindGraphLink[] },
   entryIds: string[],
 ): { nodes: MindGraphNode[]; links: MindGraphLink[] } {
-  if (!entryIds.length) return graph;
+  if (!entryIds.length) return { nodes: [], links: [] };
   const roots = new Set(entryIds.map((id) => mindNodeId.entry(id)));
   const adj = new Map<string, Set<string>>();
   for (const l of graph.links) {
@@ -374,16 +384,11 @@ export function mindNodeRoute(node: MindGraphNode): string {
     case "entity":
       return `/framework/influences`;
     case "verse": {
-      const m = node.ref.match(/^(\S+)\s+(\d+)/);
-      if (m) {
-        const book = m[1].toLowerCase();
-        const ch = m[2];
-        return `/read/${book}/${ch}`;
-      }
-      return "/";
+      const parsed = parseBibleReference(node.ref);
+      return parsed ? `/read/${parsed.bookAbbr}/${parsed.chapter}${parsed.verse ? `?v=${parsed.verse}` : ""}` : "/framework/graph";
     }
     case "claim":
-      return `/framework/artifacts`;
+      return node.sourceArtifactId ? `/framework/artifacts/${encodeURIComponent(node.sourceArtifactId)}/research/${encodeURIComponent(node.ref)}` : `/framework/artifacts`;
     default:
       return "/framework/graph";
   }
