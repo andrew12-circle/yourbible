@@ -37,9 +37,12 @@ jobs:
           const digest = crypto.createHash('sha256').update(patch).digest('hex');
           if (digest !== '77eacc3fbe0b8c09ca51095dcc76e687b8d8015106476135720c2ee56b259815') throw Error('Patch integrity mismatch');
           fs.writeFileSync(`${process.env.RUNNER_TEMP}/journal-caption-reviewed.patch`, patch);
+          const correction = fs.readFileSync('scripts/journal-caption-correction.patch','utf8').replace(/^ diff --git/gm,'diff --git');
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/journal-caption-correction.patch`, correction);
           NODE
           git checkout --detach "$CAPTION_BASE"
           git apply --index "$RUNNER_TEMP/journal-caption-reviewed.patch"
+          git apply --index "$RUNNER_TEMP/journal-caption-correction.patch"
           git diff --cached --stat
       - run: npm ci
       - name: Caption unit and integration tests
@@ -82,6 +85,10 @@ jobs:
         with:
           name: journal-caption-candidate-validation
           path: |
-            ${{ runner.temp }}/journal-caption-*
-            ${{ runner.temp }}/journal-writing-*
+            ${{ runner.temp }}/journal-caption-*.json
+            ${{ runner.temp }}/journal-caption-*.png
+            ${{ runner.temp }}/journal-caption-*.html
+            ${{ runner.temp }}/journal-caption-*.log
+            ${{ runner.temp }}/journal-writing-*.json
+            ${{ runner.temp }}/journal-writing-*.png
           retention-days: 7

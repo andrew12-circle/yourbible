@@ -1,0 +1,55 @@
+diff --git a/.github/workflows/journal-captions.yml b/.github/workflows/journal-captions.yml
+index 7cb87fb..a6f1b88 100644
+--- a/.github/workflows/journal-captions.yml
++++ b/.github/workflows/journal-captions.yml
+@@ -14,6 +14,9 @@ jobs:
+   browser:
+     runs-on: ubuntu-latest
+     timeout-minutes: 15
++    defaults:
++      run:
++        shell: bash
+     env:
+       VITE_SUPABASE_URL: https://example.supabase.co
+       VITE_SUPABASE_PUBLISHABLE_KEY: journal-test-placeholder
+ diff --git a/scripts/test-journal-captions.mjs b/scripts/test-journal-captions.mjs
+index c800c6c..06e695b 100644
+--- a/scripts/test-journal-captions.mjs
++++ b/scripts/test-journal-captions.mjs
+@@ -124,6 +124,7 @@ createRoot(document.getElementById('root')!).render(<TestPage />);
+ `);
+ const server = await createServer({
+   configFile: false, root, plugins: [react()],
++  optimizeDeps: { entries: [join(scratch, "index.html")] },
+   resolve: { alias: [
+     { find: '@/components/journal/JournalVideoCaptureButton', replacement: join(scratch, 'recorder.tsx') },
+     { find: '@/integrations/supabase/client', replacement: join(scratch, 'supabase.ts') },
+diff --git a/src/lib/journal/journalCaptionPreview.test.ts b/src/lib/journal/journalCaptionPreview.test.ts
+index f2f486d..556c12d 100644
+--- a/src/lib/journal/journalCaptionPreview.test.ts
++++ b/src/lib/journal/journalCaptionPreview.test.ts
+@@ -23,6 +23,11 @@ describe("journal-body caption preview", () => {
+   it("does not repeat captions already committed by the recording finalizer", () => {
+     expect(resolveJournalCaptionPreview("Words as I speak.", snap()).text).toBe("");
+   });
++  it("hides a saved transcript appended after concurrent edits beyond the recording anchor", () => {
++    const original = "Text before recording.\n\nText after recording.";
++    const current = "Text before recording.\n\nMy manually edited ending.\n\nFinal spoken words.";
++    expect(resolveJournalCaptionPreview(current, snap(original, 22, "Final spoken words")).text).toBe("");
++  });
+   it("continues after a pause checkpoint without replaying the saved prefix", () => {
+     expect(resolveJournalCaptionPreview("Words as I speak.", snap("", 0, "words as I speak and now more words")))
+       .toEqual({ id: "capture", anchor: 17, text: "and now more words" });
+diff --git a/src/lib/journal/journalCaptionPreview.ts b/src/lib/journal/journalCaptionPreview.ts
+index 2f8520a..ad8dce9 100644
+--- a/src/lib/journal/journalCaptionPreview.ts
++++ b/src/lib/journal/journalCaptionPreview.ts
+@@ -23,7 +23,7 @@ export function resolveJournalCaptionPreview(current: string, snap: JournalCapti
+   const words = (value: string) => Array.from(value.matchAll(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu));
+   const spoken = words(text);
+   const added = current.slice(start, newEnd);
+-  if (start <= anchor && oldEnd >= anchor && spoken.length) {
++  if (spoken.length) {
+     for (const paragraph of added.matchAll(/[^\n]+/g)) {
+       const saved = words(paragraph[0]);
+       if (!saved.length || saved.length > spoken.length) continue;
