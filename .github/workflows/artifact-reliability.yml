@@ -1,0 +1,58 @@
+name: Artifact reliability
+on:
+  push:
+    branches: ['fix/artifacts-*']
+  pull_request:
+    paths:
+      - 'src/lib/framework/**'
+      - 'src/hooks/useArtifact*'
+      - 'src/hooks/useStaticYouTubeEmbedTelemetry.ts'
+      - 'src/components/framework/**'
+      - 'supabase/functions/framework-analyze/**'
+      - 'supabase/functions/artifact-analysis-worker/**'
+      - 'supabase/functions/_shared/artifactAnalysis*'
+      - 'supabase/migrations/*artifact*'
+      - '.github/workflows/artifact-reliability.yml'
+permissions:
+  contents: read
+concurrency:
+  group: artifact-reliability-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: artifact-test-placeholder
+      VITE_SUPABASE_ANON_KEY: artifact-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Package tracked review inputs (no environment files or user data)
+        run: git ls-files -z -- src supabase scripts .cursor .github docs AGENTS.md package.json package-lock.json '*config*' | tar --null -T - -czf "$RUNNER_TEMP/artifact-review-inputs.tgz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-review-inputs-${{ github.run_id }}
+          path: ${{ runner.temp }}/artifact-review-inputs.tgz
+          retention-days: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run lint 2>&1 | tee "$RUNNER_TEMP/artifact-lint.log"
+      - run: npm test 2>&1 | tee "$RUNNER_TEMP/artifact-tests.log"
+      - run: node scripts/check-journal-type-regressions.mjs 46391e6a3e940133e596bba2850eb34911a4370a
+      - run: npm run build 2>&1 | tee "$RUNNER_TEMP/artifact-build.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artifact-reliability-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/artifact-*.log
+            ${{ runner.temp }}/journal-*.log
