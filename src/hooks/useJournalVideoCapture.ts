@@ -112,6 +112,9 @@ export function useJournalVideoCapture(
   const [mode, setMode] = useState<JournalVideoCaptureMode | null>(null);
   const [phase, setPhase] = useState<JournalVideoCapturePhase>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [finalizationDelayed, setFinalizationDelayed] = useState(false);
+  const finalizationGenerationRef = useRef(0);
+  const observedStopsRef = useRef(new WeakSet<MediaRecorder>());
   const [interim, setInterim] = useState("");
   const [countdown, setCountdown] = useState<number | null>(null);
   const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
@@ -610,6 +613,14 @@ export function useJournalVideoCapture(
 
   const releaseCapture = useCallback(() => {
     const currentPhase = phaseRef.current;
+    if (currentPhase === "processing" && stopPromiseRef.current) {
+      releaseRequestedRef.current = true;
+      // Keep final event handlers and chunks alive. The interrupted source is
+      // explicitly incomplete and cannot be auto-uploaded by recovery.
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      setJournalVideoRecordingActiveInPage(recoveryDraftIdRef.current, false);
+      return;
+    }
     const finalized = finalResultRef.current;
     if (recoveryDraftIdRef.current && finalized) {
       releaseRequestedRef.current = true;
@@ -643,6 +654,7 @@ export function useJournalVideoCapture(
       // stopRecording owns final event ordering and only clears volatile chunks
       // after queued dataavailable writes have settled (or hit a bounded timeout).
       void stopRecordingRef.current?.();
+      streamRef.current?.getTracks().forEach((track) => track.stop());
       return;
     }
 
@@ -666,6 +678,8 @@ export function useJournalVideoCapture(
   releaseCaptureRefForUnmount.current = releaseCapture;
   const cancel = useCallback(() => {
     const id = recoveryDraftIdRef.current;
+    finalizationGenerationRef.current += 1;
+    setFinalizationDelayed(false);
     stopRequestedRef.current = true;
     const recorders = [recorderRef.current, audioRecorderRef.current];
     for (const recorder of recorders) {
@@ -723,6 +737,8 @@ export function useJournalVideoCapture(
         return;
       }
       const gen = ++openGenRef.current;
+      finalizationGenerationRef.current += 1;
+      setFinalizationDelayed(false);
       setMode(captureMode);
       setError(null);
       setDurableBackupState("idle");
@@ -864,6 +880,7 @@ export function useJournalVideoCapture(
             liveTranscript: "",
             peakLiveTranscript: "",
             videoMimeType,
+            finalizationIncomplete: true,
             audioMimeType: null,
             chapters: [],
           });
@@ -896,6 +913,7 @@ export function useJournalVideoCapture(
         dataCheckpoint.notify("video");
       };
       rec.onstop = () => {
+        observedStopsRef.current.add(rec);
         const blob = new Blob(videoChunks, { type: videoMimeType });
         const usableBlob = blob.size > 0 ? blob : null;
         if (recorderRef.current === rec) {
@@ -983,6 +1001,7 @@ export function useJournalVideoCapture(
           dataCheckpoint.notify("audio");
         };
         audioRec.onstop = () => {
+          observedStopsRef.current.add(audioRec);
           const audioBlob = new Blob(audioChunks, { type: resolvedAudioMime });
           if (audioRecorderRef.current === audioRec) {
             latchedAudioBlobRef.current = audioBlob.size > 0 ? audioBlob : null;
@@ -1184,8 +1203,10 @@ export function useJournalVideoCapture(
       return Promise.resolve(null);
     }
 
+    const generation = finalizationGenerationRef.current;
     const promise = (async (): Promise<JournalVideoCaptureResult | null> => {
       stopRequestedRef.current = true;
+      setFinalizationDelayed(false);
       phaseRef.current = "processing";
       if (mountedRef.current) {
         setPhase("processing");
@@ -1219,9 +1240,6 @@ export function useJournalVideoCapture(
           : {}),
       });
       speechStopRef.current();
-      finalizedTranscriptRef.current = "";
-      interimPartialRef.current = "";
-      peakLiveTranscriptRef.current = "";
       if (mountedRef.current) setInterim("");
 
       const rec = recorderRef.current;
@@ -1235,6 +1253,7 @@ export function useJournalVideoCapture(
           timeoutMs: JOURNAL_VIDEO_STOP_TIMEOUT_MS,
           mimeType: videoMimeTypeRef.current || rec?.mimeType || "video/webm",
           getLatchedBlob: () => latchedVideoBlobRef.current,
+          hasObservedStop: () => Boolean(rec && observedStopsRef.current.has(rec)),
           getChunks: () => videoChunks,
           setResolver: (resolve) => {
             resolveStopRef.current = resolve;
@@ -1246,6 +1265,7 @@ export function useJournalVideoCapture(
           timeoutMs: JOURNAL_VIDEO_STOP_TIMEOUT_MS,
           mimeType: audioMimeTypeRef.current || audioRec?.mimeType,
           getLatchedBlob: () => latchedAudioBlobRef.current,
+          hasObservedStop: () => Boolean(audioRec && observedStopsRef.current.has(audioRec)),
           getChunks: () => audioChunks,
           setResolver: (resolve) => {
             resolveAudioStopRef.current = resolve;
@@ -1253,77 +1273,38 @@ export function useJournalVideoCapture(
           requestStop: stopMediaRecorderWithFlush,
         }),
       ]);
+      if (generation !== finalizationGenerationRef.current) return null;
       let videoBlob = videoStop.blob;
       let audioBlob = audioStop.blob;
-      const recordersSettled = videoStop.stopped && audioStop.stopped;
-      const writesSettled =
-        recordersSettled &&
-        (await journalVideoWithTimeout(
-          chunkWriter.drain().then(
-            () => true,
-            () => false,
-          ),
-          JOURNAL_VIDEO_STOP_TIMEOUT_MS,
-          () => false,
-        ));
-      const updateFinalization = (
-        nextVideoBlob: Blob | null,
-        nextAudioBlob: Blob | null,
-        stopped: boolean,
-        persisted: boolean,
-      ) => {
-        const summary = buildJournalVideoFinalizationSummary({
-          videoBlob: nextVideoBlob,
-          audioBlob: nextAudioBlob,
-          videoChunks,
-          audioChunks,
-          recordersStopped: stopped,
-          writesPersisted: persisted,
-          persistenceError: chunkWriter.getError(),
-          now: new Date().toISOString(),
+      if (!videoStop.stopped || !audioStop.stopped) {
+        // The timeout only changes the UI. It must never promote partial chunks
+        // to a completed review result or release the recovery source.
+        if (mountedRef.current) setFinalizationDelayed(true);
+        updateRecoveryLifecycle(recoveryDraftId, {
+          status: "finalizing", finalizationIncomplete: true,
+          heartbeatAt: new Date().toISOString(),
         });
-        if (mountedRef.current) {
-          setDurableBackupState(summary.ready ? "saved" : "at-risk");
-          if (!summary.ready) {
-            setDurableBackupError(
-              chunkWriter.getError() ?? "The local backup is still finishing. Keep this tab open.",
-            );
-          }
-        }
-        updateRecoveryLifecycle(recoveryDraftId, summary.patch);
-        if (releaseRequestedRef.current) {
-          setJournalVideoRecordingActiveInPage(recoveryDraftId, false);
-        }
-        return summary.ready;
-      };
-      const ready = updateFinalization(videoBlob, audioBlob, recordersSettled, writesSettled);
-
-      if (!recordersSettled) {
-        void Promise.all([videoStop.completion, audioStop.completion])
-          .then(async ([lateVideoBlob, lateAudioBlob]) => {
-            if (recoveryDraftIdRef.current !== recoveryDraftId) return;
-            videoBlob = lateVideoBlob ?? videoBlob;
-            audioBlob = lateAudioBlob ?? audioBlob;
-            const lateWritesSettled = await journalVideoWithTimeout(
-              chunkWriter.drain().then(
-                () => true,
-                () => false,
-              ),
-              JOURNAL_VIDEO_STOP_TIMEOUT_MS,
-              () => false,
-            );
-            const lateReady = updateFinalization(videoBlob, audioBlob, true, lateWritesSettled);
-            if (
-              recoveryDraftIdRef.current === recoveryDraftId &&
-              recorderRef.current === rec
-            ) {
-              cleanupStream(!lateReady);
-            }
-          })
-          .catch((error) => markPersistenceAtRisk(error, recoveryDraftId));
-      } else {
-        cleanupStream(!ready);
+        if (releaseRequestedRef.current) setJournalVideoRecordingActiveInPage(recoveryDraftId, false);
+        [videoBlob, audioBlob] = await Promise.all([videoStop.completion, audioStop.completion]);
+        if (generation !== finalizationGenerationRef.current) return null;
       }
+      const writesSettled = await journalVideoWithTimeout(
+        chunkWriter.drain().then(() => true, () => false),
+        JOURNAL_VIDEO_STOP_TIMEOUT_MS, () => false,
+      );
+      if (generation !== finalizationGenerationRef.current) return null;
+      const summary = buildJournalVideoFinalizationSummary({
+        videoBlob, audioBlob, videoChunks, audioChunks,
+        recordersStopped: true, writesPersisted: writesSettled,
+        persistenceError: chunkWriter.getError(), now: new Date().toISOString(),
+      });
+      updateRecoveryLifecycle(recoveryDraftId, summary.patch);
+      if (mountedRef.current) {
+        setFinalizationDelayed(false);
+        setDurableBackupState(summary.ready ? "saved" : "at-risk");
+        setDurableBackupError(summary.ready ? null : chunkWriter.getError() ?? "Local backup is incomplete. Save or download this recording before closing.");
+      }
+      cleanupStream(!summary.ready);
 
       if (!videoBlob) {
         phaseRef.current = "paused";
@@ -1352,6 +1333,9 @@ export function useJournalVideoCapture(
         durationMs,
         recoveryDraftId,
       };
+      finalizedTranscriptRef.current = "";
+      interimPartialRef.current = "";
+      peakLiveTranscriptRef.current = "";
       finalResultRef.current = result;
       if (releaseRequestedRef.current) promoteFinalizedCaptureForRelease(result);
       return result;
@@ -1367,10 +1351,34 @@ export function useJournalVideoCapture(
     clearCountdown,
     clearRecordingTick,
     getRecordingElapsedMs,
-    markPersistenceAtRisk,
     promoteFinalizedCaptureForRelease,
     resetRecordingClock,
   ]);
+
+  const getPartialRecording = useCallback(() => {
+    const blob = latchedVideoBlobRef.current ?? new Blob(chunksRef.current, {
+      type: videoMimeTypeRef.current || "video/webm",
+    });
+    return blob.size > 0 ? blob : null;
+  }, []);
+
+  const keepUnfinishedRecording = useCallback(async () => {
+    const id = recoveryDraftIdRef.current;
+    if (!id || phaseRef.current !== "processing") throw new Error("No unfinished recovery recording is available.");
+    const persisted = await journalVideoWithTimeout(
+      chunkWriterRef.current.drain().then(() => true, () => false),
+      JOURNAL_VIDEO_STOP_TIMEOUT_MS, () => false,
+    );
+    const meta = listInProgressJournalVideoRecordings().find((row) => row.id === id);
+    if (!persisted || !meta?.videoChunkCount) {
+      throw new Error("Local recovery could not be verified. Download the recovered part before closing.");
+    }
+    // Completion might have arrived while checking storage. Preserve the
+    // complete result if available instead of downgrading it to partial.
+    if (finalResultRef.current) promoteFinalizedCaptureForRelease(finalResultRef.current);
+    else updateRecoveryLifecycle(id, { finalizationIncomplete: true, status: "finalizing" });
+    releaseCapture();
+  }, [promoteFinalizedCaptureForRelease, releaseCapture]);
 
   stopRecordingRef.current = stopRecording;
 
@@ -1669,6 +1677,9 @@ export function useJournalVideoCapture(
     chapters,
     settings,
     screenUsesCameraAudio,
+    finalizationDelayed,
+    getPartialRecording,
+    keepUnfinishedRecording,
     durableBackupState,
     durableBackupError,
     interruptionReason,

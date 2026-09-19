@@ -1,3 +1,4 @@
+import { JournalPendingRecordings } from "./JournalPendingRecordings";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -112,6 +113,7 @@ export default function JournalsRail({ journals, onChange, activeJournalId, inSh
 
       <div className={cn(inDesk ? "journal-pane-scroll min-h-0 flex-1 overflow-y-auto" : "")}>
       <nav className="px-2 pb-4 space-y-0.5">
+        <JournalPendingRecordings userId={user?.id} />
         <RailItem
           to="/journal/today"
           icon={<CalIcon className="w-4 h-4" />}

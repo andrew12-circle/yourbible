@@ -397,6 +397,7 @@ export function NativeJournalVideoCaptureDialog({
             onRetake={() => void handleRetake()}
             onConfirm={() => void saveResult(pendingReview)}
             onKeepForLater={closeAndKeepDraft}
+            keepForLaterLabel="Keep as draft"
             confirming={confirming}
             confirmLabel={confirmLabel}
             reviewHint={reviewHint}

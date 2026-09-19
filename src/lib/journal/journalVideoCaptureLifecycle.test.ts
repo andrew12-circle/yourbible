@@ -26,7 +26,7 @@ describe("journal video capture lifecycle", () => {
     expect(await salvaged?.text()).toBe("onetwo");
   });
 
-  it("returns inactive-recorder chunks instead of a destructive null stop", async () => {
+  it("does not mistake inactive state for an observed final stop event", async () => {
     let resolver: ((blob: Blob | null) => void) | null = null;
     const outcome = await stopJournalVideoRecorderWithFallback({
       recorder: { state: "inactive" } as MediaRecorder,
@@ -39,9 +39,11 @@ describe("journal video capture lifecycle", () => {
       },
       requestStop: vi.fn(() => true),
     });
-    expect(outcome.stopped).toBe(true);
+    expect(outcome.stopped).toBe(false);
     expect(await outcome.blob?.text()).toBe("kept");
-    expect(resolver).toBeNull();
+    expect(resolver).toBeTypeOf("function");
+    resolver?.(new Blob(["kept", "-final"]));
+    expect(await (await outcome.completion)?.text()).toBe("kept-final");
   });
 
   it("bounds a stalled stop while keeping its resolver latched for a late final event", async () => {

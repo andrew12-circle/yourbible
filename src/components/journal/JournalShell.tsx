@@ -1,3 +1,4 @@
+import { JournalPendingRecordings } from "./JournalPendingRecordings";
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SquarePen, MoreHorizontal, Download, Loader2, FileUp } from "lucide-react";
@@ -142,6 +143,7 @@ export default function JournalShell({
 
   const defaultHeaderRight = (
     <div className="flex items-center gap-2">
+      <JournalPendingRecordings userId={user?.id} compact />
       <JournalPrivacyBlurToggle tone="onCover" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
