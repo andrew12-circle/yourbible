@@ -1,3 +1,4 @@
+import { useJournalCaptionPreview } from "./useJournalCaptionPreview";
 import { useJournalPhotoRecovery } from "./useJournalPhotoRecovery";
 import { requireJournalCloudAi } from "@/lib/journal/journalAiAccess";
 import { journalCloudAiAllowed } from "@/lib/journal/journalAiPolicy";
@@ -128,7 +129,6 @@ export function useNewJournalEntryPage() {
 
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
-  const [videoCaptionPreview, setVideoCaptionPreview] = useState("");
   const manualSaveRef = useRef(false);
   const [body, setBody] = useState("");
   const [mood, setMood] = useState<number | null>(null);
@@ -237,14 +237,16 @@ export function useNewJournalEntryPage() {
   const isVent = entryKind === "vent";
   const isListening = entryKind === "listening";
   const cloudAiAllowed = journalCloudAiAllowed({ entry_kind: entryKind, journal_id: journalId, e2e_encrypted: loadedEncrypted });
+  const { preview: videoCaptionPreview, start: startVideoCaption, update: handleVideoLiveTranscript, clear: clearVideoCaption } =
+    useJournalCaptionPreview(user?.id ? `${user.id}:${editId ?? "new"}` : null, body, cloudAiAllowed);
   const canReplyWithAi = cloudAiAllowed && !isListening;
   useEffect(() => {
     if (!cloudAiAllowed) {
       abortAiRef.current?.abort();
       videoLiveSnapRef.current = null;
-      setVideoCaptionPreview("");
+      clearVideoCaption();
     }
-  }, [cloudAiAllowed]);
+  }, [cloudAiAllowed, clearVideoCaption]);
   useEffect(() => {
     const deleted = (event: Event) => {
       const detail = (event as CustomEvent<{ userId: string; entryId: string }>).detail;
@@ -1409,21 +1411,21 @@ export function useNewJournalEntryPage() {
     if (!cloudAiAllowed) { videoLiveSnapRef.current = null; return; }
     const snap = {
       body: bodyRef.current,
-      anchor: getVideoAnchorOffset(),
+      anchor: Math.max(0, Math.min(videoAnchorRef.current, bodyRef.current.length)),
     };
     videoLiveSnapRef.current = snap;
+    startVideoCaption(snap.body, snap.anchor);
     const entryId = editId ?? inlineEntryId;
     if (entryId) {
       updateJournalVideoRecordingBodySnapForEntry(entryId, snap.body, snap.anchor);
     }
     videoAutoTitle.onRecordingStart();
-  }, [cloudAiAllowed, getVideoAnchorOffset, videoAutoTitle, editId, inlineEntryId]);
+  }, [cloudAiAllowed, videoAutoTitle, editId, inlineEntryId, startVideoCaption]);
 
-  const handleVideoLiveTranscript = useCallback((live: string) => { if (cloudAiAllowed) setVideoCaptionPreview(live); }, [cloudAiAllowed]);
   const handleVideoRecordingCancelled = useCallback(() => {
-    setVideoCaptionPreview("");
+    clearVideoCaption();
     videoLiveSnapRef.current = null;
-  }, []);
+  }, [clearVideoCaption]);
 
   const ensureDraftEntry = composePersistence.ensureEntry;
 
@@ -1555,7 +1557,7 @@ export function useNewJournalEntryPage() {
         const refreshed = await refreshJournalDocument(user.id, entryId);
         const enrichResult = !journalCloudAiAllowed(refreshed) ? undefined : await videoAutoTitle.onRecordingComplete(refreshed.body);
         videoLiveSnapRef.current = null;
-        setVideoCaptionPreview("");
+        clearVideoCaption();
 
         if (queued) {
           toast({
@@ -1598,6 +1600,7 @@ export function useNewJournalEntryPage() {
       editId,
       inlineEntryId,
       ensureDraftEntry,
+      clearVideoCaption,
       reloadVideos,
       handleBodyChange,
       videoAutoTitle,

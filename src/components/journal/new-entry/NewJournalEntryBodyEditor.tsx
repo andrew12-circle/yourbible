@@ -1,3 +1,4 @@
+import type { JournalCaptionPreview } from "@/lib/journal/journalCaptionPreview";
 import { Ear, Loader2, Trash2, X } from "lucide-react";
 import { JournalSketchInline } from "@/components/journal/JournalSketchInline";
 import InlineJournalChatTranscript from "@/components/journal/InlineJournalChatTranscript";
@@ -51,6 +52,7 @@ interface NewJournalEntryBodyEditorProps {
   bodyFocused?: boolean;
   showLocationMap?: boolean;
   body: string;
+  videoCaptionPreview?: JournalCaptionPreview | null;
   onBodyChange: (value: string, cursor?: number) => void;
   summary?: string;
   onSummaryChange?: (value: string) => void;
@@ -102,6 +104,7 @@ export function NewJournalEntryBodyEditor({
   bodyFocused = false,
   showLocationMap = false,
   body,
+  videoCaptionPreview,
   onBodyChange,
   summary = "",
   onSummaryChange,
@@ -230,10 +233,10 @@ export function NewJournalEntryBodyEditor({
       <div
         className={cn(
           "relative",
-          !body.trim() && !bodyFocused && !showLocationMap && "min-h-[32dvh]",
+          !videoCaptionPreview && !body.trim() && !bodyFocused && !showLocationMap && "min-h-[32dvh]",
         )}
       >
-        {!body.trim() && !videos.length ? (
+        {!videoCaptionPreview && !body.trim() && !videos.length ? (
           <span
             aria-hidden
             className="pointer-events-none absolute inset-x-0 top-3 z-0 text-[16px] leading-relaxed text-muted-foreground/55"
@@ -241,10 +244,11 @@ export function NewJournalEntryBodyEditor({
             {bodyPlaceholder}
           </span>
         ) : null}
-        {videos.length > 0 ? (
+        {videos.length > 0 || videoCaptionPreview ? (
           <JournalBodyWithVideos
             body={body}
             videos={videos}
+            captionPreview={videoCaptionPreview}
             polishResetKey={editId ?? "journal-new"}
             bodyClassName="relative z-[1] mt-1 block min-h-0 resize-none overflow-hidden border-0 bg-transparent px-0 py-2 font-sans text-[16px] leading-relaxed whitespace-pre-wrap shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
             onBodyChange={(next, cursor) => onBodyChange(next, cursor)}
@@ -283,7 +287,7 @@ export function NewJournalEntryBodyEditor({
             )}
           />
         )}
-        {videos.length === 0 && markerMenu ? (
+        {!videoCaptionPreview && videos.length === 0 && markerMenu ? (
           <JournalMarkerMenu
             marker={markerMenu.marker}
             suggestions={markerMenu.suggestions}

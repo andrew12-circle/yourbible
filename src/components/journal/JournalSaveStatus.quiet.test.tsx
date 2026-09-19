@@ -39,12 +39,12 @@ describe("quiet journal autosave", () => {
     }
     expect(harness.retry).not.toHaveBeenCalled();
   });
-  it("keeps live recording captions without routine saving text", () => {
-    render(<JournalSaveStatus userId="user-a" entryId="entry-a" liveCaption="Words from my recording" />);
+  it("does not put recording text in the status area even when passed by a legacy caller", () => {
+    const legacy = { userId: "user-a", entryId: "entry-a", liveCaption: "Words belong in the journal" };
+    const { container } = render(<JournalSaveStatus {...legacy} />);
     update({ status: "saving", durable: true });
-    expect(screen.getByText("Words from my recording", { exact: false })).toBeTruthy();
-    expect(screen.queryByRole("status")).toBeNull();
-    expect(screen.queryByText(/saved|syncing|saving/i)).toBeNull();
+    expect(container.childElementCount).toBe(0);
+    expect(screen.queryByText(/Words belong|Live captions/)).toBeNull();
   });
   it("shows genuine save failure and retains the retry action", () => {
     const { container } = render(<JournalSaveStatus userId="user-a" entryId="entry-a" />);

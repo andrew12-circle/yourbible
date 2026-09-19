@@ -6,7 +6,8 @@ import {
   type SyntheticEvent,
 } from "react";
 import type { JournalVideoRow } from "@/lib/journal/videos";
-import { buildJournalBodySegments } from "@/lib/journal/journalVideoBody";
+import { buildJournalCaptionSegments, type JournalCaptionPreview } from "@/lib/journal/journalCaptionPreview";
+import { JournalLiveCaptionText } from "./JournalLiveCaptionText";
 import JournalEntryVideos from "@/components/journal/JournalEntryVideos";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
 import { useJournalEntryTextareaAutosize } from "@/hooks/useJournalEntryTextareaAutosize";
@@ -17,6 +18,7 @@ function JournalBodyTextSegment({
   polishResetKey,
   bodyClassName,
   isLast,
+  recording,
   onChange,
   onSelect,
   onFocus,
@@ -26,6 +28,7 @@ function JournalBodyTextSegment({
   polishResetKey?: string;
   bodyClassName?: string;
   isLast: boolean;
+  recording: boolean;
   onChange: (e: ChangeEvent<HTMLTextAreaElement>) => void;
   onSelect: (e: SyntheticEvent<HTMLTextAreaElement>) => void;
   onFocus: (e: FocusEvent<HTMLTextAreaElement>) => void;
@@ -40,12 +43,14 @@ function JournalBodyTextSegment({
       polishResetKey={polishResetKey}
       polishFieldKey={`segment:${polishResetKey ?? "body"}`}
       value={slice}
+      allowAiPolish={!recording}
+      aria-label="Journal entry"
       onChange={onChange}
       onSelect={onSelect}
       onFocus={onFocus}
       onBlur={onBlur}
-      placeholder={isLast ? "What happened today? Type #tag or @journal name to organize." : undefined}
-      className={cn(bodyClassName, !isLast && "min-h-[4rem]")}
+      placeholder={isLast && !recording ? "What happened today? Type #tag or @journal name to organize." : undefined}
+      className={cn(bodyClassName, !isLast && !recording && "min-h-[4rem]")}
     />
   );
 }
@@ -53,6 +58,7 @@ function JournalBodyTextSegment({
 type Props = {
   body: string;
   videos: JournalVideoRow[];
+  captionPreview?: JournalCaptionPreview | null;
   polishResetKey?: string;
   bodyClassName?: string;
   onBodyChange: (next: string, cursor?: number) => void;
@@ -67,6 +73,7 @@ type Props = {
 export default function JournalBodyWithVideos({
   body,
   videos,
+  captionPreview,
   polishResetKey,
   bodyClassName,
   onBodyChange,
@@ -77,7 +84,7 @@ export default function JournalBodyWithVideos({
   onBodyFocus,
   onBodyBlur,
 }: Props) {
-  const segments = useMemo(() => buildJournalBodySegments(body, videos), [body, videos]);
+  const segments = useMemo(() => buildJournalCaptionSegments(body, videos, captionPreview), [body, videos, captionPreview]);
   const editorRef = useRef<HTMLDivElement>(null);
 
   const patchText = (start: number, end: number, nextSlice: string, cursor: number) => {
@@ -89,6 +96,7 @@ export default function JournalBodyWithVideos({
   return (
     <div ref={editorRef} className="flex flex-col gap-4">
       {segments.map((seg, i) => {
+        if (seg.kind === "caption") return <JournalLiveCaptionText key={seg.caption.id} text={seg.caption.text} className={bodyClassName} />;
         if (seg.kind === "video") {
           return (
             <JournalEntryVideos
@@ -112,6 +120,7 @@ export default function JournalBodyWithVideos({
             polishResetKey={`${polishResetKey ?? "entry"}:${seg.start}`}
             bodyClassName={bodyClassName}
             isLast={isLast}
+            recording={Boolean(captionPreview)}
             onChange={(e) => {
               patchText(
                 seg.start,

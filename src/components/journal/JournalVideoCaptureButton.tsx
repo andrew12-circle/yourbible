@@ -21,7 +21,7 @@ type Props = {
     liveTranscript?: string;
     peakLiveTranscript?: string;
   }) => void;
-  onRecordingStart?: () => void;
+  onRecordingStart?: (anchorOffset: number) => void;
   onLiveTranscript?: (text: string) => void;
   onRecordingCancelled?: () => void;
   size?: "sm" | "md";
@@ -163,7 +163,7 @@ export default function JournalVideoCaptureButton({
           uploading={uploading}
           transcribing={transcribing}
           defaultMode="camera"
-          onRecordingStart={onRecordingStart}
+          onRecordingStart={() => onRecordingStart?.(anchorRef.current)}
           onLiveTranscript={onLiveTranscript}
           recovery={
             userId && entryId

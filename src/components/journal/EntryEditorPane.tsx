@@ -1,3 +1,4 @@
+import { useJournalCaptionPreview } from "@/hooks/useJournalCaptionPreview";
 import { useJournalPhotoRecovery } from "@/hooks/useJournalPhotoRecovery";
 import { JournalAiPrivacy, JournalAiDocument } from "./JournalAiPrivacy";
 import { journalCloudAiAllowed } from "@/lib/journal/journalAiPolicy";
@@ -160,7 +161,9 @@ export default function EntryEditorPane({
   const dictateRef = useRef<DictateButtonHandle | null>(null);
   const videoLiveSnapRef = useRef<{ body: string; anchor: number } | null>(null);
   const [dictInterim, setDictInterim] = useState("");
-  const [videoCaptionPreview, setVideoCaptionPreview] = useState("");
+  const { preview: videoCaptionPreview, start: startVideoCaption, update: handleVideoLiveTranscript, clear: clearVideoCaption } =
+    useJournalCaptionPreview(user?.id && entryId ? `${user.id}:${entryId}` : null, entry?.body ?? "",
+      entry?.id === entryId && journalCloudAiAllowed(entry));
   const [sketchOpen, setSketchOpen] = useState(false);
   const [replyWithAi, setReplyWithAi] = useState(false);
   const [chatDraft, setChatDraft] = useState("");
@@ -680,24 +683,24 @@ export default function EntryEditorPane({
     });
   }, []);
 
-  const handleVideoRecordingStart = useCallback(() => {
+  const handleVideoRecordingStart = useCallback((anchorOffset: number) => {
     const cur = entryRef.current;
     if (!cur || !journalCloudAiAllowed(cur)) { videoLiveSnapRef.current = null; return; }
     const snap = {
       body: cur.body,
-      anchor: resolveBodyVideoAnchor(),
+      // The capture dialog has focus now; use the position saved before opening it.
+      anchor: Math.max(0, Math.min(anchorOffset, cur.body.length)),
     };
     videoLiveSnapRef.current = snap;
+    startVideoCaption(snap.body, snap.anchor);
     updateJournalVideoRecordingBodySnapForEntry(cur.id, snap.body, snap.anchor);
     videoAutoTitle.onRecordingStart();
-  }, [resolveBodyVideoAnchor, videoAutoTitle]);
+  }, [videoAutoTitle, startVideoCaption]);
 
-  // Captions are a preview, not ownership of the editable journal body.
-  const handleVideoLiveTranscript = useCallback((live: string) => setVideoCaptionPreview(live), []);
   const handleVideoRecordingCancelled = useCallback(() => {
-    setVideoCaptionPreview("");
+    clearVideoCaption();
     videoLiveSnapRef.current = null;
-  }, []);
+  }, [clearVideoCaption]);
   const handleVideoSaved = useCallback(async (_payload: {
     transcript: string; anchorOffset: number; liveTranscript?: string; peakLiveTranscript?: string;
   }) => {
@@ -712,9 +715,9 @@ export default function EntryEditorPane({
         if (journalCloudAiAllowed(row)) await videoAutoTitle.onRecordingComplete(row.body);
       }
     }
-    setVideoCaptionPreview("");
+    clearVideoCaption();
     videoLiveSnapRef.current = null;
-  }, [user?.id, reloadVideos, videoAutoTitle]);
+  }, [user?.id, reloadVideos, videoAutoTitle, clearVideoCaption]);
 
   const handleRetranscribeVideo = useCallback(
     async (video: { id: string; storage_path: string; anchor_offset: number }) => {
@@ -1111,7 +1114,7 @@ export default function EntryEditorPane({
         </button>
       </header>
 
-      <JournalSaveStatus userId={user?.id} entryId={entry.id} liveCaption={videoCaptionPreview} />
+      <JournalSaveStatus userId={user?.id} entryId={entry.id} />
 
       <JournalMediaRetry error={videoLoadError} retry={reloadVideos} />
       {/* Toolbar */}
@@ -1297,10 +1300,11 @@ export default function EntryEditorPane({
                   className="mb-4"
                 />
               ) : null}
-              {!inlineChatMode && videos.length > 0 ? (
+              {!inlineChatMode && (videos.length > 0 || videoCaptionPreview) ? (
                 <JournalBodyWithVideos
                   body={entry.body}
                   videos={videos}
+                  captionPreview={videoCaptionPreview}
                   polishResetKey={entry.id}
                   bodyClassName={journalPlainWriteFieldClass}
                   onBodyChange={(next, cursor) => handleBodyChange(next, cursor)}

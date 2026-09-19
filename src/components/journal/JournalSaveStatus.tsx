@@ -4,8 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { JOURNAL_DOCUMENT_CHANGED, peekJournalDocument, flushJournalDocument } from "@/lib/journal/journalDocuments";
 import type { JournalValues } from "@/lib/journal/journalSaveQueue";
 
-export function JournalSaveStatus({ userId, entryId, liveCaption }: {
-  userId?: string; entryId?: string | null; liveCaption?: string;
+export function JournalSaveStatus({ userId, entryId }: {
+  userId?: string; entryId?: string | null;
 }) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [review, setReview] = useState<JournalValues>({});
@@ -22,8 +22,8 @@ export function JournalSaveStatus({ userId, entryId, liveCaption }: {
   const state = useSyncExternalStore(subscribe, getState, () => undefined);
   const needsAttention = state?.status === "error" || state?.status === "conflict";
   // Normal autosave is silent and occupies no space above the toolbar. Keep
-  // actionable failures, conflict recovery, and recording captions available.
-  if (!state || !userId || !entryId || (!needsAttention && !liveCaption)) return null;
+  // actionable failures and conflict recovery available. Speech belongs in the body.
+  if (!state || !userId || !entryId || !needsAttention) return null;
   const queue = peekJournalDocument(userId, entryId)!;
   const label = state.status === "conflict" ? "Changes need review — your local copy is retained"
     : state.durable ? "Cloud save needs attention — your local copy is retained" : "Not saved — keep this entry open";
@@ -39,7 +39,6 @@ export function JournalSaveStatus({ userId, entryId, liveCaption }: {
         }}>Review both versions</Button>}
       </div>}
       {needsAttention && state.error && state.status !== "conflict" && <p className="mt-1" role="alert">{state.error}</p>}
-      {liveCaption && <p className="mt-2 whitespace-pre-wrap" aria-live="off"><span className="font-medium">Live captions — </span>{liveCaption}</p>}
       <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>Review journal changes</DialogTitle></DialogHeader>

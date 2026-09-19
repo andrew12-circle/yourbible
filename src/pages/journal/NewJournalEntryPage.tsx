@@ -246,10 +246,11 @@ export default function NewJournalEntryPage() {
         </div>
       </header>
       <JournalMediaRetry error={p.videoLoadError} retry={p.reloadVideos} />
-      <JournalSaveStatus userId={p.user?.id} entryId={p.activeEntryId} liveCaption={p.videoCaptionPreview} />
+      <JournalSaveStatus userId={p.user?.id} entryId={p.activeEntryId} />
 
       <main
         ref={p.mainScrollRef}
+        data-journal-compose-scroll
         className="flex-1 min-h-0 max-w-3xl w-full mx-auto px-3 sm:px-5 pt-3 overflow-y-auto overscroll-contain"
         style={{
           paddingBottom: journalComposeMainPaddingBottom({
@@ -319,6 +320,7 @@ export default function NewJournalEntryPage() {
           bodyFocused={p.bodyFocused}
           showLocationMap={showComposeMap}
           body={p.body}
+          videoCaptionPreview={p.videoCaptionPreview}
           onBodyChange={p.handleBodyChange}
           summary={p.summary}
           onSummaryChange={p.setSummary}
@@ -401,6 +403,7 @@ export default function NewJournalEntryPage() {
 
       <div
         ref={p.bottomDockRef}
+        data-journal-compose-dock
         className={hubShellBottomDock(
           showHubShell,
           cn("z-30 flex flex-col justify-end px-3 sm:px-5", hideBottomChrome && "hidden"),
