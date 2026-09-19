@@ -3,6 +3,7 @@
  * Stores metadata in localStorage; blobs in IndexedDB.
  */
 
+import { withJournalVideoLock } from "./journalVideoLocks";
 import type { JournalVideoCaptureResult } from "@/lib/journal/journalVideoCaptureLifecycle";
 import type { JournalVideoChapter } from "@/lib/journal/journalVideoChapters";
 import type { JournalVideoRecordingRecoveryMeta } from "@/lib/journal/journalVideoRecordingRecovery";
@@ -142,12 +143,11 @@ export async function withJournalVideoUploadQueueLock<T>(
   }
 }
 
-/** Wait for exclusive queue ownership while retaining any Blob captured by work's closure. */
+/** Short-lived local mutation lock. Never hold this across upload or transcription. */
 export async function withJournalVideoUploadQueueWaitingLock<T>(
   work: () => Promise<T>,
 ): Promise<T> {
-  if (!webLocksAvailable()) return work();
-  return navigator.locks.request(QUEUE_LOCK_NAME, { mode: "exclusive" }, async () => work());
+  return withJournalVideoLock(`${QUEUE_LOCK_NAME}:metadata`, work);
 }
 
 function parsedQueueIds(raw: string | null): Set<string> {
@@ -194,30 +194,23 @@ export function journalVideoQueueFreshAttemptDelay(
   }, 0);
 }
 
-/**
- * Return the longest lease/backoff still protecting any row. The processor is
- * intentionally whole-queue, so one fresh deferred row delays the pass rather
- * than causing a duplicate transcription while processing newer rows.
- */
+/** Next eligible item; unrelated recordings never inherit another item's backoff. */
 export function journalVideoQueueNextRetryDelay(
   rows: QueuedJournalVideoUpload[],
   nowMs = Date.now(),
   retryDelaysMs: readonly number[] = JOURNAL_VIDEO_QUEUE_RETRY_DELAYS_MS,
 ): number {
-  let delay = journalVideoQueueFreshAttemptDelay(rows, nowMs);
-  if (!retryDelaysMs.length) return delay;
-  for (const row of rows) {
-    if ((row.stage !== "deferred-transcription" && row.stage !== "failed") || !row.lastAttemptAt) {
-      continue;
+  if (!rows.length) return 0;
+  return Math.min(...rows.map((row) => {
+    let delay = journalVideoQueueFreshAttemptDelay([row], nowMs);
+    if ((row.stage === "deferred-transcription" || row.stage === "failed") && row.lastAttemptAt && retryDelaysMs.length) {
+      const attemptedAt = Date.parse(row.lastAttemptAt);
+      const attempts = Math.max(1, row.attemptCount ?? 0, row.transcriptionAttemptCount ?? 0);
+      const backoff = retryDelaysMs[Math.min(attempts - 1, retryDelaysMs.length - 1)];
+      if (Number.isFinite(attemptedAt)) delay = Math.max(delay, attemptedAt + backoff - nowMs);
     }
-    const attemptedAt = Date.parse(row.lastAttemptAt);
-    if (!Number.isFinite(attemptedAt)) continue;
-    const attempts = Math.max(1, row.attemptCount ?? 0, row.transcriptionAttemptCount ?? 0);
-    const backoff = retryDelaysMs[Math.min(attempts - 1, retryDelaysMs.length - 1)];
-    delay = Math.max(delay, Math.max(0, attemptedAt + backoff - nowMs));
-  }
-  if (rows.some((row) => row.stage == null || row.stage === "queued")) return 0;
-  return delay;
+    return Math.max(0, delay);
+  }));
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -237,6 +230,14 @@ async function enqueueJournalVideoUploadUnlocked(
   audio: Blob | null,
   chapters: JournalVideoChapter[] = [],
 ): Promise<void> {
+  const existing = readMeta(true).find((row) => row.id === meta.id);
+  if (existing && (existing.userId !== meta.userId || existing.entryId !== meta.entryId)) {
+    throw new Error("This recording already belongs to another account or entry.");
+  }
+  if (existing) {
+    const payload = await readQueuedPayload(meta.id);
+    if (payload?.video.size && (payload.video.size >= video.size || existing.storagePath || existing.videoId)) return;
+  }
   const db = await openDb();
   try {
     await new Promise<void>((resolve, reject) => {
@@ -256,10 +257,11 @@ async function enqueueJournalVideoUploadUnlocked(
   }
   const rows = readMeta(true).filter((r) => r.id !== meta.id);
   rows.push({
+    ...existing,
     ...meta,
-    stage: meta.stage ?? "queued",
-    attemptCount: meta.attemptCount ?? 0,
-    transcriptionAttemptCount: meta.transcriptionAttemptCount ?? 0,
+    stage: existing?.stage ?? meta.stage ?? "queued",
+    attemptCount: existing?.attemptCount ?? meta.attemptCount ?? 0,
+    transcriptionAttemptCount: existing?.transcriptionAttemptCount ?? meta.transcriptionAttemptCount ?? 0,
   });
   // The enqueue promise does not resolve until both the Blob and its lookup
   // metadata are durable. Callers may then release the larger recovery copy.
@@ -381,34 +383,38 @@ export async function enqueueFinalizedJournalVideoCaptureForRecovery(
 }
 
 /** Persist retry/stage diagnostics without replacing backward-compatible fields. */
-export function updateQueuedJournalVideoUpload(
+export async function updateQueuedJournalVideoUpload(
   id: string,
   patch: Partial<QueuedJournalVideoUpload>,
-): QueuedJournalVideoUpload | null {
-  const rows = readMeta(true);
-  const index = rows.findIndex((row) => row.id === id);
-  if (index < 0) return null;
-  const next = { ...rows[index], ...patch, id: rows[index].id };
-  rows[index] = next;
-  writeMeta(rows, { kind: "updated", id });
-  return next;
+): Promise<QueuedJournalVideoUpload | null> {
+  return withJournalVideoUploadQueueWaitingLock(async () => {
+    const rows = readMeta(true);
+    const index = rows.findIndex((row) => row.id === id);
+    if (index < 0) return null;
+    const next = { ...rows[index], ...patch, id: rows[index].id };
+    rows[index] = next;
+    writeMeta(rows, { kind: "updated", id });
+    return next;
+  });
 }
 
 /** Remove a successfully uploaded item from the queue. */
 export async function removeQueuedJournalVideoUpload(id: string): Promise<void> {
-  writeMeta(readMeta(true).filter((r) => r.id !== id), { kind: "removed", id });
-  const db = await openDb();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(DB_STORE, "readwrite");
-      tx.objectStore(DB_STORE).delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onabort = () => reject(tx.error ?? new Error("Video queue cleanup was aborted."));
-      tx.onerror = () => reject(tx.error ?? new Error("Video queue cleanup failed."));
-    });
-  } finally {
-    db.close();
-  }
+  await withJournalVideoUploadQueueWaitingLock(async () => {
+    writeMeta(readMeta(true).filter((r) => r.id !== id), { kind: "removed", id });
+    const db = await openDb();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, "readwrite");
+        tx.objectStore(DB_STORE).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onabort = () => reject(tx.error ?? new Error("Video queue cleanup was aborted."));
+        tx.onerror = () => reject(tx.error ?? new Error("Video queue cleanup failed."));
+      });
+    } finally {
+      db.close();
+    }
+  });
 }
 
 /** @deprecated Prefer readQueuedJournalVideoUpload + removeQueuedJournalVideoUpload on success. */

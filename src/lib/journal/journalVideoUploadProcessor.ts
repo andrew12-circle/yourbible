@@ -1,3 +1,4 @@
+import { withJournalVideoUploadItemLock } from "./journalVideoLocks";
 import { journalCloudAiAllowed } from "./journalAiPolicy";
 import { peekJournalDocument, journalSnapshotRow, patchJournalDocument, synchronizeJournalEditors } from "./journalDocuments";
 import { mergeVideoTranscriptSafely } from "./journalTextMerge";
@@ -25,7 +26,6 @@ import {
   readQueuedJournalVideoUpload,
   removeQueuedJournalVideoUpload,
   updateQueuedJournalVideoUpload,
-  withJournalVideoUploadQueueWaitingLock,
   type QueuedJournalVideoUpload,
 } from "@/lib/journal/journalVideoUploadQueue";
 import {
@@ -218,6 +218,8 @@ export async function processJournalVideoUploadQueue(
       result.uploaded += saved.uploaded ? 1 : 0;
       if (saved.status === "deferred-transcription") {
         result.deferredTranscription += 1;
+      } else if (saved.status === "deferred-retry" || saved.status === "queued") {
+        result.skipped += 1;
       } else {
         processed += 1;
         result.completed += 1;
@@ -228,15 +230,6 @@ export async function processJournalVideoUploadQueue(
     } catch (e) {
       console.warn("[journal-video-queue] retry failed:", e);
       result.failed += 1;
-      try {
-        updateQueuedJournalVideoUpload(meta.id, {
-          stage: "failed",
-          lastError: errorMessage(e),
-          lastAttemptAt: new Date().toISOString(),
-        });
-      } catch (metadataError) {
-        console.warn("[journal-video-queue] could not save retry state:", metadataError);
-      }
     }
   }
 
@@ -245,6 +238,41 @@ export async function processJournalVideoUploadQueue(
 }
 
 export async function uploadQueuedJournalVideo(
+  meta: QueuedJournalVideoUpload,
+): Promise<SaveJournalVideoCaptureResult> {
+  return withJournalVideoUploadItemLock(meta.userId, meta.id, async () => {
+    // Another tab/foreground save may have finished while we waited. Never
+    // replay the stale snapshot or recreate a removed queue item.
+    const latest = listQueuedJournalVideoUploads(meta.userId).find((row) => row.id === meta.id);
+    if (!latest) return {
+      transcript: "", anchorOffset: meta.anchorOffset, sttError: null,
+      liveTranscript: "", peakLiveTranscript: "", status: "completed",
+      uploaded: false, storagePath: null, videoId: null,
+    };
+    if (latest.entryId !== meta.entryId) throw new Error("Video queue ownership changed.");
+    // A waiting consumer must also respect the preceding attempt's new backoff.
+    if (journalVideoQueueNextRetryDelay([latest]) > 0) return {
+      transcript: latest.finalTranscript ?? latest.liveTranscript,
+      anchorOffset: latest.anchorOffset, sttError: latest.lastError ?? null,
+      liveTranscript: latest.liveTranscript, peakLiveTranscript: latest.peakLiveTranscript ?? "",
+      status: latest.stage === "deferred-transcription" ? "deferred-transcription" : "deferred-retry",
+      uploaded: Boolean(latest.storagePath && latest.videoId),
+      storagePath: latest.storagePath ?? null, videoId: latest.videoId ?? null,
+    };
+    try { return await uploadQueuedJournalVideoUnlocked(latest); }
+    catch (error) {
+      // Persist failure before releasing this item's lock. An older caller must
+      // not overwrite the metadata of a newer attempt outside the lock.
+      try { await updateQueuedJournalVideoUpload(meta.id, {
+        stage: "failed", lastError: errorMessage(error), lastAttemptAt: new Date().toISOString(),
+      }); }
+      catch (metadataError) { console.warn("[journal-video-queue] could not save retry state:", metadataError); }
+      throw error;
+    }
+  });
+}
+
+async function uploadQueuedJournalVideoUnlocked(
   meta: QueuedJournalVideoUpload,
 ): Promise<SaveJournalVideoCaptureResult> {
   const durableMeta = meta as QueuedJournalVideoFinalizationCheckpoint;
@@ -258,7 +286,7 @@ export async function uploadQueuedJournalVideo(
     checkpoint && durableMeta.transcriptionCompleted === true,
   );
   const attemptAt = new Date().toISOString();
-  updateQueuedJournalVideoUpload(meta.id, {
+  await updateQueuedJournalVideoUpload(meta.id, {
     stage: hasFinalizationCheckpoint ? "merging-final-transcript" : "merging-live-transcript",
     attemptCount: (meta.attemptCount ?? 0) + 1,
     lastAttemptAt: attemptAt,
@@ -281,7 +309,7 @@ export async function uploadQueuedJournalVideo(
   } else {
     const payload = await readQueuedJournalVideoUpload(meta.id);
     if (!payload) {
-      updateQueuedJournalVideoUpload(meta.id, {
+      await updateQueuedJournalVideoUpload(meta.id, {
         stage: "failed",
         lastError: "Queued video data is missing",
         lastAttemptAt: new Date().toISOString(),
@@ -292,8 +320,8 @@ export async function uploadQueuedJournalVideo(
     // Commit the transcript before the (larger, failure-prone) video upload so
     // a persistently failing upload can never strand the user's words.
     await mergeTranscriptIntoEntry(meta.userId, meta.entryId, meta.anchorOffset, liveCaptions, snap);
-    const markTranscribing = ({ storagePath, videoId }: { storagePath: string; videoId: string }) => {
-      updateQueuedJournalVideoUpload(meta.id, {
+    const markTranscribing = async ({ storagePath, videoId }: { storagePath: string; videoId: string }) => {
+      await updateQueuedJournalVideoUpload(meta.id, {
         stage: "transcribing",
         transcriptionAttemptCount: (meta.transcriptionAttemptCount ?? 0) + 1,
         uploadedAt: meta.uploadedAt ?? new Date().toISOString(),
@@ -302,8 +330,8 @@ export async function uploadQueuedJournalVideo(
       });
       if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("yourbible:journal-attachments-recovered", { detail: { entryId: meta.entryId } }));
     };
-    if (checkpoint) markTranscribing(checkpoint);
-    else updateQueuedJournalVideoUpload(meta.id, { stage: "uploading" });
+    if (checkpoint) await markTranscribing(checkpoint);
+    else await updateQueuedJournalVideoUpload(meta.id, { stage: "uploading" });
 
     saved = await saveJournalVideoCapture(
       meta.userId,
@@ -322,7 +350,7 @@ export async function uploadQueuedJournalVideo(
   }
 
   if (saved.status === "deferred-transcription") {
-    updateQueuedJournalVideoUpload(meta.id, {
+    await updateQueuedJournalVideoUpload(meta.id, {
       stage: "deferred-transcription",
       lastError: saved.sttError ?? "Transcription is waiting to retry.",
       storagePath: saved.storagePath ?? undefined,
@@ -339,7 +367,7 @@ export async function uploadQueuedJournalVideo(
     transcriptionCompleted: true,
     finalTranscript: saved.transcript,
   };
-  updateQueuedJournalVideoUpload(meta.id, finalizationPatch);
+  await updateQueuedJournalVideoUpload(meta.id, finalizationPatch);
   await mergeTranscriptIntoEntry(
     meta.userId,
     meta.entryId,
@@ -490,21 +518,10 @@ export async function saveJournalVideoCaptureWithQueue(
   }
 
   try {
-    const saved = await withJournalVideoUploadQueueWaitingLock(() =>
-      uploadQueuedJournalVideo(queueMeta),
-    );
+    const saved = await uploadQueuedJournalVideo(queueMeta);
     return { saved, queued: saved.status !== "completed" };
   } catch (e) {
     console.warn("[journal-video] upload failed; kept local queue copy:", e);
-    try {
-      updateQueuedJournalVideoUpload(queueId, {
-        stage: "failed",
-        lastError: errorMessage(e),
-        lastAttemptAt: new Date().toISOString(),
-      });
-    } catch (metadataError) {
-      console.warn("[journal-video] could not save foreground retry state:", metadataError);
-    }
     return {
       saved: {
         transcript: liveCaptions,
@@ -591,5 +608,5 @@ export async function recoverAndSaveJournalVideoRecording(
       console.warn("[journal-video] recovered video queued; recovery cleanup failed:", error);
     }
   }
-  return withJournalVideoUploadQueueWaitingLock(() => uploadQueuedJournalVideo(queueMeta));
+  return uploadQueuedJournalVideo(queueMeta);
 }

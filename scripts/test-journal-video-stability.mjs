@@ -17,11 +17,57 @@ import { createRoot } from 'react-dom/client';
 import JournalVideoCaptureDialog from '@/components/journal/JournalVideoCaptureDialog';
 import { JournalAiPrivacy } from '@/components/journal/JournalAiPrivacy';
 import { enqueueJournalVideoUpload, readQueuedJournalVideoUpload } from '@/lib/journal/journalVideoUploadQueue';
-import { clearInProgressJournalVideoRecording } from '@/lib/journal/journalVideoRecordingRecovery';
+import { clearInProgressJournalVideoRecording, listInProgressJournalVideoRecordings } from '@/lib/journal/journalVideoRecordingRecovery';
+import { withJournalVideoUploadItemLock } from '@/lib/journal/journalVideoLocks';
 import '@/index.css';
 localStorage.setItem('yb_journal_video_capture_settings_v1', JSON.stringify({countdown:0,floatingRecorder:false,silenceAutoPause:false}));
 window.__saved = null; window.__review = null; window.__failSave = false; window.__saveCount = 0;
 window.__readQueued = readQueuedJournalVideoUpload;
+window.__enqueue = enqueueJournalVideoUpload;
+window.__recoveries = listInProgressJournalVideoRecordings;
+window.__holdUpload = () => {
+  window.__uploadHeld = false;
+  void withJournalVideoUploadItemLock('synthetic-video-user', 'stalled-upload', async () => {
+    window.__uploadHeld = true;
+    await new Promise(resolve => { window.__releaseUpload = resolve; });
+  });
+};
+const NativeRecorder = window.MediaRecorder;
+window.__finishDelay = 0;
+window.__fullVideoBytes = 0;
+window.MediaRecorder = class extends NativeRecorder {
+  finishDelay = 0;
+  produced = 0;
+  dataHandler = null;
+  stopHandler = null;
+  set ondataavailable(handler) {
+    this.dataHandler = handler;
+    super.ondataavailable = event => {
+      this.produced += event.data.size;
+      if (this.mimeType.startsWith('video')) window.__fullVideoBytes = this.produced;
+      if (this.finishDelay < 0) return;
+      if (this.finishDelay > 0) setTimeout(() => this.dataHandler?.call(this, event), this.finishDelay);
+      else this.dataHandler?.call(this, event);
+    };
+  }
+  get ondataavailable() { return this.dataHandler; }
+  set onstop(handler) {
+    this.stopHandler = handler;
+    super.onstop = event => {
+      if (this.finishDelay < 0) return;
+      if (this.finishDelay > 0) setTimeout(() => this.stopHandler?.call(this, event), this.finishDelay);
+      else this.stopHandler?.call(this, event);
+    };
+  }
+  get onstop() { return this.stopHandler; }
+  stop() { this.finishDelay = window.__finishDelay; super.stop(); }
+};
+window.__failCheckpoint = false;
+const originalPut = IDBObjectStore.prototype.put;
+IDBObjectStore.prototype.put = function(...args) {
+  if (window.__failCheckpoint && this.name === 'chunks') throw new DOMException('Synthetic quota failure', 'QuotaExceededError');
+  return originalPut.apply(this, args);
+};
 const camera = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
 window.__denyCamera = false;
 navigator.mediaDevices.getUserMedia = async constraints => {
@@ -92,7 +138,7 @@ try {
   await page.getByRole('button',{name:/Retry camera|Try again|Retry camera or screen/}).click();
   // Retrying permission opens a ready preview directly; it must not reopen or discard a take.
   await page.getByRole('button',{name:'Start recording',exact:true}).click();
-  await page.waitForTimeout(2200);
+  await page.waitForTimeout(Math.max(2200, Number(process.env.JOURNAL_VIDEO_SOAK_MS) || 0));
   await visibleTransport();
   await page.getByRole('button',{name:'Recording settings',exact:true}).click();
   assert(await page.getByLabel('Camera',{exact:true}).isDisabled());
@@ -138,9 +184,9 @@ try {
   assert(saveBox&&saveBox.y>=0&&saveBox.y+saveBox.height<=390,'Landscape review action clipped');
   await page.screenshot({path:join(output,'journal-video-mobile-landscape.png'),fullPage:true});
   const keptId=await page.evaluate(()=>window.__review.recoveryDraftId);
-  await page.getByRole('button',{name:'Keep for later',exact:true}).click();
+  await page.getByRole('button',{name:'Save and return',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'hidden'});
-  assert(await page.evaluate(async id=>(await window.__readQueued(id))?.video.size>0,keptId),'Keep for later closed without durable media');
+  assert(await page.evaluate(async id=>(await window.__readQueued(id))?.video.size>0,keptId),'Save and return closed without durable media');
   reports.push({case:'mobile-rotation-preserves-stream-review-and-keep-for-later'});
 
   await page.setViewportSize({width:1280,height:900});
@@ -152,6 +198,56 @@ try {
   await page.getByRole('button',{name:'Save video',exact:true}).click();
   await page.getByRole('dialog').waitFor({state:'hidden'});
   reports.push({case:'browser-stop-sharing-opens-review-and-persists-one-clip'});
+  // The real recorder becomes inactive before final data events reach the hook.
+  await page.evaluate(() => { window.__finishDelay = 5500; window.__review = null; });
+  await start('Open camera');
+  await page.waitForTimeout(1800);
+  await page.getByRole('button',{name:'Stop recording',exact:true}).click();
+  await page.getByText('The browser is still releasing the final video data.',{exact:false}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Save video',exact:true}).count(),0,'Partial chunks opened completed review');
+  await page.getByRole('button',{name:'Save video',exact:true}).waitFor();
+  assert(await page.evaluate(() => window.__review.video.size === window.__fullVideoBytes),'Late final bytes were omitted from review');
+  await page.getByRole('button',{name:'Save video',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  reports.push({case:'delayed-final-data-does-not-open-partial-review'});
+
+  await page.evaluate(() => { window.__finishDelay = -1; window.__review = null; });
+  await start('Open camera');
+  await page.waitForTimeout(1800);
+  await page.getByRole('button',{name:'Stop recording',exact:true}).click();
+  await page.getByRole('button',{name:'Keep recovery and close',exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Save video',exact:true}).count(),0);
+  await page.getByRole('button',{name:'Keep recovery and close',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  assert(await page.evaluate(() => window.__recoveries().some(row => row.finalizationIncomplete && row.videoChunkCount > 0)), 'Missing final event lost its recovery source');
+  reports.push({case:'missing-final-event-retains-explicitly-incomplete-recovery'});
+
+  await page.evaluate(() => { window.__finishDelay = 0; window.__failCheckpoint = true; });
+  await start('Open camera');
+  await page.getByRole('alert').filter({hasText:'Local backup needs attention'}).waitFor();
+  assert(await page.getByRole('button',{name:'Pause recording',exact:true}).isVisible(),'Storage failure should be visible without pausing');
+  await page.evaluate(() => { window.__failCheckpoint = false; });
+  await page.getByRole('button',{name:'Stop and preserve recording',exact:true}).click();
+  await page.getByRole('button',{name:'Save video',exact:true}).click();
+  await page.getByRole('dialog').waitFor({state:'hidden'});
+  reports.push({case:'quota-failure-visible-during-recording-full-memory-take-still-saves'});
+
+  // Cross-tab Web Locks: an item upload lock never blocks the local queue lock.
+  await page.evaluate(() => window.__holdUpload());
+  await page.waitForFunction(() => window.__uploadHeld);
+  const second = await context.newPage();
+  await second.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+  await second.goto(origin+'/'+basename(scratch)+'/index.html');
+  await second.waitForFunction(() => typeof window.__enqueue === 'function');
+  const queuedElsewhere = await second.evaluate(async () => {
+    await window.__enqueue({id:'parallel-local-save',userId:'synthetic-video-user',entryId:'synthetic-entry',
+      anchorOffset:0,durationMs:1000,liveTranscript:'',createdAt:new Date().toISOString()},new Blob(['durable']),null);
+    return (await window.__readQueued('parallel-local-save')).video.size;
+  });
+  assert.equal(queuedElsewhere,7);
+  await page.evaluate(() => window.__releaseUpload());
+  await second.close();
+  reports.push({case:'cross-tab-stalled-upload-does-not-block-new-local-save'});
   assert.equal(errors.length,0,errors.join('\n'));
   console.log(JSON.stringify({passed:reports.length, reports},null,2));
   writeFileSync(join(output,'journal-video-browser-results.json'),JSON.stringify({passed:reports.length,reports},null,2));

@@ -12,7 +12,7 @@ const listQueueMock = vi.hoisted(() => vi.fn());
 const readQueueMock = vi.hoisted(() => vi.fn());
 const removeQueueMock = vi.hoisted(() => vi.fn());
 const updateQueueMock = vi.hoisted(() => vi.fn());
-const waitingQueueLockMock = vi.hoisted(() => vi.fn());
+const itemQueueLockMock = vi.hoisted(() => vi.fn());
 const clearRecoveryMock = vi.hoisted(() => vi.fn());
 const getSessionMock = vi.hoisted(() => vi.fn());
 
@@ -41,8 +41,10 @@ vi.mock("@/lib/journal/journalVideoUploadQueue", () => ({
   readQueuedJournalVideoUpload: (...args: unknown[]) => readQueueMock(...args),
   removeQueuedJournalVideoUpload: (...args: unknown[]) => removeQueueMock(...args),
   updateQueuedJournalVideoUpload: (...args: unknown[]) => updateQueueMock(...args),
-  withJournalVideoUploadQueueWaitingLock: (work: () => Promise<unknown>) =>
-    waitingQueueLockMock(work),
+}));
+
+vi.mock("@/lib/journal/journalVideoLocks", () => ({
+  withJournalVideoUploadItemLock: (_userId: string, _id: string, work: () => Promise<unknown>) => itemQueueLockMock(work),
 }));
 
 vi.mock("@/lib/journal/videos", () => ({
@@ -59,6 +61,8 @@ import {
   saveJournalVideoCaptureWithQueue,
   uploadQueuedJournalVideo,
 } from "@/lib/journal/journalVideoUploadProcessor";
+
+let queuedRows: Array<Record<string, unknown>> = [];
 
 const video = new Blob(["fake-video-bytes"], { type: "video/webm" });
 
@@ -89,12 +93,16 @@ describe("journal video durable upload processing", () => {
       disposition: "complete",
     });
     updateEntryVideoTranscriptMock.mockReset().mockResolvedValue(undefined);
-    enqueueMock.mockReset().mockResolvedValue(undefined);
-    listQueueMock.mockReset().mockReturnValue([]);
+    queuedRows = [{ ...baseMeta }];
+    enqueueMock.mockReset().mockImplementation(async (meta) => { queuedRows = [...queuedRows.filter(row => row.id !== meta.id), meta]; });
+    listQueueMock.mockReset().mockImplementation((userId?: string) => userId ? queuedRows.filter(row => row.userId === userId) : queuedRows);
     readQueueMock.mockReset().mockResolvedValue({ video, audio: null, chapters: [] });
-    removeQueueMock.mockReset().mockResolvedValue(undefined);
-    updateQueueMock.mockReset().mockReturnValue(baseMeta);
-    waitingQueueLockMock.mockReset().mockImplementation((work: () => Promise<unknown>) => work());
+    removeQueueMock.mockReset().mockImplementation(async (id) => { queuedRows = queuedRows.filter(row => row.id !== id); });
+    updateQueueMock.mockReset().mockImplementation(async (id, patch) => {
+      queuedRows = queuedRows.map(row => row.id === id ? { ...row, ...patch } : row);
+      return queuedRows.find(row => row.id === id);
+    });
+    itemQueueLockMock.mockReset().mockImplementation((work: () => Promise<unknown>) => work());
     clearRecoveryMock.mockReset().mockResolvedValue(undefined);
     getSessionMock.mockReset().mockResolvedValue({
       data: { session: { user: { id: "u1" } } },
@@ -210,13 +218,10 @@ describe("journal video durable upload processing", () => {
     readQueueMock.mockResolvedValue(null);
     const preparedTranscript = "Prepared final transcript already stored on the video row.";
 
-    const saved = await uploadQueuedJournalVideo({
-      ...baseMeta,
-      storagePath: "u1/e1/recording-1.webm",
-      videoId: "vid1",
-      transcriptionCompleted: true,
-      finalTranscript: preparedTranscript,
-    });
+    queuedRows = [{ ...baseMeta, storagePath: "u1/e1/recording-1.webm", videoId: "vid1",
+      transcriptionCompleted: true, finalTranscript: preparedTranscript }];
+    // The processor must reread this durable checkpoint, not trust its stale caller.
+    const saved = await uploadQueuedJournalVideo(baseMeta);
 
     expect(readQueueMock).not.toHaveBeenCalled();
     expect(uploadEntryVideoMock).not.toHaveBeenCalled();
@@ -260,7 +265,8 @@ describe("journal video durable upload processing", () => {
       disposition: "terminal-no-speech",
     });
 
-    const saved = await uploadQueuedJournalVideo({ ...baseMeta, durationMs: 2_000 });
+    queuedRows = [{ ...baseMeta, durationMs: 2_000 }];
+    const saved = await uploadQueuedJournalVideo(baseMeta);
 
     expect(saved.status).toBe("completed");
     expect(removeQueueMock).toHaveBeenCalledWith("recording-1");
@@ -340,7 +346,7 @@ describe("journal video durable upload processing", () => {
       [],
     );
     expect(clearRecoveryMock).toHaveBeenCalledWith("draft-1");
-    expect(waitingQueueLockMock).toHaveBeenCalledOnce();
+    expect(itemQueueLockMock).toHaveBeenCalledOnce();
     expect(removeQueueMock).not.toHaveBeenCalled();
     expect(outcome.queued).toBe(true);
     expect(outcome.saved.status).toBe("deferred-retry");

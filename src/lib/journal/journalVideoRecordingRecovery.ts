@@ -57,6 +57,8 @@ export type JournalVideoRecordingRecoveryMeta = {
   /** Set only when the owning capture/review page deliberately releases this draft. */
   ownershipReleasedAt?: string;
   finalizedAt?: string;
+  /** False only after every final recorder event and local chunk write was observed. */
+  finalizationIncomplete?: boolean;
   interruptionReason?: JournalVideoRecoveryInterruptionReason;
   videoBytes?: number;
   audioBytes?: number;

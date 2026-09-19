@@ -1,3 +1,5 @@
+import { JournalVideoSafetyNotice } from "./JournalVideoSafetyNotice";
+import { useJournalVideoStorageHealth } from "@/hooks/useJournalVideoStorageHealth";
 import { useJournalCloudAiPermission } from "./JournalAiPrivacy";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -108,6 +110,7 @@ function WebJournalVideoCaptureDialog({
 }: JournalVideoCaptureDialogProps) {
   const cloudAllowed = useJournalCloudAiPermission() && allowTranscription;
   const isMobile = useIsMobile();
+  const storageHealth = useJournalVideoStorageHealth(open, recovery?.userId);
   const countdownStartedRef = useRef(false);
   const prevPhaseRef = useRef<JournalVideoCapturePhase>("idle");
   const [countdownDeferred, setCountdownDeferred] = useState(false);
@@ -446,6 +449,10 @@ function WebJournalVideoCaptureDialog({
           !ready && "invisible",
         )}
       />
+
+      <JournalVideoSafetyNotice capture={capture} health={storageHealth.health}
+        onStop={() => void handleStop()} onCloseKept={() => onOpenChange(false)}
+        onDiscard={handleClose} onRecheck={storageHealth.recheck} />
 
       {starting ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/60">

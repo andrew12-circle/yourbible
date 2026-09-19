@@ -13,6 +13,7 @@ type Props = {
   onRetake: () => void;
   onConfirm: () => void;
   onKeepForLater?: () => void;
+  keepForLaterLabel?: string;
   onDiscard?: () => void;
   confirming?: boolean;
   confirmLabel?: string;
@@ -22,7 +23,7 @@ type Props = {
 };
 
 export function JournalVideoCaptureReview({ result, durationMs, onRetake, onConfirm, onKeepForLater, onDiscard,
-  confirming = false, confirmLabel = "Save video", reviewHint, saveError, className }: Props) {
+  confirming = false, confirmLabel = "Save video", keepForLaterLabel = "Save and return", reviewHint, saveError, className }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [poster, setPoster] = useState<string | null>(null);
   const [previewAspectRatio, setPreviewAspectRatio] = useState(16 / 9);
@@ -70,7 +71,7 @@ export function JournalVideoCaptureReview({ result, durationMs, onRetake, onConf
             try { downloadJournalVideoBackup(result.video, result.recoveryDraftId ?? "recording"); }
             catch (error) { setDownloadError(error instanceof Error ? error.message : "Couldn't download this backup."); }
           }}><Download className="h-4 w-4" />Download backup</Button>
-          {onKeepForLater ? <Button type="button" variant="ghost" className="min-h-11" onClick={onKeepForLater} disabled={confirming}>Keep for later</Button> : null}
+          {onKeepForLater ? <Button type="button" variant="ghost" className="min-h-11" onClick={onKeepForLater} disabled={confirming}>{keepForLaterLabel}</Button> : null}
           {onDiscard ? <Button type="button" variant="ghost" className="min-h-11 text-muted-foreground" disabled={confirming}
             onClick={() => setDiscardAction("discard")}>Discard video</Button> : null}
         </div>

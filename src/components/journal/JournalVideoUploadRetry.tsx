@@ -16,7 +16,6 @@ import {
   updateQueuedJournalVideoUpload,
   JOURNAL_VIDEO_QUEUE_RETRY_DELAYS_MS,
   listQueuedJournalVideoUploads,
-  withJournalVideoUploadQueueLock,
   type JournalVideoUploadQueueChangeDetail,
 } from "@/lib/journal/journalVideoUploadQueue";
 import {
@@ -111,6 +110,7 @@ async function recoverJournalVideoDrafts(userId: string): Promise<RecoverySummar
           // Recheck the durable payload instead of trusting the list snapshot.
           if (
             payload.meta.userId !== userId ||
+            payload.meta.finalizationIncomplete === true ||
             !isJournalVideoRecordingRecoveryClaimable(payload.meta)
           ) {
             return { kind: "skipped" };
@@ -314,13 +314,9 @@ export function JournalVideoUploadRetry() {
           }
 
           try {
-            const queueClaim = await withJournalVideoUploadQueueLock(() =>
-              processJournalVideoUploadQueue(latest.userId),
-            );
-            if (!queueClaim.claimed) {
-              scheduleQueueContentionRetry();
-              continue;
-            }
+            // Each recording owns its upload lock. Enqueue only holds a short
+            // local-storage lock, so a stalled transfer cannot block the next save.
+            const queueClaim = { value: await processJournalVideoUploadQueue(latest.userId) };
             queueContentionAttemptsRef.current = 0;
             if (!disposed) showQueueSummary(queueClaim.value);
             const remainingRows = listQueuedJournalVideoUploads(latest.userId);
@@ -387,8 +383,9 @@ export function JournalVideoUploadRetry() {
       if (!detail || latestRef.current.userId !== detail.userId) return;
       const item = listQueuedJournalVideoUploads(detail.userId).find((row) => row.id === detail.id && row.entryId === detail.entryId);
       if (!item || (item.stage !== "failed" && item.stage !== "deferred-transcription" && item.stage !== "queued")) return;
-      updateQueuedJournalVideoUpload(item.id, { lastAttemptAt: undefined });
-      scheduleQueueRun(0, true);
+      void updateQueuedJournalVideoUpload(item.id, { lastAttemptAt: undefined })
+        .then(() => scheduleQueueRun(0, true))
+        .catch((error) => console.warn("[journal-video] retry retained its recording:", error));
     };
     runAll();
     window.addEventListener(JOURNAL_VIDEO_RETRY_REQUEST_EVENT, retryRequested);

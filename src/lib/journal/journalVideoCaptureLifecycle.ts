@@ -34,6 +34,7 @@ export type JournalVideoRecoveryLifecyclePatch = Partial<
     | "ownerId"
     | "heartbeatAt"
     | "finalizedAt"
+    | "finalizationIncomplete"
     | "interruptionReason"
     | "videoBytes"
     | "audioBytes"
@@ -88,6 +89,9 @@ export interface UseJournalVideoCaptureApi {
   chapters: JournalVideoChapter[];
   settings: JournalVideoCaptureSettings;
   screenUsesCameraAudio: boolean;
+  finalizationDelayed?: boolean;
+  getPartialRecording?: () => Blob | null;
+  keepUnfinishedRecording?: () => Promise<void>;
   durableBackupState: JournalVideoDurableBackupState;
   durableBackupError: string | null;
   interruptionReason: JournalVideoInterruptionReason | null;
@@ -144,6 +148,7 @@ export function buildJournalVideoFinalizationSummary({
   const ready = videoBytes > 0 && recordersStopped && writesPersisted;
   const patch: JournalVideoRecoveryLifecyclePatch = {
     status: ready ? "ready" : persistenceError ? "failed" : "finalizing",
+    finalizationIncomplete: !ready,
     heartbeatAt: now,
     ...(ready ? { finalizedAt: now } : {}),
     videoBytes,
@@ -334,6 +339,7 @@ type StopJournalVideoRecorderOptions = {
   timeoutMs: number;
   mimeType: string | undefined;
   getLatchedBlob: () => Blob | null;
+  hasObservedStop?: () => boolean;
   getChunks: () => readonly Blob[];
   setResolver: (resolve: ((blob: Blob | null) => void) | null) => void;
   requestStop: (recorder: MediaRecorder) => boolean;
@@ -344,12 +350,15 @@ export async function stopJournalVideoRecorderWithFallback({
   timeoutMs,
   mimeType,
   getLatchedBlob,
+  hasObservedStop,
   getChunks,
   setResolver,
   requestStop,
 }: StopJournalVideoRecorderOptions): Promise<JournalVideoRecorderStopOutcome> {
   const salvage = () => buildJournalVideoSalvageBlob(getLatchedBlob(), getChunks(), mimeType);
-  let didStop = !recorder || recorder.state === "inactive";
+  // stop() changes state before its queued final data/stop events fire.
+  // Inactive alone is NOT proof that all bytes have been delivered.
+  let didStop = !recorder || (hasObservedStop?.() ?? Boolean(getLatchedBlob()?.size));
   const completion = new Promise<Blob | null>((resolve) => {
     let settled = false;
     const finish = (blob: Blob | null) => {
@@ -360,8 +369,8 @@ export async function stopJournalVideoRecorderWithFallback({
       resolve(blob?.size ? blob : salvage());
     };
     setResolver(finish);
-    if (!recorder || recorder.state === "inactive") finish(salvage());
-    else requestStop(recorder);
+    if (didStop) finish(salvage());
+    else if (recorder && recorder.state !== "inactive") requestStop(recorder);
   });
   const result = await journalVideoWithTimeout(
     completion.then((blob) => ({ blob, stopped: true })),

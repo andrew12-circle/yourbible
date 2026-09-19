@@ -84,7 +84,7 @@ describe("journal video queue retry scheduling", () => {
     ).toBe(110_000);
   });
 
-  it("caps repeated failures at fifteen minutes and honors the longest row lease", () => {
+  it("schedules the earliest eligible retry without inheriting another recording's backoff", () => {
     const now = Date.parse("2026-08-27T12:00:10.000Z");
     expect(
       journalVideoQueueNextRetryDelay(
@@ -104,6 +104,6 @@ describe("journal video queue retry scheduling", () => {
         ],
         now,
       ),
-    ).toBe(890_000);
+    ).toBe(20_000);
   });
 });
