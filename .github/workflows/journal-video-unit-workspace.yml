@@ -16,8 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci && npm install --no-save --package-lock=false --ignore-scripts tus-js-client@4.3.1 playwright@1.55.1
-      - run: tar -czf "$RUNNER_TEMP/journal-video-dependencies.tar.gz" node_modules
+      - run: npm ci
+      - run: npm install --prefix .video-extra --no-save --package-lock=false --ignore-scripts tus-js-client@4.3.1 playwright@1.55.1
+      - run: tar -czf "$RUNNER_TEMP/journal-video-dependencies.tar.gz" node_modules .video-extra
       - uses: actions/upload-artifact@v4
         with:
           name: journal-video-test-dependencies
