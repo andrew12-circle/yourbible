@@ -136,6 +136,10 @@ export function useJournalVideoCapture(
   settingsRef.current = settings;
   const streamRef = useRef<MediaStream | null>(null);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+  const [captureResolution, setCaptureResolution] = useState<{ width: number; height: number } | null>(null);
+  const [configuringQuality, setConfiguringQuality] = useState(false);
+  const configuringQualityRef = useRef(false);
+  const qualityGenerationRef = useRef(0);
   const compositeSessionRef = useRef<ScreenCompositeSession | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioRecorderRef = useRef<MediaRecorder | null>(null);
@@ -446,6 +450,9 @@ export function useJournalVideoCapture(
       watchStreamTracks(stream);
       streamRef.current = stream;
       setPreviewStream(stream);
+      const dimensions = stream.getVideoTracks()[0]?.getSettings();
+      setCaptureResolution(dimensions?.width && dimensions.height
+        ? { width: dimensions.width, height: dimensions.height } : null);
       if (videoElRef.current) {
         videoElRef.current.srcObject = stream;
         syncPreviewPlayback(videoElRef.current);
@@ -497,8 +504,9 @@ export function useJournalVideoCapture(
       if (captureMode === "screen") {
         const session = await createScreenCompositeSession({
           onScreenShareEnded: () => {
-            onScreenShareEndedRef.current?.();
-            void stopRecordingRef.current?.();
+            // The dialog must receive the result so browser Stop sharing opens review.
+            if (onScreenShareEndedRef.current) onScreenShareEndedRef.current();
+            else void stopRecordingRef.current?.();
           },
           includeSystemAudio: s.includeSystemAudio,
           cameraOptions: {
@@ -763,6 +771,7 @@ export function useJournalVideoCapture(
   );
 
   const startRecording = useCallback(() => {
+    if (configuringQualityRef.current) return;
     requestPersistentJournalVideoStorage();
     const failToPreview = (message: string) => {
       clearCountdown();
@@ -897,6 +906,7 @@ export function useJournalVideoCapture(
             !stopRequestedRef.current &&
             (phaseRef.current === "recording" || phaseRef.current === "paused")
           ) {
+            if (pauseStartedAtRef.current == null) pauseStartedAtRef.current = Date.now();
             phaseRef.current = "paused";
             setInterruption("recorder-stopped");
             if (mountedRef.current) {
@@ -1315,6 +1325,15 @@ export function useJournalVideoCapture(
         cleanupStream(!ready);
       }
 
+      if (!videoBlob) {
+        phaseRef.current = "paused";
+        if (mountedRef.current) {
+          setPhase("paused");
+          setCanResume(false);
+          setError("The browser has not finished releasing this recording. Keep it open and try Stop again, or explicitly discard it.");
+        }
+        return null;
+      }
       resetRecordingClock();
       phaseRef.current = "idle";
       chaptersRef.current = [];
@@ -1324,7 +1343,6 @@ export function useJournalVideoCapture(
         setPhase("idle");
         setChapters([]);
       }
-      if (!videoBlob) return null;
       const result: JournalVideoCaptureResult = {
         video: videoBlob,
         audio: audioBlob,
@@ -1340,6 +1358,9 @@ export function useJournalVideoCapture(
     })();
 
     stopPromiseRef.current = promise;
+    void promise.then((result) => {
+      if (!result && stopPromiseRef.current === promise) stopPromiseRef.current = null;
+    }, () => { if (stopPromiseRef.current === promise) stopPromiseRef.current = null; });
     return promise;
   }, [
     cleanupStream,
@@ -1591,8 +1612,30 @@ export function useJournalVideoCapture(
   }, []);
 
   const patchSettings = useCallback((patch: Partial<JournalVideoCaptureSettings>) => {
+    const quality = patch.quality;
+    if (quality && quality !== settingsRef.current.quality && isJournalVideoLiveCapture(phaseRef.current)) return;
     setSettings((prev) => ({ ...prev, ...patch }));
-  }, []);
+    const stream = streamRef.current;
+    if (!quality || quality === settingsRef.current.quality || !stream ||
+      !canChangeJournalVideoDevices(phaseRef.current) || compositeSessionRef.current) return;
+    clearCountdown();
+    phaseRef.current = "preview";
+    setPhase("preview");
+    configuringQualityRef.current = true;
+    setConfiguringQuality(true);
+    const generation = ++qualityGenerationRef.current;
+    const track = stream.getVideoTracks()[0];
+    void tuneJournalVideoStream(stream, quality).then(() => {
+      if (!mountedRef.current || generation !== qualityGenerationRef.current || streamRef.current !== stream) return;
+      const dimensions = track?.getSettings();
+      setCaptureResolution(dimensions?.width && dimensions.height
+        ? { width: dimensions.width, height: dimensions.height } : null);
+    }).finally(() => {
+      if (generation !== qualityGenerationRef.current) return;
+      configuringQualityRef.current = false;
+      if (mountedRef.current) setConfiguringQuality(false);
+    });
+  }, [clearCountdown]);
 
   useEffect(() => {
     if (settingsProp) setSettings(settingsProp);
@@ -1618,6 +1661,8 @@ export function useJournalVideoCapture(
     recordingRemainingMs: journalVideoEffectiveRemainingMs(recordingElapsedMs, recordingBytes),
     maxDurationMs: JOURNAL_VIDEO_MAX_DURATION_MS,
     previewStream,
+    captureResolution,
+    configuringQuality,
     facingMode,
     deviceId,
     audioDeviceId,

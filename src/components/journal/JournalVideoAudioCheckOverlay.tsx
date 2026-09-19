@@ -97,7 +97,7 @@ export function JournalVideoAudioCheckOverlay({ capture, isMobile, onContinue, c
             <p className="text-sm text-white/80">
               Pick your devices, say{" "}
               <span className="font-medium text-white">&ldquo;test, test&rdquo;</span> and watch the bars
-              move. Recording starts when you tap below.
+              move. Confirm your setup, then start recording when ready.
             </p>
           </div>
 

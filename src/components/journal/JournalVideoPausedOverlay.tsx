@@ -82,7 +82,7 @@ export function JournalVideoPausedOverlay({
               : backgrounded
                 ? "We paused when the app went into the background and checked your on-device backup."
                 : silence
-              ? "No speech detected for a few seconds — we paused so you don't lose your place. Take your time; tap resume when you're ready."
+              ? "No speech detected for 30 seconds. Silence auto-pause is enabled in Recording settings. Tap resume when you are ready."
               : "Recording stays paused until you resume — take a call, write notes, or step away. Tap resume when you're ready."}
           </p>
         </div>

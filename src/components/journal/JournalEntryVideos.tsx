@@ -29,7 +29,7 @@ export default function JournalEntryVideos({
       {videos.map((v) => (
         <div key={v.id} className="group relative overflow-hidden rounded-xl bg-black/5 dark:bg-black/30">
           {v.url ? (
-            <JournalEntryVideoPlayer url={v.url} durationMs={v.duration_ms} mimeType={v.mime_type} />
+            <JournalEntryVideoPlayer url={v.url} storagePath={v.storage_path} durationMs={v.duration_ms} mimeType={v.mime_type} />
           ) : (
             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
               Video unavailable

@@ -1527,10 +1527,6 @@ export function useNewJournalEntryPage() {
       const anchorOffset = videoAnchorRef.current;
       const recordedMs = result.durationMs || durationMs;
       setVideoUploading(true);
-      toast({
-        title: "Recording saved on this device",
-        description: "Uploading your video…",
-      });
       try {
         const { saved, queued } = await saveJournalVideoCaptureWithQueue({
           userId: user.id,
@@ -1539,8 +1535,17 @@ export function useNewJournalEntryPage() {
           durationMs: recordedMs,
           anchorOffset,
           bodySnap: videoLiveSnapRef.current,
+          deferUpload: true,
         });
 
+        if (saved.status === "queued") {
+          // The queue owns the media and local document owns the caption preview now.
+          videoLiveSnapRef.current = null;
+          clearVideoCaption();
+          setVideoOpen(false);
+          setNativeVideoDraftOwnerId(null);
+          return;
+        }
         setVideoUploading(false);
         setVideoTranscribing(true);
 

@@ -1,5 +1,6 @@
 import { journalCloudAiAllowed } from "./journalAiPolicy";
-import { peekJournalDocument, journalSnapshotRow } from "./journalDocuments";
+import { peekJournalDocument, journalSnapshotRow, patchJournalDocument, synchronizeJournalEditors } from "./journalDocuments";
+import { mergeVideoTranscriptSafely } from "./journalTextMerge";
 import { canUseJournalCloudAi, PRIVATE_JOURNAL_AI_MESSAGE } from "./journalAiAccess";
 import type { JournalVideoCaptureResult } from "@/lib/journal/journalVideoCaptureLifecycle";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ import {
 import { clearInProgressJournalVideoRecording } from "@/lib/journal/journalVideoRecordingRecovery";
 import {
   enqueueJournalVideoUpload,
+  journalVideoQueueNextRetryDelay,
   listQueuedJournalVideoUploads,
   readQueuedJournalVideoUpload,
   removeQueuedJournalVideoUpload,
@@ -46,6 +48,7 @@ export type ProcessJournalVideoUploadResult = {
 };
 
 export type JournalVideoSaveStatus =
+  | "queued"
   | "completed"
   | "deferred-transcription"
   | "deferred-retry";
@@ -69,6 +72,8 @@ export type JournalVideoCaptureSaveInput = {
   durationMs: number;
   anchorOffset: number;
   bodySnap?: VideoJournalBodySnap | null;
+  /** Return after durable local storage; the mounted queue worker handles network work. */
+  deferUpload?: boolean;
 };
 
 export type JournalVideoCaptureSaveOutcome = {
@@ -207,6 +212,7 @@ export async function processJournalVideoUploadQueue(
   let processed = 0;
 
   for (const meta of queue) {
+    if (journalVideoQueueNextRetryDelay([meta]) > 0) { result.skipped += 1; continue; }
     try {
       const saved = await uploadQueuedJournalVideo(meta);
       result.uploaded += saved.uploaded ? 1 : 0;
@@ -294,6 +300,7 @@ export async function uploadQueuedJournalVideo(
         storagePath,
         videoId,
       });
+      if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("yourbible:journal-attachments-recovered", { detail: { entryId: meta.entryId } }));
     };
     if (checkpoint) markTranscribing(checkpoint);
     else updateQueuedJournalVideoUpload(meta.id, { stage: "uploading" });
@@ -344,6 +351,7 @@ export async function uploadQueuedJournalVideo(
   // The queue is the last durable local copy. Delete it only after upload,
   // transcription disposition, video-row update, and final body merge succeed.
   await removeQueuedJournalVideoUpload(meta.id);
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("yourbible:journal-attachments-recovered", { detail: { entryId: meta.entryId } }));
   return saved;
 }
 
@@ -456,6 +464,29 @@ export async function saveJournalVideoCaptureWithQueue(
     await clearInProgressJournalVideoRecording(result.recoveryDraftId);
   } catch (error) {
     console.warn("[journal-video] queued safely, but recovery cleanup failed:", error);
+  }
+
+  if (input.deferUpload) {
+    // Stage live words in the shared local document without waiting for a network round trip.
+    // The video queue independently retains these words until the final acknowledged merge.
+    try {
+      const currentDocument = peekJournalDocument(input.userId, input.entryId);
+      if (localAllowed && currentDocument && journalCloudAiAllowed(journalSnapshotRow(currentDocument.current())) && liveCaptions.trim()) {
+        synchronizeJournalEditors(input.userId, input.entryId);
+        const current = String(currentDocument.current().values.body ?? "");
+        const body = mergeVideoTranscriptSafely({ current, transcript: prepareVideoJournalTranscript(liveCaptions),
+          anchor: anchorOffset, snap: input.bodySnap ?? null });
+        if (body !== current) patchJournalDocument(input.userId, input.entryId, { body });
+      }
+    } catch (error) {
+      console.warn("[journal-video] live words remain in the durable video queue:", error);
+    }
+    return {
+      queued: true,
+      saved: { transcript: liveCaptions, anchorOffset, sttError: null,
+        liveTranscript: result.liveTranscript, peakLiveTranscript: liveCaptions,
+        status: "queued", uploaded: false, storagePath: null, videoId: null },
+    };
   }
 
   try {

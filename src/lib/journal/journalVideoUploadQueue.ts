@@ -10,6 +10,7 @@ import type { JournalVideoRecordingRecoveryMeta } from "@/lib/journal/journalVid
 export const JOURNAL_VIDEO_UPLOAD_QUEUE_META_KEY = "yb_journal_video_upload_queue_v1";
 export const JOURNAL_VIDEO_UPLOAD_QUEUE_CHANGED_EVENT =
   "yourbible:journal-video-upload-queue-changed";
+export const JOURNAL_VIDEO_RETRY_REQUEST_EVENT = "yourbible:journal-video-retry-request";
 const DB_NAME = "yb_journal_video_uploads";
 const DB_STORE = "blobs";
 const QUEUE_LOCK_NAME = "yourbible-journal-video-upload-queue";
@@ -215,6 +216,7 @@ export function journalVideoQueueNextRetryDelay(
     const backoff = retryDelaysMs[Math.min(attempts - 1, retryDelaysMs.length - 1)];
     delay = Math.max(delay, Math.max(0, attemptedAt + backoff - nowMs));
   }
+  if (rows.some((row) => row.stage == null || row.stage === "queued")) return 0;
   return delay;
 }
 

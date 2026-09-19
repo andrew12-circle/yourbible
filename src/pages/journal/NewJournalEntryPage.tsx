@@ -1,3 +1,4 @@
+import { JournalVideoTransferStatus } from "@/components/journal/JournalVideoTransferStatus";
 import { JournalMediaRetry } from "@/components/journal/JournalMediaRetry";
 import { JournalAiPrivacy, JournalAiDocument } from "@/components/journal/JournalAiPrivacy";
 import { JournalSaveStatus } from "@/components/journal/JournalSaveStatus";
@@ -312,6 +313,7 @@ export default function NewJournalEntryPage() {
         </div>
 
         <PrivateJournalCryptoBanner journalId={p.journalId} />
+        <JournalVideoTransferStatus userId={p.user.id} entryId={p.activeEntryId} />
 
         <NewJournalEntryBodyEditor
           editId={p.editId}

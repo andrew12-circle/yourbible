@@ -26,7 +26,7 @@ export const DEFAULT_JOURNAL_VIDEO_CAPTURE_SETTINGS: JournalVideoCaptureSettings
   countdown: 3,
   audioDeviceId: null,
   floatingRecorder: true,
-  silenceAutoPause: true,
+  silenceAutoPause: false,
   includeSystemAudio: true,
   bubbleCorner: "bottom-left",
   bubbleSize: "md",
@@ -50,7 +50,8 @@ export function readJournalVideoCaptureSettings(): JournalVideoCaptureSettings {
 export function writeJournalVideoCaptureSettings(patch: Partial<JournalVideoCaptureSettings>): JournalVideoCaptureSettings {
   const next = { ...readJournalVideoCaptureSettings(), ...patch };
   if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
+    catch { /* Settings persistence must not interrupt capture on storage-blocked devices. */ }
   }
   return next;
 }

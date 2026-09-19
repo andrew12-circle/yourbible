@@ -2,6 +2,8 @@ import { requireJournalVideoCloudAi } from "./journalAiAccess";
 import { stableMediaUrls, type StableMediaUrlCache } from "./stableMediaUrls";
 import { removeJournalAttachment } from "./journalAttachmentOperations";
 import { supabase } from "@/integrations/supabase/client";
+import { reportJournalVideoUploadProgress } from "./journalVideoUploadProgress";
+import { JOURNAL_VIDEO_RESUMABLE_THRESHOLD, uploadJournalVideoResumable } from "./journalVideoResumableUpload";
 import {
   JOURNAL_VIDEO_BITS_PER_SECOND,
   JOURNAL_VIDEO_TARGET_BITS_PER_SECOND,
@@ -381,8 +383,8 @@ export async function tuneJournalVideoStream(
   try {
     await track.applyConstraints({
       aspectRatio: { ideal: aspectRatio },
-      width: { max: width },
-      height: { max: height },
+      width: { ideal: width, max: width },
+      height: { ideal: height, max: height },
       frameRate: { max: 30 },
     });
   } catch {
@@ -494,13 +496,20 @@ export async function uploadEntryVideo(
     mime,
     stableRecordingId,
   );
-  const { error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).upload(path, uploadBlob, {
-    // A durable queue id makes crash retries overwrite the same object instead
-    // of leaking a new random upload on every attempt.
-    upsert: idempotent,
-    contentType: mime,
-  });
-  if (error) throw new Error(formatVideoStorageError(error.message));
+  if (uploadBlob.size > JOURNAL_VIDEO_RESUMABLE_THRESHOLD) {
+    await uploadJournalVideoResumable({
+      userId, bucket: JOURNAL_VIDEOS_BUCKET, path, blob: uploadBlob, contentType: mime, upsert: idempotent,
+      onProgress: (loaded, total) => reportJournalVideoUploadProgress({
+        id: stableRecordingId ?? path, userId, entryId, loaded, total,
+      }),
+    });
+  } else {
+    const { error } = await supabase.storage.from(JOURNAL_VIDEOS_BUCKET).upload(path, uploadBlob, {
+      upsert: idempotent,
+      contentType: mime,
+    });
+    if (error) throw new Error(formatVideoStorageError(error.message));
+  }
   const recordingId = await deriveJournalVideoRecordingRowId(
     userId,
     entryId,

@@ -265,3 +265,41 @@ describe("JournalVideoCaptureDialog mobile dismissal", () => {
     expect(capture.cancel).not.toHaveBeenCalled();
   });
 });
+
+
+describe("journal recorder non-destructive retry and completion", () => {
+  beforeEach(() => {
+    vi.mocked(useIsMobile).mockReturnValue(true);
+    vi.mocked(useJournalVideoAudioCheck).mockReturnValue({ passed: true, markPassed: vi.fn(), reset: vi.fn() } as never);
+  });
+  afterEach(() => { cleanup(); vi.clearAllMocks(); });
+  const result = () => ({ video: new Blob(["recording"]), audio: null, liveTranscript: "words", peakLiveTranscript: "words", chapters: [], durationMs: 5000, recoveryDraftId: "take-1" });
+  it("explicitly reacquires the camera on retry without calling discard", () => {
+    const capture = captureForPhase("idle"); capture.recordingBytes = 0; capture.recordingElapsedMs = 0; capture.durableBackupState = "idle"; capture.error = "Permission was denied";
+    vi.mocked(useJournalVideoCapture).mockReturnValue(capture);
+    render(<JournalVideoCaptureDialog open stackElevated defaultMode="camera" onOpenChange={vi.fn()} onComplete={vi.fn()} />);
+    const initial = vi.mocked(capture.openPreview).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(capture.openPreview).toHaveBeenCalledTimes(initial + 1);
+    expect(capture.cancel).not.toHaveBeenCalled();
+  });
+  it("routes browser Stop sharing through the visible review", async () => {
+    const capture = captureForPhase("recording"); capture.mode = "screen";
+    capture.stopRecording = vi.fn().mockResolvedValue(result());
+    vi.mocked(useJournalVideoCapture).mockReturnValue(capture);
+    render(<JournalVideoCaptureDialog open defaultMode="screen" onOpenChange={vi.fn()} onComplete={vi.fn()} />);
+    await act(async () => { vi.mocked(useJournalVideoCapture).mock.calls.at(-1)?.[0]?.onScreenShareEnded?.(); });
+    expect(screen.getByTestId("capture-review")).toBeVisible();
+    expect(capture.cancel).not.toHaveBeenCalled();
+  });
+  it("serializes repeated save taps even when the parent supplies no uploading prop", async () => {
+    const capture = captureForPhase("recording"); capture.stopRecording = vi.fn().mockResolvedValue(result());
+    const complete = vi.fn(() => new Promise<void>(() => {}));
+    vi.mocked(useJournalVideoCapture).mockReturnValue(capture);
+    render(<JournalVideoCaptureDialog open stackElevated defaultMode="camera" onOpenChange={vi.fn()} onComplete={complete} />);
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Close" })));
+    const save = screen.getByRole("button", { name: "Confirm reviewed video" });
+    fireEvent.click(save); fireEvent.click(save);
+    expect(complete).toHaveBeenCalledOnce();
+  });
+});

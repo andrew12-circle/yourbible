@@ -135,3 +135,30 @@ Run these on the exact installed iPhone surface before calling a release device-
 - Exercise wired/Bluetooth audio route changes, rotation, low-storage failure, and the configured
   duration/size limit. Confirm every terminal state leaves either a playable queued recording or a
   clear recoverable error.
+
+## September 19 stability changes
+
+- Camera, microphone, and resolution changes are preview-only in the web recorder. Pause is not a
+  device-switching boundary: MediaRecorder must keep its original track set for the entire take.
+- Browser Stop sharing, the recording limit, and Stop use the same guarded finalization/review path.
+  Permission retry explicitly reacquires the source. Recording retry never calls discard.
+- Web review confirms Retake/Discard. Keep for later must commit the full Blob to the durable queue
+  before closing; Download backup is an independent escape hatch when local storage fails.
+- Normal journal saves return after durable queue ownership, not after upload/transcription. Pending
+  video cards own their progress subscriptions so transfer updates cannot reload the map or editor.
+  Other callers that require synchronous finalization retain that behavior unless they opt in.
+- Transfers over 6 MiB use TUS with 6 MiB chunks, account-scoped resume fingerprints, fresh authorization
+  for each request, trusted-origin checks, and bounded idle failure. The durable queue remains the
+  authority. A new queued recording does not inherit another clip's transcription retry delay.
+- Playback renews expired signed links on play/seek or a playback error, with bounded automatic retry.
+  Source renewal and WebM duration repair preserve time, rate, volume, mute, and play/pause intent.
+  There is no periodic whole-player refresh.
+- Elapsed time is primary. Size-limited time uses observed output rate with a conservative target-rate
+  floor. Preview shows actual camera dimensions, not merely a selected resolution label.
+- Silence auto-pause defaults off for new preferences; explicitly saved preferences remain respected.
+- `scripts/test-journal-video-stability.mjs` uses real Chromium MediaRecorder with synthetic devices and
+  IndexedDB, never production accounts. Unit tests cover queue durability, link renewal, account-scoped
+  TUS resume, stopped attempts, and confirmation guards. These are not physical iPhone certification.
+
+Before release on iPhone, run the physical-device ledger above (including calls, Bluetooth, rotation,
+low storage, and native backup export). A browser download action is not proof of native Files export.

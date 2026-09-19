@@ -39,7 +39,7 @@ import {
   journalVideoRemainingMs,
   JOURNAL_VIDEO_MAX_UPLOAD_BYTES,
 } from "@/lib/journal/journalVideoLimits";
-import { clearInProgressJournalVideoRecording } from "@/lib/journal/journalVideoRecordingRecovery";
+import { keepJournalVideoForLater } from "@/lib/journal/keepJournalVideoForLater";
 import { nativeJournalVideoCaptureSupported } from "@/lib/native/journalVideoNative";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +117,10 @@ function WebJournalVideoCaptureDialog({
   const [pickMode, setPickMode] = useState<JournalVideoCaptureMode | null>(null);
   const [pendingReview, setPendingReview] = useState<PendingReview | null>(null);
   const [reviewSaveError, setReviewSaveError] = useState<string | null>(null);
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const reviewSavingRef = useRef(false);
+  const stopFlightRef = useRef<Promise<void> | null>(null);
+  const [captureActionError, setCaptureActionError] = useState<string | null>(null);
   const [pauseReason, setPauseReason] = useState<JournalVideoPauseReason | null>(null);
 
   const capture = useJournalVideoCapture({
@@ -124,6 +128,7 @@ function WebJournalVideoCaptureDialog({
     onMaxDuration: () => {
       stopOnMaxRef.current();
     },
+    onScreenShareEnded: () => stopOnMaxRef.current(),
     onInterim: onLiveTranscript,
     recovery,
   });
@@ -291,60 +296,99 @@ function WebJournalVideoCaptureDialog({
   };
 
   const finishCapture = async (result: JournalVideoCaptureResult, durationMs: number) => {
-    onReviewReady?.(result, durationMs);
-    if (reviewBeforeUpload) {
-      setReviewSaveError(null);
-      setPendingReview({ result, durationMs });
-      return;
+    setReviewSaveError(null);
+    setPendingReview({ result, durationMs });
+    try { onReviewReady?.(result, durationMs); }
+    catch (error) { console.warn("[journal-video] review callback failed; recording retained:", error); }
+    if (!reviewBeforeUpload) {
+      reviewSavingRef.current = true;
+      setReviewSaving(true);
+      try {
+        await onComplete(result, durationMs);
+        onOpenChange(false);
+      } catch (error) {
+        setReviewSaveError(`Couldn't save this video yet. ${error instanceof Error ? error.message : "Please retry."}`);
+      } finally {
+        reviewSavingRef.current = false;
+        setReviewSaving(false);
+      }
     }
-    await onComplete(result, durationMs);
   };
 
-  const handleStop = async () => {
-    const result = await capture.stopRecording();
-    if (!result) {
-      // A failed/empty stop is never an implicit discard. Keep the dialog and
-      // any recovery draft intact so Stop/Close can be retried safely.
-      setPauseReason(
-        capture.interruptionReason === "silence" || capture.interruptionReason === "manual"
-          ? capture.interruptionReason
-          : "interrupted",
-      );
-      return;
-    }
-    await finishCapture(result, result.durationMs);
+  const handleStop = () => {
+    if (stopFlightRef.current) return stopFlightRef.current;
+    const work = (async () => {
+      try {
+        const result = await capture.stopRecording();
+        if (!result) {
+          setPauseReason("interrupted");
+          setCaptureActionError(capture.phase === "preview" || capture.phase === "idle"
+            ? "Capture ended before a recording was ready. Retry camera or screen access."
+            : "The recording is not ready yet. Keep this window open and try Stop again.");
+          return;
+        }
+        setCaptureActionError(null);
+        await finishCapture(result, result.durationMs);
+      } catch (error) {
+        setCaptureActionError(error instanceof Error ? error.message : "Couldn't finish recording yet. Keep this window open and retry.");
+      }
+    })();
+    stopFlightRef.current = work;
+    void work.finally(() => { if (stopFlightRef.current === work) stopFlightRef.current = null; });
+    return work;
   };
-
-  stopOnMaxRef.current = () => {
-    void handleStop();
-  };
+  stopOnMaxRef.current = () => { void handleStop(); };
 
   const handleRetake = () => {
-    void clearInProgressJournalVideoRecording(pendingReview?.result.recoveryDraftId);
+    if (reviewSavingRef.current) return;
+    // Called only after the review's explicit discard confirmation.
+    capture.cancel();
     setPendingReview(null);
     setReviewSaveError(null);
+    setCaptureActionError(null);
     setCountdownDeferred(false);
     countdownStartedRef.current = false;
     resetAudioCheck();
-    void capture.openPreview(pickMode ?? defaultMode ?? "camera");
+    // The pendingReview transition reopens preview exactly once.
   };
 
   const handleConfirmReview = async () => {
-    if (!pendingReview) return;
+    if (!pendingReview || reviewSavingRef.current) return;
+    reviewSavingRef.current = true;
+    setReviewSaving(true);
     setReviewSaveError(null);
     try {
       await onComplete(pendingReview.result, pendingReview.durationMs);
       setPendingReview(null);
       onOpenChange(false);
-    } catch {
-      setReviewSaveError("Couldn't save this video yet.");
+    } catch (error) {
+      setReviewSaveError(`Couldn't save this video yet. ${error instanceof Error ? error.message : "Please retry."}`);
+    } finally {
+      reviewSavingRef.current = false;
+      setReviewSaving(false);
+    }
+  };
+
+  const handleKeepForLater = async () => {
+    if (!pendingReview || !recovery || reviewSavingRef.current) return;
+    reviewSavingRef.current = true;
+    setReviewSaving(true);
+    setReviewSaveError(null);
+    try {
+      await keepJournalVideoForLater(pendingReview.result, recovery);
+      onOpenChange(false);
+    } catch (error) {
+      setReviewSaveError(`Couldn't keep this recording yet. ${error instanceof Error ? error.message : "Please retry."}`);
+    } finally {
+      reviewSavingRef.current = false;
+      setReviewSaving(false);
     }
   };
 
   const recording = capture.phase === "recording";
   const paused = capture.phase === "paused";
   const active = recording || paused;
-  const processing = capture.phase === "processing" || uploading || transcribing;
+  const processing = capture.phase === "processing" || uploading || transcribing || reviewSaving;
   const handleDialogOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       onOpenChange(true);
@@ -365,7 +409,10 @@ function WebJournalVideoCaptureDialog({
   const showPicker =
     open && pickMode === null && !processing && !pendingReview && !isMobile && !defaultMode;
   const isScreen = capture.mode === "screen";
-  const elapsedClock = formatJournalVideoClock(capture.recordingRemainingMs);
+  const elapsedClock = formatJournalVideoClock(capture.recordingElapsedMs);
+  const remainingClock = formatJournalVideoClock(capture.recordingRemainingMs);
+  const hasCapturedMedia = active || capture.recordingBytes > 0 || capture.durableBackupState === "at-risk";
+  const visibleCaptureError = capture.error ?? captureActionError;
   const sizeLabel = formatJournalVideoSizeMb(capture.recordingBytes, 0);
   const sizeCapLabel = formatJournalVideoSizeMb(JOURNAL_VIDEO_MAX_UPLOAD_BYTES, 0);
   const lowTime = active && capture.recordingRemainingMs <= 60_000;
@@ -443,10 +490,10 @@ function WebJournalVideoCaptureDialog({
               "rounded-full bg-black/50 px-3 py-1 text-sm font-medium tabular-nums text-white backdrop-blur-sm",
               lowTime && "text-amber-300",
             )}
-            aria-live="polite"
           >
             {elapsedClock}
-            <span className="text-[10px] font-normal text-white/60"> left</span>
+            <span className="text-[10px] font-normal text-white/60"> elapsed</span>
+            <span className="ml-2 text-[10px] font-normal text-white/60">{remainingClock} left</span>
             <span className="mx-1.5 text-white/40" aria-hidden>
               ·
             </span>
@@ -527,20 +574,31 @@ function WebJournalVideoCaptureDialog({
           />
         </div>
 
-        {capture.error ? (
-          <div className="mb-3 flex flex-col items-center gap-2">
-            <p className="text-center text-sm text-red-300">{capture.error}</p>
+        {visibleCaptureError ? (
+          <div className="relative z-30 mb-3 flex flex-col items-center gap-2">
+            <p className="text-center text-sm text-red-300" role="alert">{visibleCaptureError}</p>
             <Button
               type="button"
               variant="secondary"
               size="sm"
+              disabled={processing}
               onClick={() => {
-                capture.cancel();
-                setPickMode(isMobile || defaultMode ? (defaultMode ?? "camera") : null);
+                if (hasCapturedMedia) { void handleStop(); return; }
+                setCaptureActionError(null);
+                setCountdownDeferred(true);
+                resetAudioCheck();
+                void capture.openPreview(pickMode ?? defaultMode ?? "camera");
               }}
             >
-              Try again
+              {hasCapturedMedia ? "Review captured video" : "Try again"}
             </Button>
+            {hasCapturedMedia ? (
+              <Button type="button" variant="ghost" size="sm" disabled={processing}
+                className="min-h-11 text-white"
+                onClick={() => { if (window.confirm("Discard this interrupted recording? This cannot be undone.")) handleClose(); }}>
+                Discard recording
+              </Button>
+            ) : null}
           </div>
         ) : null}
 
@@ -548,7 +606,7 @@ function WebJournalVideoCaptureDialog({
           {processing
             ? transcribing
               ? (transcribingLabel ?? "Transcribing…")
-              : "Saving video…"
+              : "Storing recording safely…"
             : active
             ? paused
               ? "Paused — tap play to continue or stop to save."
@@ -618,7 +676,9 @@ function WebJournalVideoCaptureDialog({
       durationMs={pendingReview.durationMs}
       onRetake={handleRetake}
       onConfirm={() => void handleConfirmReview()}
-      confirming={uploading || transcribing}
+      confirming={uploading || transcribing || reviewSaving}
+      onKeepForLater={recovery && pendingReview.result.recoveryDraftId ? () => void handleKeepForLater() : undefined}
+      onDiscard={handleClose}
       confirmLabel={confirmLabel}
       reviewHint={reviewHint}
       saveError={reviewSaveError}
