@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Apply reviewed implementation atomically
+      - name: Apply reviewed application implementation
         if: hashFiles('scripts/journal-video-workbench.patch') != ''
         run: |
           python - <<'PY'
@@ -34,9 +34,8 @@ jobs:
           encoded = encoded.replace('IDo+lrobjobtShh0', 'IDo+lrobjobtThh0')
           raw = gzip.decompress(base64.b64decode(encoded))
           assert hashlib.sha256(raw).hexdigest() == 'c8621357b6c2d0fa5a86393c89e75c0e3b027cfa7b7d168876afc5258b607e55', 'Implementation checksum mismatch'
-          plan = json.loads(raw)
           results = {}
-          for filename, patch in plan.items():
+          for filename, patch in json.loads(raw).items():
               path = Path(filename)
               assert not path.is_absolute() and '..' not in path.parts
               old = path.read_bytes() if path.exists() else b''
@@ -50,36 +49,29 @@ jobs:
               path.write_text(text)
           PY
           npm install --package-lock-only --ignore-scripts tus-js-client@4.3.1
-          git rm scripts/journal-video-workbench.patch scripts/journal-video-workbench.part-* .github/workflows/journal-video-workbench.yml .github/workflows/journal-video-unit-workspace.yml
-          git add src scripts docs package.json package-lock.json .github/workflows
+          git rm scripts/journal-video-workbench.patch scripts/journal-video-workbench.part-*
+          git add src scripts docs package.json package-lock.json
           git diff --cached --check
           git -c user.name='Andrew Heisley' -c user.email='andrew12-circle@users.noreply.github.com' commit -m 'fix(journal): harden video capture, recovery, upload and playback'
           git push origin HEAD:fix/journal-video-stability-20260919
-      - name: Install dependencies
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
-        run: npm ci
+      - run: npm ci
       - name: Regression tests
         id: tests
         continue-on-error: true
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: npm test -- src/lib/journal src/components/journal src/hooks/useJournal src/hooks/useNewJournal src/hooks/useVideoJournal 2>&1 | tee "$RUNNER_TEMP/video-tests.log"
       - name: TypeScript regression comparison
         id: types
         continue-on-error: true
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: node scripts/check-journal-type-regressions.mjs 3ff5601aec0d2d46e1ab9377e5660ad7a5c0c6a4 2>&1 | tee "$RUNNER_TEMP/video-types.log"
       - name: Production build
         id: build
         continue-on-error: true
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: npm run build 2>&1 | tee "$RUNNER_TEMP/video-build.log"
       - name: Full lint
         id: lint
         continue-on-error: true
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: npm run lint 2>&1 | tee "$RUNNER_TEMP/video-lint.log"
-      - name: Install isolated browser tooling
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+      - name: Install browser tooling
         run: |
           npm install --prefix "$RUNNER_TEMP/browser" --no-save --package-lock=false playwright@1.55.1
           echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
@@ -87,12 +79,10 @@ jobs:
       - name: Real recorder browser scenarios
         id: browser
         continue-on-error: true
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: node scripts/test-journal-video-stability.mjs 2>&1 | tee "$RUNNER_TEMP/video-browser.log"
       - name: Existing caption and editor stability
         id: captions
         continue-on-error: true
-        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: |
           node scripts/test-journal-captions.mjs 2>&1 | tee "$RUNNER_TEMP/video-captions.log"
           node scripts/test-journal-editor-scroll.mjs 2>&1 | tee "$RUNNER_TEMP/video-editor.log"
