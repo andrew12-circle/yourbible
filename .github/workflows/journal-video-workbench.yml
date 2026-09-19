@@ -8,7 +8,7 @@ permissions:
 jobs:
   workbench:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash
@@ -23,47 +23,92 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Export exact source for implementation
-        run: |
-          python - <<'PY'
-          import os, subprocess, tarfile
-          paths = subprocess.check_output(['git','ls-tree','-r','--name-only','HEAD'],text=True).splitlines()
-          with tarfile.open(os.environ['RUNNER_TEMP']+'/journal-video-source.tar.gz','w:gz') as archive:
-              for path in paths:
-                  if path.startswith(('src/','scripts/','docs/','ios/','.github/')) or '/' not in path:
-                      if path.endswith(('.ts','.tsx','.js','.mjs','.cjs','.json','.css','.html','.md','.yml','.yaml','.swift','.sh','.sql')):
-                          archive.add(path, arcname=path)
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: journal-video-source
-          path: ${{ runner.temp }}/journal-video-source.tar.gz
-          retention-days: 1
-      - name: Apply reviewed implementation
+      - name: Apply reviewed implementation atomically
         if: hashFiles('scripts/journal-video-workbench.patch') != ''
         run: |
-          git apply --check scripts/journal-video-workbench.patch
-          git apply scripts/journal-video-workbench.patch
+          python - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib, json
+          plan = json.loads(gzip.decompress(base64.b64decode(Path('scripts/journal-video-workbench.patch').read_text())))
+          results = {}
+          for filename, patch in plan.items():
+              path = Path(filename)
+              assert not path.is_absolute() and '..' not in path.parts
+              old = path.read_bytes() if path.exists() else b''
+              assert hashlib.sha256(old).hexdigest() == patch['base'], 'Source changed: '+filename
+              lines = old.decode().splitlines(keepends=True)
+              for start, end, text in reversed(patch['edits']):
+                  lines[start:end] = text.splitlines(keepends=True)
+              results[path] = ''.join(lines)
+          for path, text in results.items():
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_text(text)
+          PY
           npm install --package-lock-only --ignore-scripts tus-js-client@4.3.1
           git rm scripts/journal-video-workbench.patch .github/workflows/journal-video-workbench.yml
           git add src scripts docs package.json package-lock.json .github/workflows
+          git diff --cached --check
           git -c user.name='Andrew Heisley' -c user.email='andrew12-circle@users.noreply.github.com' commit -m 'fix(journal): harden video capture, recovery, upload and playback'
           git push origin HEAD:fix/journal-video-stability-20260919
       - name: Install dependencies
         if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: npm ci
       - name: Regression tests
+        id: tests
+        continue-on-error: true
         if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: npm test -- src/lib/journal src/components/journal src/hooks/useJournal src/hooks/useNewJournal src/hooks/useVideoJournal 2>&1 | tee "$RUNNER_TEMP/video-tests.log"
       - name: TypeScript regression comparison
+        id: types
+        continue-on-error: true
         if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
-        run: node scripts/check-journal-type-regressions.mjs 3ff5601aec0d2d46e1ab9377e5660ad7a5c0c6a4
+        run: node scripts/check-journal-type-regressions.mjs 3ff5601aec0d2d46e1ab9377e5660ad7a5c0c6a4 2>&1 | tee "$RUNNER_TEMP/video-types.log"
       - name: Production build
+        id: build
+        continue-on-error: true
         if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
         run: npm run build 2>&1 | tee "$RUNNER_TEMP/video-build.log"
+      - name: Full lint
+        id: lint
+        continue-on-error: true
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/video-lint.log"
+      - name: Install isolated browser tooling
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: |
+          npm install --prefix "$RUNNER_TEMP/browser" --no-save --package-lock=false playwright@1.55.1
+          echo "PLAYWRIGHT_MODULE=$RUNNER_TEMP/browser/node_modules/playwright/index.mjs" >> "$GITHUB_ENV"
+          node "$RUNNER_TEMP/browser/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Real recorder browser scenarios
+        id: browser
+        continue-on-error: true
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: node scripts/test-journal-video-stability.mjs 2>&1 | tee "$RUNNER_TEMP/video-browser.log"
+      - name: Existing caption and editor stability
+        id: captions
+        continue-on-error: true
+        if: hashFiles('src/lib/journal/journalVideoResumableUpload.ts') != ''
+        run: |
+          node scripts/test-journal-captions.mjs 2>&1 | tee "$RUNNER_TEMP/video-captions.log"
+          node scripts/test-journal-editor-scroll.mjs 2>&1 | tee "$RUNNER_TEMP/video-editor.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: journal-video-implementation-validation
-          path: ${{ runner.temp }}/video-*.log
+          path: |
+            ${{ runner.temp }}/video-*.log
+            ${{ runner.temp }}/journal-video-*
+            ${{ runner.temp }}/journal-type*.log
+            ${{ runner.temp }}/journal-baseline-types.log
+            ${{ runner.temp }}/journal-caption-*
+            ${{ runner.temp }}/journal-writing-*
           if-no-files-found: ignore
+      - name: Require all completed checks
+        if: always() && steps.tests.outcome != 'skipped'
+        run: |
+          test '${{ steps.tests.outcome }}' = success
+          test '${{ steps.types.outcome }}' = success
+          test '${{ steps.build.outcome }}' = success
+          test '${{ steps.lint.outcome }}' = success
+          test '${{ steps.browser.outcome }}' = success
+          test '${{ steps.captions.outcome }}' = success
