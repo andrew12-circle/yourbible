@@ -1,0 +1,85 @@
+--- a/src/lib/journal/backup/restoreBackup.ts
++++ b/src/lib/journal/backup/restoreBackup.ts
+@@ -50,6 +50,16 @@
+     documents.set(record.sourceId,{row,versions:parsed.versions});
+   }
+   await access.assert();
++  // A recovered notebook has one privacy policy. A single protected entry or
++  // historical version makes the whole recovered notebook private, independent
++  // of input order; otherwise later plaintext inserts could be rejected.
++  const privateNotebooks=new Set<string>();
++  for(const {row,versions} of documents.values()) {
++    if(row.e2e_encrypted || versions.some(v=>v.snapshot.e2e_encrypted)
++      || backup.manifest.journals.find(j=>j.id===row.journal_id)?.e2e_required
++      || useJournalVaultStore.getState().e2eEnabled) privateNotebooks.add(row.journal_id??'unfiled');
++  }
++  if(privateNotebooks.size&&!getJournalDek()) throw new Error('Unlock journal encryption before restoring private history.');
+   const notebooks=new Map<string,string>();
+   const result:RestoredBackupResult={entries:0,attachments:0,previouslyRestored:0};
+   const records=[...backup.manifest.records].sort((a,b)=>Number(a.kind!=='entry')-Number(b.kind!=='entry'));
+@@ -62,7 +72,7 @@
+       const {row,versions}=documents.get(record.sourceId)!;
+       const sourceJournal=row.journal_id??'unfiled';
+       const sourceNotebook=backup.manifest.journals.find((j)=>j.id===sourceJournal);
+-      const encrypted=Boolean(row.e2e_encrypted || sourceNotebook?.e2e_required || useJournalVaultStore.getState().e2eEnabled);
++      const encrypted=privateNotebooks.has(sourceJournal);
+       if(encrypted&&!getJournalDek())throw new Error('Unlock the journal to restore this notebook.');
+       let journalId=notebooks.get(sourceJournal);
+       if(!journalId){
+--- a/src/lib/journal/backup/restoreBackup.test.ts
++++ b/src/lib/journal/backup/restoreBackup.test.ts
+@@ -3,7 +3,7 @@
+ import { restoreJournalBackup } from './restoreBackup';
+ import { backupKey,backupSalt,encodeBackupPart,verifyJournalBackup,type BackupManifest } from './format';
+ import { sha256Blob } from '@/lib/crypto/journalBinaryCrypto';
+-const h=vi.hoisted(()=>({rows:new Map<string,Record<string,unknown>[]>(),blobs:new Map<string,Blob>(),writes:0,history:vi.fn(),failReceipt:false,key:null as CryptoKey|null}));
++const h=vi.hoisted(()=>({rows:new Map<string,Record<string,unknown>[]>(),blobs:new Map<string,Blob>(),writes:0,history:vi.fn(),failReceipt:false,encoded:vi.fn(),key:null as CryptoKey|null}));
+ const owner='10000000-0000-4000-8000-000000000001',source='10000000-0000-4000-8000-000000000002',photo='10000000-0000-4000-8000-000000000003',set='10000000-0000-4000-8000-000000000004';
+ vi.mock('@/integrations/supabase/client',()=>({
+   supabase:{from:query,storage:{from:(bucket:string)=>({
+@@ -12,7 +12,7 @@
+ }));
+ vi.mock('../archive/client',()=>({archiveAccess:async()=>({userId:owner,key:h.key,assert:async()=>{}}),archiveChanged:()=>{},journalArchiveDb:{from:query,rpc:async(name:string,args:unknown)=>{h.history(name,args);return{error:null};}}}));
+ vi.mock('@/stores/journalVaultStore',()=>({getJournalDek:()=>h.key,useJournalVaultStore:{getState:()=>({e2eEnabled:false})}}));
+-vi.mock('../journalEntryCrypto',()=>({encryptJournalPayload:async(r:unknown)=>r}));
++vi.mock('../journalEntryCrypto',()=>({encryptJournalPayload:async(r:Record<string,unknown>)=>{h.encoded(r);return {...r,e2e_encrypted:true};}}));
+ vi.mock('../journalMediaPrivacy',()=>({protectJournalMedia:async(_u:string,_e:string,blob:Blob,path:string)=>({blob,path}),readJournalMediaBlob:async(b:string,p:string)=>h.blobs.get(`${b}/${p}`)!}));
+ vi.mock('../journalVideoPosterStorage',()=>({saveJournalVideoPoster:async()=>{}}));
+ function query(table:string){
+@@ -26,17 +26,22 @@
+     const matching=rows.filter(r=>filters.every(([k,v])=>r[k]===v));return resolve({data:single?matching[0]??null:matching,error:null});
+   }};return q;
+ }
+-async function backup(options:{malformed?:boolean;privateNotebook?:boolean;foreignHistory?:boolean}={}){
++async function backup(options:{malformed?:boolean;privateNotebook?:boolean;foreignHistory?:boolean;mixed?:boolean}={}){
+   const salt=backupSalt(),key=await backupKey('this backup passphrase is long',salt),files:Blob[]=[];
+   const row={id:source,user_id:owner,title:'Original title',body:'The complete original body',summary:null,tags:[],mood:null,entry_kind:null,journal_id:photo,entry_at_ts:'2026-09-18T10:00:00Z',e2e_encrypted:false};
+   const version={id:photo,entry_id:options.foreignHistory?owner:source,user_id:owner,revision:4,captured_at:'2026-09-18T09:00:00Z',snapshot:{...row,body:'Previous wording'}};
+   const doc=new Blob([JSON.stringify({row:options.malformed?{...row,body:42}:row,versions:[version]})],{type:'application/json'}),image=new Blob(['actual picture bytes'],{type:'image/jpeg'});
+   const manifest:BackupManifest={format:'yourbible-backup',version:1,setId:set,sourceUserId:owner,createdAt:new Date().toISOString(),journals:[{id:photo,name:'Source notebook',e2e_required:options.privateNotebook}],records:[]};
+   for(const [kind,id,blob] of [['entry',source,doc],['photo',photo,image]] as const){const digest=await sha256Blob(blob),recordId=`${kind}:${id}`;manifest.records.push({id:recordId,sourceId:id,entryId:source,kind,size:blob.size,mime:blob.type,digest,chunkDigests:[digest]});files.push(await encodeBackupPart(blob,{v:1,setId:set,salt,recordId,kind:'part',index:0,chunks:1},key));}
++  if(options.mixed){
++    const second='10000000-0000-4000-8000-000000000099',blob=new Blob([JSON.stringify({row:{...row,id:second,e2e_encrypted:true},versions:[]})],{type:'application/json'}),digest=await sha256Blob(blob),recordId=`entry:${second}`;
++    manifest.records.push({id:recordId,sourceId:second,entryId:second,kind:'entry',size:blob.size,mime:blob.type,digest,chunkDigests:[digest]});
++    files.push(await encodeBackupPart(blob,{v:1,setId:set,salt,recordId,kind:'part',index:0,chunks:1},key));
++  }
+   files.push(await encodeBackupPart(new Blob([JSON.stringify(manifest)],{type:'application/json'}),{v:1,setId:set,salt,recordId:'manifest',kind:'manifest',index:0,chunks:1},key));
+   return verifyJournalBackup(files,'this backup passphrase is long');
+ }
+-beforeEach(()=>{h.rows.clear();h.blobs.clear();h.writes=0;h.history.mockReset();h.failReceipt=false;h.key=null;});
++beforeEach(()=>{h.rows.clear();h.blobs.clear();h.writes=0;h.history.mockReset();h.encoded.mockReset();h.failReceipt=false;h.key=null;});
+ describe('backup restore is additive and repeatable',()=>{
+   it('restores complete text, historical wording and media without changing an existing journal',async()=>{
+     h.rows.set('journal_entries',[{id:owner,user_id:owner,body:'Never overwrite me'}]);const checked=await backup();const result=await restoreJournalBackup(checked);
+@@ -44,5 +49,11 @@
+     const count=h.writes;expect((await restoreJournalBackup(checked)).previouslyRestored).toBe(2);expect(h.writes).toBe(count);expect(h.rows.get('journal_entries')).toHaveLength(2);
+   });
+   it('resumes after an entry was written but its receipt failed',async()=>{const checked=await backup();h.failReceipt=true;await expect(restoreJournalBackup(checked)).rejects.toThrow('receipt response lost');expect(h.rows.get('journal_entries')).toHaveLength(1);await restoreJournalBackup(checked);expect(h.rows.get('journal_entries')).toHaveLength(1);expect(h.rows.get('journal_photos')).toHaveLength(1);});
++  it('restores a mixed notebook under one private policy regardless of record order',async()=>{
++    h.key={} as CryptoKey;const checked=await backup({mixed:true});await restoreJournalBackup(checked);
++    expect(h.rows.get('journals')).toHaveLength(1);expect(h.rows.get('journals')?.[0].e2e_required).toBe(true);
++    expect(h.rows.get('journal_entries')).toHaveLength(2);expect(h.rows.get('journal_entries')?.every(r=>r.e2e_encrypted===true)).toBe(true);
++    expect(h.encoded).toHaveBeenCalledTimes(3);
++  });
+   it.each([{malformed:true},{privateNotebook:true},{foreignHistory:true}])('fails prevalidation before any remote writes: %j',async(options)=>{const checked=await backup(options);await expect(restoreJournalBackup(checked)).rejects.toThrow();expect(h.writes).toBe(0);expect(h.blobs.size).toBe(0);});
+ });
