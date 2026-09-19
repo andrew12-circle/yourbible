@@ -47,7 +47,7 @@ export default function MindGraphView({
   const spaceButtonRef = useRef<HTMLButtonElement>(null);
   const [filters, setFilters] = useState<MindGraphFilters>(DEFAULT_MIND_GRAPH_FILTERS);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 520 });
-  const [hover, setHover] = useState<MindGraphNode | null>(null);
+  const [hoverId, setHoverId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
 
@@ -67,6 +67,8 @@ export default function MindGraphView({
     const keep = new Set(scoped.nodes.map((node) => node.id));
     return { nodes: built.nodes.filter((node) => keep.has(node.id)), links: built.links.filter((link) => keep.has(link.source) && keep.has(link.target)) };
   }, [raw, filters, journalId]);
+  // Resolve hover text from the current graph, never a prior account's saved node.
+  const hover = graphData.nodes.find((node) => node.id === hoverId) ?? null;
   const mapData = useMemo(() => ({ nodes: graphData.nodes.map((node) => ({ ...node })), links: graphData.links.map((link) => ({ ...link })) }), [graphData]);
   useEffect(() => {
     if (spaceOpen) fgRef.current?.pauseAnimation();
@@ -236,7 +238,7 @@ export default function MindGraphView({
               cooldownTicks={100}
               onEngineStop={() => fitView()}
               onNodeClick={handleNodeClick}
-              onNodeHover={(n) => setHover(n ? (n as MindGraphNode) : null)}
+              onNodeHover={(n) => setHoverId(n ? (n as MindGraphNode).id : null)}
               nodePointerAreaPaint={(node, color, ctx, globalScale) => {
                 const n = node as MindGraphNode & { x: number; y: number };
                 ctx.beginPath();
