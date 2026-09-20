@@ -587,13 +587,14 @@ export default function ReaderPage() {
   const fitCorrection = useReaderFitCorrection(
     `${bibleId}|${book.abbr}|${chapter}|${layoutFingerprint}|${fontChoice}|${fontScale}|${readerFontRevision}|${effectiveStudyLayout}|${pageBox.w}|${pageBox.h}`,
   );
+  const fitPrefixKey = fitCorrection.prefix.splits.join(",");
   const singlePaginationKey = useMemo(() => [
     bibleId, book.abbr, chapter, layoutFingerprint, fontChoice, fontScale,
-    readerFontRevision, fitCorrection.reserve, pageBox.w, pageBox.h, paginatorFirstPageHeight,
+    readerFontRevision, fitCorrection.reserve, fitPrefixKey, pageBox.w, pageBox.h, paginatorFirstPageHeight,
     subsequentPageHeight, spreadColumnLayout, effectiveStudyLayout,
     JSON.stringify(passage), PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION,
   ].join("|"), [bibleId, book.abbr, chapter, layoutFingerprint, fontChoice, fontScale,
-    readerFontRevision, fitCorrection.reserve, pageBox.w, pageBox.h, paginatorFirstPageHeight,
+    readerFontRevision, fitCorrection.reserve, fitPrefixKey, pageBox.w, pageBox.h, paginatorFirstPageHeight,
     subsequentPageHeight, spreadColumnLayout, effectiveStudyLayout, passage]);
   const { streamSplits: splits, onStreamSplitsChange: handleSplitsChange } =
     useKeyedReaderStreamSplits(singlePaginationKey);
@@ -690,6 +691,7 @@ export default function ReaderPage() {
   const streamPaginationKey = [
     bibleId,
     fitCorrection.reserve,
+    fitPrefixKey,
     readerFontRevision,
     streamCompositionKey,
     layoutFingerprint,
@@ -793,13 +795,14 @@ export default function ReaderPage() {
   const pendingVerse = position.anchor?.verse ?? null;
   const fitContentKey = useStreamReader ? streamCompositionKey : `${bibleId}|${book.abbr}|${chapter}|${passage?.textRevision}`;
   const fixedFitPrefix = fitCorrection.prefix.contentKey === fitContentKey ? fitCorrection.prefix.splits : undefined;
+  const { requestCorrection } = fitCorrection;
   const requestPageFitCorrection = useCallback((overflowPx: number) => {
     const measured = useStreamReader ? navStreamSplits : splits;
-    fitCorrection.requestCorrection(overflowPx, {
+    requestCorrection(overflowPx, {
       contentKey: fitContentKey,
       splits: measured.slice(0, position.page + 1),
     });
-  }, [useStreamReader, navStreamSplits, splits, fitCorrection.requestCorrection, fitContentKey, position.page]);
+  }, [useStreamReader, navStreamSplits, splits, requestCorrection, fitContentKey, position.page]);
   const pageFitProblems = useReaderOverflowRecovery(
     `${singlePaginationKey}|${streamPaginationKey}|${position.page}|${navStreamSplits.join(",")}|${splits.join(",")}`,
     requestPageFitCorrection,
