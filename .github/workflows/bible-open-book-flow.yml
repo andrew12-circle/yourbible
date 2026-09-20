@@ -2,9 +2,9 @@ name: Bible open-book flow
 on:
   push:
     branches: [main, 'fix/bible-open-book-flow']
-    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/test-bible-book-flow.mjs', '.github/workflows/bible-open-book-flow.yml']
+    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', '.github/workflows/bible-open-book-flow.yml']
   pull_request:
-    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/test-bible-book-flow.mjs', '.github/workflows/bible-open-book-flow.yml']
+    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', '.github/workflows/bible-open-book-flow.yml']
 permissions:
   contents: read
 env:
@@ -51,7 +51,7 @@ jobs:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
         run: |
           node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/reader-browser.log"
-          node scripts/test-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
+          node scripts/diagnose-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
