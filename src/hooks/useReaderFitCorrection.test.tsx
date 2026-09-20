@@ -16,3 +16,14 @@ describe("bounded book-page corrections", () => {
     expect(result.current.canCorrect).toBe(false);
   });
 });
+
+it("retains an immutable unread boundary and releases it on a real reflow", () => {
+  const { result, rerender } = renderHook(({ scope }) => useReaderFitCorrection(scope), { initialProps: { scope: "same-layout" } });
+  const prefix = [0, 5, 12, 18, 24];
+  act(() => result.current.requestCorrection(3, { contentKey: "edition-chapter-v1", splits: prefix }));
+  prefix.push(99);
+  expect(result.current.prefix.splits).toEqual([0, 5, 12, 18, 24]);
+  rerender({ scope: "resized" });
+  expect(result.current.prefix.contentKey).toBe("");
+  expect(result.current.prefix.splits).toEqual([0]);
+});

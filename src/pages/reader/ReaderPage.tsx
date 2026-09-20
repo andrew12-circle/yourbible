@@ -791,9 +791,18 @@ export default function ReaderPage() {
   const chapterPage = position.page;
   const spreadPageIdx = position.page;
   const pendingVerse = position.anchor?.verse ?? null;
+  const fitContentKey = useStreamReader ? streamCompositionKey : `${bibleId}|${book.abbr}|${chapter}|${passage?.textRevision}`;
+  const fixedFitPrefix = fitCorrection.prefix.contentKey === fitContentKey ? fitCorrection.prefix.splits : undefined;
+  const requestPageFitCorrection = useCallback((overflowPx: number) => {
+    const measured = useStreamReader ? navStreamSplits : splits;
+    fitCorrection.requestCorrection(overflowPx, {
+      contentKey: fitContentKey,
+      splits: measured.slice(0, position.page + 1),
+    });
+  }, [useStreamReader, navStreamSplits, splits, fitCorrection.requestCorrection, fitContentKey, position.page]);
   const pageFitProblems = useReaderOverflowRecovery(
     `${singlePaginationKey}|${streamPaginationKey}|${position.page}|${navStreamSplits.join(",")}|${splits.join(",")}`,
-    fitCorrection.requestCorrection,
+    requestPageFitCorrection,
     fitCorrection.canCorrect,
   );
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
@@ -1682,6 +1691,7 @@ export default function ReaderPage() {
           spreadMode={readerLayout.useSpreadPaginatorMeasure && useStreamReader}
           studyLayout={activeStudyLayout}
           measurementKey={streamPaginationKey}
+          fixedPrefix={fixedFitPrefix}
           onSplitsChange={handleStreamSplitsChange}
         />
       ) : null}
@@ -1692,6 +1702,7 @@ export default function ReaderPage() {
           headings={paginatorHeadings}
           poetryBlocks={passage?.poetryBlocks}
           measurementKey={singlePaginationKey}
+          fixedPrefix={fixedFitPrefix}
           bookAbbr={book.abbr}
           chapter={chapter}
           pageWidth={pageBox.w}
