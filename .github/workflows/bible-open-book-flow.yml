@@ -11,7 +11,26 @@ env:
   VITE_SUPABASE_URL: https://example.supabase.co
   VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
   VITE_SUPABASE_ANON_KEY: reader-test-placeholder
+defaults:
+  run:
+    shell: bash
 jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: node scripts/check-journal-type-regressions.mjs a071419454cc9a7a68608afb75668dfe642fd799
   book-flow:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -30,12 +49,17 @@ jobs:
       - name: Real-reader visible fit and open-book flow
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
-        run: node scripts/test-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
+        run: |
+          node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/reader-browser.log"
+          node scripts/test-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: reader-book-flow-evidence
           path: |
+            ${{ runner.temp }}/reader-browser.log
+            ${{ runner.temp }}/bible-reader-*.png
+            ${{ runner.temp }}/bible-reader-results.json
             ${{ runner.temp }}/book-flow.log
             ${{ runner.temp }}/book-flow-*.png
             ${{ runner.temp }}/book-flow-*.json
