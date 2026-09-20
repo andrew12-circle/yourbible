@@ -2,422 +2,164 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { artifactRowStableEqual, type ArtifactRow } from "@/lib/framework/artifactDetailCompare";
-import { peekArtifactShellCache } from "@/lib/framework/artifactShellCache";
 import { parseClaimEpistemology } from "@/lib/framework/epistemology";
 import { normalizeArtifactClaimArrays } from "@/lib/framework/normalizeArtifactClaim";
 import { markArtifactLibrarySeen } from "@/lib/framework/artifactLibrarySeen";
-import {
-  markYoutubeTranscriptFetchError,
-} from "@/lib/framework/youtubeTranscriptFetch";
-import { isReadableDocumentKind } from "@/lib/framework/documentArtifact";
-import {
-  analyzeClientTimeoutSeconds,
-  analyzeStaleSeconds,
-  analyzeTimeoutMessage,
-  ANALYZE_AUTO_RETRY_LIMIT,
-} from "@/lib/framework/analyzeTimeouts";
-import { shouldRepairRateLimitArtifact } from "@/lib/framework/artifactAnalysisRecovery";
-
-const YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS = 140;
 
 export type ArtifactDetailClaim = {
-  id: string;
-  claim: string;
-  verdict: string | null;
-  tone: string | null;
-  doctrine_tags: string[] | null;
-  match_relation: string | null;
-  matched_belief_id: string | null;
-  bias_flags: string[] | null;
-  scripture_supports: { ref: string; note?: string | null }[] | null;
+  id: string; claim: string; verdict: string | null; tone: string | null;
+  doctrine_tags: string[] | null; match_relation: string | null; matched_belief_id: string | null;
+  bias_flags: string[] | null; scripture_supports: { ref: string; note?: string | null }[] | null;
   scripture_challenges: { ref: string; note?: string | null }[] | null;
-  epistemology?: unknown;
-  chapter_start_seconds?: number | null;
-  chapter_title?: string | null;
+  epistemology?: unknown; chapter_start_seconds?: number | null; chapter_title?: string | null;
+  source_evidence?: unknown; importance_score?: number; importance_reason?: string | null;
+  finding_kind?: string | null; is_current?: boolean; needs_review?: boolean; user_note?: string | null;
   created_at: string;
 };
-
-export type MatchedBelief = {
-  id: string;
-  topic: string | null;
-  statement: string;
-  answer: string | null;
-  confidence: number;
-};
-
+export type MatchedBelief = { id: string; topic: string | null; statement: string; answer: string | null; confidence: number };
 export type ArtifactMoment = {
-  id: string;
-  user_id: string;
-  artifact_id: string;
-  start_seconds: number;
-  end_seconds: number | null;
-  kind: string;
-  body: string | null;
-  label: string | null;
-  created_at: string;
+  id: string; user_id: string; artifact_id: string; start_seconds: number; end_seconds: number | null;
+  kind: string; body: string | null; label: string | null; created_at: string;
 };
+const BASE_CLAIMS = "id,claim,verdict,tone,doctrine_tags,match_relation,matched_belief_id,bias_flags,scripture_supports,scripture_challenges,epistemology,chapter_start_seconds,created_at,user_note";
+const VERSIONED_CLAIMS = `${BASE_CLAIMS},source_evidence,importance_score,importance_reason,finding_kind,is_current,needs_review`;
+const equal = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
+/** One scope-guarded polling loop; refreshes data in place and never changes server job status. */
 export function useArtifactDetailData(artifactId: string | undefined, userId: string | undefined) {
-  const [a, setA] = useState<ArtifactRow | null>(() => peekArtifactShellCache(artifactId));
-  const [artifactLoaded, setArtifactLoaded] = useState(() => Boolean(peekArtifactShellCache(artifactId)));
+  const [a, setA] = useState<ArtifactRow | null>(null);
+  const [artifactLoaded, setArtifactLoaded] = useState(false);
   const [claims, setClaims] = useState<ArtifactDetailClaim[]>([]);
   const [matchedBeliefs, setMatchedBeliefs] = useState<Record<string, MatchedBelief>>({});
   const [moments, setMoments] = useState<ArtifactMoment[]>([]);
-  const [polling, setPolling] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const startedRef = useRef<number | null>(null);
-  const prevStatusRef = useRef<string | null>(null);
-  const analyzeRetryRef = useRef<Record<string, number>>({});
-  const analyzeClientTimeoutRef = useRef<string | null>(null);
-  const clientTimeoutRef = useRef<string | null>(null);
-
-  const applyArtifact = useCallback((next: ArtifactRow | null) => {
-    setA((prev) => {
-      if (artifactRowStableEqual(prev, next)) return prev;
-      return next;
-    });
-  }, []);
-
-  const repairRateLimitArtifactRow = useCallback(async (
-    targetId: string,
-    row: ArtifactRow | null,
-  ): Promise<ArtifactRow | null> => {
-    if (
-      row &&
-      shouldRepairRateLimitArtifact({
-        status: row.status,
-        error: row.error,
-        rawText: row.raw_text,
-      })
-    ) {
-      await supabase.from("artifacts").update({ status: "ready", error: null }).eq("id", targetId);
-      return { ...row, status: "ready", error: null };
-    }
-    return row;
-  }, []);
-
-  const fetchArtifactRow = useCallback(async (targetId: string): Promise<ArtifactRow | null> => {
-    const artWithMeta = await supabase
-      .from("artifacts")
-      .select("id,title,kind,status,error,raw_text,url,metadata,created_at,processing_token")
-      .eq("id", targetId)
-      .maybeSingle();
-    const artResult = artWithMeta.error
-      ? await supabase
-          .from("artifacts")
-          .select("id,title,kind,status,error,raw_text,url,created_at,processing_token")
-          .eq("id", targetId)
-          .maybeSingle()
-      : artWithMeta;
-    const row = (artResult.data as ArtifactRow | null) ?? null;
-    return repairRateLimitArtifactRow(targetId, row);
-  }, [repairRateLimitArtifactRow]);
-
-  const loadClaimsOnly = useCallback(async () => {
-    if (!artifactId) return;
-    const { data: cl } = await supabase
-      .from("artifact_claims")
-      .select("*")
-      .eq("artifact_id", artifactId)
-      .order("created_at");
-    const parsedClaims = (((cl as unknown) as ArtifactDetailClaim[]) ?? []).map((row) => {
-      const normalized = normalizeArtifactClaimArrays(row);
-      return {
-        ...normalized,
-        epistemology: parseClaimEpistemology(
-          (row as ArtifactDetailClaim & { epistemology?: unknown }).epistemology,
-        ),
-      };
-    });
-    setClaims((prev) => {
-      if (prev.length === parsedClaims.length && prev.every((p, i) => p.id === parsedClaims[i]?.id)) {
-        return prev;
-      }
-      return parsedClaims;
-    });
-    const beliefIds = Array.from(
-      new Set(parsedClaims.map((c) => c.matched_belief_id).filter(Boolean)),
-    ) as string[];
-    if (beliefIds.length === 0) return;
-    const { data: beliefs } = await supabase
-      .from("belief_nodes")
-      .select("id,topic,statement,answer,confidence")
-      .in("id", beliefIds);
-    setMatchedBeliefs((beliefs ?? []).reduce((acc, belief) => {
-      acc[belief.id] = belief as MatchedBelief;
-      return acc;
-    }, {} as Record<string, MatchedBelief>));
-  }, [artifactId]);
-
-  const loadArtifactDetails = useCallback(async () => {
-    if (!artifactId) return;
-    const [{ data: cl }, { data: momentRows, error: momentError }] = await Promise.all([
-      supabase
-        .from("artifact_claims")
-        .select("*")
-        .eq("artifact_id", artifactId)
-        .order("created_at"),
-      supabase
-        .from("artifact_moments")
-        .select("id,user_id,artifact_id,start_seconds,end_seconds,kind,body,label,created_at")
-        .eq("artifact_id", artifactId)
-        .order("start_seconds")
-        .order("created_at"),
-    ]);
-    const parsedClaims = (((cl as unknown) as ArtifactDetailClaim[]) ?? []).map((row) => {
-      const normalized = normalizeArtifactClaimArrays(row);
-      return {
-        ...normalized,
-        epistemology: parseClaimEpistemology(
-          (row as ArtifactDetailClaim & { epistemology?: unknown }).epistemology,
-        ),
-      };
-    });
-    const beliefIds = Array.from(
-      new Set(parsedClaims.map((c) => c.matched_belief_id).filter(Boolean)),
-    ) as string[];
-    let beliefMap: Record<string, MatchedBelief> = {};
-    if (beliefIds.length > 0) {
-      const { data: beliefs } = await supabase
-        .from("belief_nodes")
-        .select("id,topic,statement,answer,confidence")
-        .in("id", beliefIds);
-      beliefMap = (beliefs ?? []).reduce((acc, belief) => {
-        acc[belief.id] = belief as MatchedBelief;
-        return acc;
-      }, {} as Record<string, MatchedBelief>);
-    }
-    setMatchedBeliefs(beliefMap);
-    setClaims(parsedClaims);
-    if (!momentError) setMoments(((momentRows as unknown) as ArtifactMoment[]) ?? []);
-  }, [artifactId]);
-
-  /** Fetch artifact row first so YouTube embed can mount while claims load. */
-  const loadShell = useCallback(async () => {
-    if (!artifactId) {
-      setArtifactLoaded(true);
-      applyArtifact(null);
-      return;
-    }
-    const art = await fetchArtifactRow(artifactId);
-    applyArtifact(art);
-    prevStatusRef.current = art?.status ?? null;
-    setArtifactLoaded(true);
-    void loadArtifactDetails();
-  }, [applyArtifact, artifactId, fetchArtifactRow, loadArtifactDetails]);
-
-  const loadFull = useCallback(async () => {
-    if (!artifactId) {
-      setArtifactLoaded(true);
-      applyArtifact(null);
-      return;
-    }
-    const art = await fetchArtifactRow(artifactId);
-    applyArtifact(art);
-    prevStatusRef.current = art?.status ?? null;
-    setArtifactLoaded(true);
-    await loadArtifactDetails();
-  }, [applyArtifact, artifactId, fetchArtifactRow, loadArtifactDetails]);
-
-  const loadStatusOnly = useCallback(async () => {
-    if (!artifactId) return;
-    const { data } = await supabase
-      .from("artifacts")
-      .select("id,title,kind,status,error,raw_text,url,metadata,created_at,processing_token")
-      .eq("id", artifactId)
-      .maybeSingle();
-    if (!data) return;
-    const row = await repairRateLimitArtifactRow(artifactId, data as ArtifactRow);
-    if (!row) return;
-    const prevStatus = prevStatusRef.current;
-    applyArtifact(row);
-    prevStatusRef.current = row.status;
-    if (row.status === "analyzing" || row.status === "ready") {
-      await loadClaimsOnly();
-    }
-    const terminal = row.status === "ready" || row.status === "error";
-    const transitioned =
-      prevStatus != null &&
-      ["fetching", "transcribing", "analyzing"].includes(prevStatus) &&
-      terminal;
-    if (transitioned && row.status === "ready" && row.error?.trim()) {
-      toast({
-        title: "Analysis finished with a note",
-        description: row.error,
-        variant: "destructive",
-      });
-    }
-    if (transitioned || (terminal && prevStatus !== row.status)) {
-      await loadFull();
-    }
-  }, [applyArtifact, artifactId, loadClaimsOnly, loadFull, repairRateLimitArtifactRow]);
+  const [polling, setPolling] = useState(false);
+  const loadedScopeRef = useRef("");
+  const reloadRef = useRef<(() => Promise<void>) | null>(null);
+  const scopeRef = useRef("");
+  scopeRef.current = `${userId ?? ""}:${artifactId ?? ""}`;
+  const loadFull = useCallback(async () => { await reloadRef.current?.(); }, []);
 
   useEffect(() => {
-    clientTimeoutRef.current = null;
-    analyzeClientTimeoutRef.current = null;
-    analyzeRetryRef.current = {};
-  }, [artifactId]);
+    const scope = `${userId ?? ""}:${artifactId ?? ""}`;
+    let alive = true;
+    let busy = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let loadedArtifact: ArtifactRow | null = null;
+    let detailsVersion = "";
+    let lastDetailsAt = 0;
+    let warned = false;
+    let inFlightStarted = 0;
+    const current = () => alive && scopeRef.current === scope;
+    setA(null); setClaims([]); setMoments([]); setMatchedBeliefs({}); setElapsed(0); setPolling(false);
+    setArtifactLoaded(!artifactId || !userId);
+    if (!artifactId || !userId) { loadedScopeRef.current = scope; return () => { alive = false; }; }
 
-  useEffect(() => {
-    if (!userId || !artifactId || !artifactLoaded || !a) return;
+    const refresh = async (force = false) => {
+      if (!current() || busy) return;
+      busy = true;
+      try {
+        // Exclude raw_text from routine progress polling. Reload it on transcript/status/token changes.
+        const status = await supabase.from("artifacts")
+          .select("id,title,kind,status,error,url,metadata,created_at,processing_token")
+          .eq("id", artifactId).maybeSingle();
+        if (status.error) throw status.error;
+        if (!current()) return;
+        if (!status.data) { loadedScopeRef.current = scope; setA(null); setArtifactLoaded(true); return; }
+        const changedSource = !loadedArtifact || status.data.processing_token !== loadedArtifact.processing_token ||
+          status.data.status !== loadedArtifact.status;
+        let next = { ...loadedArtifact, ...status.data } as ArtifactRow;
+        if (force || changedSource) {
+          const full = await supabase.from("artifacts")
+            .select("id,title,kind,status,error,raw_text,url,metadata,created_at,processing_token")
+            .eq("id", artifactId).maybeSingle();
+          if (full.error) throw full.error;
+          if (!current() || !full.data) return;
+          next = full.data as ArtifactRow;
+        }
+        loadedArtifact = next;
+        loadedScopeRef.current = scope;
+        setA((previous) => artifactRowStableEqual(previous, next) ? previous : next);
+        setArtifactLoaded(true);
+        const working = ["fetching", "transcribing", "analyzing"].includes(next.status);
+        setPolling(working);
+        if (working) { inFlightStarted ||= Date.now(); setElapsed(Math.floor((Date.now() - inFlightStarted) / 1000)); }
+        else { inFlightStarted = 0; setElapsed(0); }
+        // A published version is loaded once. While a new version runs, keep existing research mounted.
+        const version = JSON.stringify([next.processing_token, next.status, (next.metadata as Record<string, unknown> | null)?.findings_overview]);
+        if (force || detailsVersion !== version || Date.now() - lastDetailsAt >= 30_000) {
+          const rows: ArtifactDetailClaim[] = [];
+          for (let from = 0; ; from += 500) {
+            let result = await supabase.from("artifact_claims").select(VERSIONED_CLAIMS).eq("artifact_id", artifactId)
+              .order("created_at").order("id").range(from, from + 499);
+            // Rolling deployment compatibility, not a silent fallback for authorization/network failures.
+            if (result.error && ["42703", "PGRST204"].includes(result.error.code)) {
+              result = await supabase.from("artifact_claims").select(BASE_CLAIMS).eq("artifact_id", artifactId)
+                .order("created_at").order("id").range(from, from + 499);
+            }
+            if (result.error) throw result.error;
+            if (!current()) return;
+            const page = (result.data ?? []) as unknown as ArtifactDetailClaim[];
+            rows.push(...page.filter((row) => row.is_current !== false).map((row) => ({
+              ...normalizeArtifactClaimArrays(row), epistemology: parseClaimEpistemology(row.epistemology),
+            })));
+            if (page.length < 500) break;
+          }
+          const momentResult = await supabase.from("artifact_moments")
+            .select("id,user_id,artifact_id,start_seconds,end_seconds,kind,body,label,created_at")
+            .eq("artifact_id", artifactId).order("start_seconds").order("id");
+          if (momentResult.error) throw momentResult.error;
+          const ids = [...new Set(rows.map((row) => row.matched_belief_id).filter((id): id is string => Boolean(id)))];
+          const beliefMap: Record<string, MatchedBelief> = {};
+          for (let from = 0; from < ids.length; from += 100) {
+            const result = await supabase.from("belief_nodes").select("id,topic,statement,answer,confidence").in("id", ids.slice(from, from + 100));
+            if (result.error) throw result.error;
+            for (const belief of result.data ?? []) beliefMap[belief.id] = belief as MatchedBelief;
+          }
+          if (!current()) return;
+          setClaims((previous) => equal(previous, rows) ? previous : rows);
+          setMoments((previous) => equal(previous, momentResult.data) ? previous : momentResult.data as ArtifactMoment[]);
+          setMatchedBeliefs((previous) => equal(previous, beliefMap) ? previous : beliefMap);
+          detailsVersion = version;
+          lastDetailsAt = Date.now();
+        }
+        warned = false;
+      } catch (error) {
+        if (current() && !warned) {
+          warned = true;
+          toast({ title: "Could not refresh artifact", description: "Existing content has been kept. The app will retry the connection.", variant: "destructive" });
+          console.warn("Artifact refresh failed", error instanceof Error ? error.name : "request_error");
+        }
+      } finally { busy = false; }
+    };
+    const cycle = async () => {
+      await refresh();
+      if (current()) timer = setTimeout(cycle, document.hidden ? 15_000 : 5000);
+    };
+    const reload = () => refresh(true);
+    reloadRef.current = reload;
+    const onFocus = () => { if (!document.hidden) void refresh(true); };
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("online", onFocus);
+    void cycle();
     void markArtifactLibrarySeen(userId, artifactId);
-  }, [userId, artifactId, artifactLoaded, a]);
-
-  useEffect(() => {
-    if (!userId || !artifactId) return;
-    const cached = peekArtifactShellCache(artifactId);
-    if (cached) {
-      applyArtifact(cached);
-      setArtifactLoaded(true);
-    } else {
-      setArtifactLoaded(false);
-      applyArtifact(null);
-    }
-    setClaims([]);
-    setMoments([]);
-    setMatchedBeliefs({});
-    void loadShell();
-  }, [applyArtifact, userId, artifactId, loadShell]);
-
-  const inFlight = !!a && ["fetching", "transcribing", "analyzing"].includes(a.status);
-
-  useEffect(() => {
-    if (!inFlight) {
-      setPolling(false);
-      startedRef.current = null;
-      setElapsed(0);
-      return;
-    }
-    setPolling(true);
-    if (startedRef.current === null) startedRef.current = Date.now();
-    const poll = setInterval(() => void loadStatusOnly(), a?.status === "analyzing" ? 1500 : 2500);
-    const tick = setInterval(() => {
-      if (startedRef.current) setElapsed(Math.floor((Date.now() - startedRef.current) / 1000));
-    }, 1000);
     return () => {
-      clearInterval(poll);
-      clearInterval(tick);
+      alive = false;
+      if (timer) clearTimeout(timer);
+      if (reloadRef.current === reload) reloadRef.current = null;
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("online", onFocus);
     };
-  }, [a?.status, inFlight, loadStatusOnly]);
-
-  useEffect(() => {
-    if (!a || a.status !== "analyzing") return;
-    const pollClaims = setInterval(() => void loadClaimsOnly(), 2000);
-    return () => clearInterval(pollClaims);
-  }, [a?.id, a?.status, loadClaimsOnly]);
-
-  /** Background analyze may append claims after status flips to ready. */
-  useEffect(() => {
-    if (!a || a.status !== "ready" || a.kind === "youtube") return;
-    if (!isReadableDocumentKind(a.kind)) return;
-    const pollClaims = setInterval(() => void loadClaimsOnly(), 3000);
-    const stop = window.setTimeout(() => clearInterval(pollClaims), 3 * 60 * 1000);
-    return () => {
-      clearInterval(pollClaims);
-      window.clearTimeout(stop);
-    };
-  }, [a?.id, a?.kind, a?.status, loadClaimsOnly]);
-
-  // The server owns one bounded attempt. Never launch duplicate paid jobs on polling ticks.
-  useEffect(() => {
-    if (!a || a.kind !== "youtube" || a.status !== "fetching" || !a.url) return;
-    if (elapsed < YOUTUBE_FETCH_CLIENT_TIMEOUT_SECONDS) return;
-    if (clientTimeoutRef.current === a.id) return;
-    clientTimeoutRef.current = a.id;
-    void markYoutubeTranscriptFetchError(
-      a.id,
-      "Transcript fetch did not finish within its time limit. Retry once or paste an available transcript.",
-      a.processing_token,
-    ).then(() => loadStatusOnly());
-  }, [a, elapsed, loadStatusOnly]);
-
-  const transcriptLength = a?.raw_text?.trim().length ?? 0;
-  const analyzeStaleSec = analyzeStaleSeconds(transcriptLength);
-  const analyzeClientTimeoutSec = analyzeClientTimeoutSeconds(transcriptLength);
-
-  useEffect(() => {
-    if (!a || a.status !== "analyzing" || !a.raw_text?.trim()) return;
-    if (transcriptLength >= 40_000) return;
-    if (elapsed < analyzeStaleSec) return;
-
-    const retries = analyzeRetryRef.current[a.id] ?? 0;
-    if (retries >= ANALYZE_AUTO_RETRY_LIMIT) return;
-
-    analyzeRetryRef.current[a.id] = retries + 1;
-    void (async () => {
-      const { data } = await supabase
-        .from("artifacts")
-        .select("status,processing_token")
-        .eq("id", a.id)
-        .maybeSingle();
-      if (data?.status !== "analyzing") return;
-      const token = data.processing_token;
-      if (typeof token !== "string" || !token.trim()) return;
-      // Do not clear analyze_inflight_at here: a healthy long run heartbeats that field,
-      // and the server dedups concurrent invokes. Clearing it would let a duplicate run
-      // start and DELETE claims the live run already persisted. If the run is genuinely
-      // dead, its heartbeat ages out past the dedup window and this re-invoke proceeds.
-      await supabase.functions.invoke("framework-analyze", {
-        body: { artifact_id: a.id, processing_token: token },
-      });
-      await loadStatusOnly();
-    })();
-  }, [a, elapsed, analyzeStaleSec, loadStatusOnly]);
-
-  useEffect(() => {
-    if (!a || a.status !== "analyzing" || !a.raw_text?.trim()) return;
-    if (elapsed < analyzeClientTimeoutSec) return;
-    if (analyzeClientTimeoutRef.current === a.id) return;
-    analyzeClientTimeoutRef.current = a.id;
-    void (async () => {
-      const { data } = await supabase
-        .from("artifacts")
-        .select("status")
-        .eq("id", a.id)
-        .maybeSingle();
-      if (data?.status !== "analyzing") return;
-      await supabase
-        .from("artifacts")
-        .update({
-          status: "error",
-          error: analyzeTimeoutMessage(transcriptLength),
-        })
-        .eq("id", a.id);
-      await loadStatusOnly();
-    })();
-  }, [a, elapsed, analyzeClientTimeoutSec, transcriptLength, loadStatusOnly]);
+  }, [artifactId, userId]);
 
   const patchArtifactMetadata = useCallback(async (targetId: string) => {
-    const { data } = await supabase
-      .from("artifacts")
-      .select("metadata,title")
-      .eq("id", targetId)
-      .maybeSingle();
-    if (!data) return;
-    setA((prev) =>
-      prev
-        ? {
-            ...prev,
-            metadata: data.metadata ?? prev.metadata,
-            title: data.title ?? prev.title,
-          }
-        : prev,
-    );
-  }, []);
-
-  return {
-    a,
-    setA,
-    artifactLoaded,
-    claims,
-    setClaims,
-    matchedBeliefs,
-    moments,
-    setMoments,
-    polling,
-    elapsed,
-    inFlight,
-    loadFull,
-    patchArtifactMetadata,
-  };
+    if (targetId !== artifactId) return;
+    await loadFull();
+  }, [artifactId, loadFull]);
+  const inFlight = Boolean(a && ["fetching", "transcribing", "analyzing"].includes(a.status));
+  const visible = loadedScopeRef.current === scopeRef.current;
+  return { a: visible ? a : null, setA, artifactLoaded: visible && artifactLoaded,
+    claims: visible ? claims : [], setClaims, matchedBeliefs: visible ? matchedBeliefs : {},
+    moments: visible ? moments : [], setMoments, polling: visible && polling,
+    elapsed: visible ? elapsed : 0, inFlight: visible && inFlight, loadFull, patchArtifactMetadata };
 }
