@@ -26,12 +26,14 @@ function FindingHistory({ artifactId, userId }: { artifactId: string; userId: st
   const [more, setMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
+  const attemptedInitialLoad = useRef(false);
   const generation = useRef(0);
   useEffect(() => () => { generation.current++; }, []);
 
   const load = async (append = false) => {
     if (pending.current) return;
     pending.current = true;
+    attemptedInitialLoad.current = true;
     const request = ++generation.current;
     setBusy(true);
     setError(null);
@@ -63,7 +65,7 @@ function FindingHistory({ artifactId, userId }: { artifactId: string; userId: st
 
   return (
     <details className="mb-4 rounded-xl border border-border/70 p-3 text-sm"
-      onToggle={event => { if (event.currentTarget.open && !loaded && !pending.current) void load(); }}>
+      onToggle={event => { if (event.currentTarget.open && !attemptedInitialLoad.current) void load(); }}>
       <summary className="cursor-pointer font-medium">Earlier findings and saved research</summary>
       <p className="mt-2 text-muted-foreground">
         These findings were replaced by a newer analysis. Their verdicts, notes, and research remain available.
