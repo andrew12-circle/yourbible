@@ -1,3 +1,4 @@
+import type { ArtifactFindingEvidence } from "@/lib/framework/artifactFindingEvidence";
 import type { ClaimEpistemology } from "@/lib/framework/epistemology";
 import type { YoutubeChapter } from "@/lib/youtubeChapters";
 
@@ -25,7 +26,7 @@ export interface MatchedBelief {
   confidence: number;
 }
 
-export interface Claim {
+export interface Claim extends ArtifactFindingEvidence {
   id: string;
   claim: string;
   tone: string | null;

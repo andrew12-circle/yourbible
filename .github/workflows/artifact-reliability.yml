@@ -49,15 +49,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
       - run: npm ci
       - name: Database preservation, leases and rollback tests
         env:
           PGPASSWORD: artifact-ci-only
         run: psql -h localhost -U postgres -d artifact_test -f scripts/test-artifact-migration.sql 2>&1 | tee "$RUNNER_TEMP/artifact-database.log"
+      - name: Edge function type checks
+        run: deno check supabase/functions/framework-analyze/index.ts supabase/functions/artifact-analysis-worker/index.ts 2>&1 | tee "$RUNNER_TEMP/artifact-edge-types.log"
       - run: npm run lint 2>&1 | tee "$RUNNER_TEMP/artifact-lint.log"
       - run: npm test 2>&1 | tee "$RUNNER_TEMP/artifact-tests.log"
       - run: node scripts/check-journal-type-regressions.mjs a071419454cc9a7a68608afb75668dfe642fd799
       - run: npm run build 2>&1 | tee "$RUNNER_TEMP/artifact-build.log"
+      - name: Package tracked source for reproducible review
+        if: always()
+        run: git ls-files -z -- src supabase scripts .github docs AGENTS.md index.html package.json package-lock.json '*config*' api public/youtube-player.js | tar --null -T - -czf "$RUNNER_TEMP/artifact-validated-source.tgz"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -65,3 +73,4 @@ jobs:
           path: |
             ${{ runner.temp }}/artifact-*.log
             ${{ runner.temp }}/journal-*.log
+            ${{ runner.temp }}/artifact-validated-source.tgz

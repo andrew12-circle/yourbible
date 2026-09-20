@@ -5,10 +5,7 @@ import { useArtifactYoutubePip } from "@/hooks/useArtifactYoutubePip";
 import { useStaticYouTubeEmbedTelemetry } from "@/hooks/useStaticYouTubeEmbedTelemetry";
 import { useYouTubeDocumentPip } from "@/hooks/useYouTubeDocumentPip";
 import { useYouTubeEmbedPlayer } from "@/hooks/useYouTubeEmbedPlayer";
-import {
-  consumeArtifactInlineVideoResume,
-  readPlaybackSecondsLocal,
-} from "@/lib/framework/artifactPlaybackProgress";
+import { consumeArtifactInlineVideoResume, readPlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
 import { mergePlaybackWithBackgroundHandoff } from "@/lib/framework/backgroundPlaybackHandoff";
 import { embedNeedsResumeSeek, resolveEmbedPlaybackSeconds } from "@/lib/framework/playbackSeconds";
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
@@ -23,93 +20,42 @@ export function useArtifactVideoPlayback(options: {
   mainScrollRef: RefObject<HTMLDivElement | null>;
   transcriptSegments: TranscriptSegment[];
   transcriptRefs: RefObject<Record<string, HTMLDivElement | null>>;
-  /** Live sermon — stay at live edge; skip VOD resume seeks and progress sync. */
   isLiveBroadcast?: boolean;
 }) {
-  const {
-    artifactId,
-    youTubeVideoId,
-    videoTitle = null,
-    mainScrollRef,
-    transcriptSegments,
-    transcriptRefs,
-    isLiveBroadcast = false,
-  } = options;
-  const playbackPersistence = useArtifactPlaybackPersistence(artifactId);
-  const {
-    resolvedSeconds: savedStart,
-    loaded: playbackLoaded,
-    persistSeconds,
-    remoteFetchDone,
-  } = playbackPersistence;
+  const { artifactId, youTubeVideoId, videoTitle = null, mainScrollRef, transcriptSegments,
+    transcriptRefs, isLiveBroadcast = false } = options;
+  const { resolvedSeconds: savedStart, loaded: playbackLoaded, persistSeconds, remoteFetchDone } = useArtifactPlaybackPersistence(artifactId);
   const playbackFallbackRef = useRef(savedStart);
   const playWhenReadyRef = useRef(false);
-  /** One-shot account/local merge seek — not on every 2s persist tick. */
   const accountProgressSyncedRef = useRef(false);
   const layoutMode = useArtifactLayoutMode();
   const pipEnabled = isArtifactPipVideo(layoutMode, Boolean(youTubeVideoId));
-
   const embedVisibleRef = useRef(false);
-  const embedPrimedRef = useRef(false);
   const [embedLoaded, setEmbedLoaded] = useState(false);
-  /** API player only for transcript seek / capture — not for scroll PiP. */
   const [apiPlayerWanted, setApiPlayerWanted] = useState(false);
-  /** Locked iframe start — set once per video; remote progress seeks instead of reloading src. */
   const lockedEmbedStartRef = useRef(isLiveBroadcast ? 0 : (
-    artifactId
-      ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId)
-      : 0
-  ));
-  const [staticEmbedStart, setStaticEmbedStart] = useState(() =>
-    isLiveBroadcast
-      ? 0
-      : artifactId
-        ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId)
-        : 0,
-  );
+    artifactId ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId) : 0));
+  const [staticEmbedStart, setStaticEmbedStart] = useState(() => isLiveBroadcast ? 0 :
+    artifactId ? mergePlaybackWithBackgroundHandoff(readPlaybackSecondsLocal(artifactId) ?? 0, artifactId) : 0);
   const [apiStartSeconds, setApiStartSeconds] = useState(0);
-
-  const youtubePip = useArtifactYoutubePip({
-    artifactId,
-    enabled: pipEnabled,
-    mainScrollRef,
-    embedVisibleRef,
-  });
-
+  const youtubePip = useArtifactYoutubePip({ artifactId, enabled: pipEnabled, mainScrollRef, embedVisibleRef });
   const getIsPlayingForDocPipRef = useRef<() => boolean>(() => false);
-
   const staticTelemetry = useStaticYouTubeEmbedTelemetry({
-    videoSlotRef: youtubePip.videoSlotRef,
-    enabled: Boolean(youTubeVideoId) && !apiPlayerWanted,
-    artifactId: artifactId ?? null,
-    initialSeconds: staticEmbedStart,
-    syncBackgroundPlayback: true,
+    videoSlotRef: youtubePip.videoSlotRef, enabled: Boolean(youTubeVideoId) && !apiPlayerWanted,
+    artifactId: artifactId ?? null, initialSeconds: staticEmbedStart, syncBackgroundPlayback: true,
     getSavedPlaybackSeconds: () => playbackFallbackRef.current,
-    onPersistPlaybackSeconds: (seconds) => {
-      playbackFallbackRef.current = seconds;
-      persistSeconds(seconds);
-    },
-    iosAudioHandoff: {
-      videoId: youTubeVideoId,
-      title: videoTitle,
-    },
+    onPersistPlaybackSeconds: seconds => { playbackFallbackRef.current = seconds; persistSeconds(seconds); },
+    iosAudioHandoff: { videoId: youTubeVideoId, title: videoTitle },
   });
-
   getIsPlayingForDocPipRef.current = () => staticTelemetry.getIsPlaying();
-
   const documentPip = useYouTubeDocumentPip({
-    enabled: pipEnabled && !apiPlayerWanted,
-    artifactId,
-    youTubeVideoId,
-    title: videoTitle,
-    videoSlotRef: youtubePip.videoSlotRef,
-    pipLayout: youtubePip.pipOverlayLayout,
+    enabled: pipEnabled && !apiPlayerWanted, artifactId, youTubeVideoId, title: videoTitle,
+    videoSlotRef: youtubePip.videoSlotRef, pipLayout: youtubePip.pipOverlayLayout,
     getIsPlaying: () => getIsPlayingForDocPipRef.current(),
     getCurrentTime: () => staticTelemetry.getCurrentTime(),
     requestCurrentTime: () => staticTelemetry.requestCurrentTime(),
     onSyncInline: (seconds, resume) => {
-      playbackFallbackRef.current = seconds;
-      persistSeconds(seconds);
+      playbackFallbackRef.current = seconds; persistSeconds(seconds);
       staticTelemetry.seekTo(seconds, true);
       if (resume) staticTelemetry.playVideo();
     },
@@ -119,314 +65,154 @@ export function useArtifactVideoPlayback(options: {
     playWhenReadyRef.current = false;
     accountProgressSyncedRef.current = false;
     embedVisibleRef.current = false;
-    embedPrimedRef.current = false;
-    setEmbedLoaded(false);
-    setApiPlayerWanted(false);
+    setEmbedLoaded(false); setApiPlayerWanted(false);
     const globalDocPip = useArtifactGlobalDocumentPipStore.getState();
-    if (
-      globalDocPip.active &&
-      (globalDocPip.session?.artifactId !== artifactId ||
-        globalDocPip.session?.youTubeVideoId !== youTubeVideoId)
-    ) {
-      documentPip.exitDocumentPip();
-    }
-    const local = artifactId && !isLiveBroadcast ? (readPlaybackSecondsLocal(artifactId) ?? 0) : 0;
+    if (globalDocPip.active && (globalDocPip.session?.artifactId !== artifactId ||
+      globalDocPip.session?.youTubeVideoId !== youTubeVideoId)) documentPip.exitDocumentPip();
+    const local = artifactId && !isLiveBroadcast ? readPlaybackSecondsLocal(artifactId) ?? 0 : 0;
     const merged = artifactId && !isLiveBroadcast ? mergePlaybackWithBackgroundHandoff(local, artifactId) : 0;
-    lockedEmbedStartRef.current = merged;
-    playbackFallbackRef.current = merged;
-    setStaticEmbedStart(merged);
-    setApiStartSeconds(merged);
+    lockedEmbedStartRef.current = merged; playbackFallbackRef.current = merged;
+    setStaticEmbedStart(merged); setApiStartSeconds(merged);
   }, [artifactId, documentPip.exitDocumentPip, isLiveBroadcast, youTubeVideoId]);
 
-  useEffect(() => {
-    if (apiPlayerWanted) documentPip.exitDocumentPip();
-  }, [apiPlayerWanted, documentPip.exitDocumentPip]);
-
+  useEffect(() => { if (apiPlayerWanted) documentPip.exitDocumentPip(); }, [apiPlayerWanted, documentPip.exitDocumentPip]);
   const youtubePlayer = useYouTubeEmbedPlayer({
-    videoId: youTubeVideoId,
-    enabled: Boolean(youTubeVideoId) && apiPlayerWanted,
-    startSeconds: apiStartSeconds,
-    artifactId: artifactId ?? null,
-    getSavedPlaybackSeconds: () => savedStart,
-    onPersistPlaybackSeconds: persistSeconds,
+    videoId: youTubeVideoId, enabled: Boolean(youTubeVideoId) && apiPlayerWanted,
+    startSeconds: apiStartSeconds, artifactId: artifactId ?? null,
+    getSavedPlaybackSeconds: () => savedStart, onPersistPlaybackSeconds: persistSeconds,
     layoutKey: youtubePip.pipMode ? "pip" : "inline",
   });
-
   useEffect(() => {
     if (!youtubePlayer.playerReady || !playWhenReadyRef.current) return;
-    playWhenReadyRef.current = false;
-    youtubePlayer.playVideo();
+    playWhenReadyRef.current = false; youtubePlayer.playVideo();
   }, [youtubePlayer.playerReady, youtubePlayer.playVideo]);
-
   useEffect(() => {
     if (!apiPlayerWanted || !youtubePlayer.playerReady) return;
     const tick = window.setInterval(() => {
-      const t = youtubePlayer.getCurrentTime();
-      playbackFallbackRef.current = t;
-      persistSeconds(t);
+      const t = youtubePlayer.getCurrentTime(); playbackFallbackRef.current = t; persistSeconds(t);
     }, 2000);
     return () => window.clearInterval(tick);
-  }, [
-    apiPlayerWanted,
-    persistSeconds,
-    youtubePlayer.playerReady,
-    youtubePlayer.getCurrentTime,
-  ]);
-
+  }, [apiPlayerWanted, persistSeconds, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
   useEffect(() => {
     if (isLiveBroadcast || apiPlayerWanted || !artifactId) return;
     const tick = window.setInterval(() => {
-      const t = staticTelemetry.getCurrentTime();
-      playbackFallbackRef.current = t;
-      persistSeconds(t);
+      const t = staticTelemetry.getCurrentTime(); playbackFallbackRef.current = t; persistSeconds(t);
     }, 2000);
     return () => window.clearInterval(tick);
   }, [apiPlayerWanted, artifactId, isLiveBroadcast, persistSeconds, staticTelemetry]);
 
-  /** Static embed stays mounted; resume if YouTube pauses during inline ↔ PiP reposition. */
+  const previousPipModeRef = useRef(youtubePip.pipMode);
+  const { resumeAfterLayoutReposition, intendedPlayingRef } = staticTelemetry;
+  // Recovery belongs to a layout transition, never an unrelated render.
   useEffect(() => {
-    if (apiPlayerWanted || !pipEnabled || document.hidden || documentPip.documentPipActive) return;
-    if (!staticTelemetry.intendedPlayingRef.current) return;
-    staticTelemetry.resumeAfterLayoutReposition();
-  }, [apiPlayerWanted, documentPip.documentPipActive, pipEnabled, staticTelemetry, youtubePip.pipMode]);
+    const changed = previousPipModeRef.current !== youtubePip.pipMode;
+    previousPipModeRef.current = youtubePip.pipMode;
+    if (!changed || apiPlayerWanted || !pipEnabled || document.hidden || documentPip.documentPipActive) return;
+    if (intendedPlayingRef.current) resumeAfterLayoutReposition();
+  }, [apiPlayerWanted, documentPip.documentPipActive, pipEnabled, intendedPlayingRef, resumeAfterLayoutReposition, youtubePip.pipMode]);
 
-  const restoreStaticEmbedProgress = useCallback(
-    (opts?: { resume?: boolean; forceSeek?: boolean }) => {
-      if (apiPlayerWanted || isLiveBroadcast) return;
-      const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
-      const live = staticTelemetry.getCurrentTime();
-      const fresh = staticTelemetry.isTelemetryFresh(800);
-      const shouldSeek =
-        opts?.forceSeek ||
-        embedNeedsResumeSeek(live, seconds, fresh, Boolean(opts?.resume));
-      if (shouldSeek && seconds > 0) staticTelemetry.seekTo(seconds, true);
-      if (opts?.resume && !staticTelemetry.getIsPlaying()) staticTelemetry.playVideo();
-    },
-    [apiPlayerWanted, isLiveBroadcast, staticTelemetry],
-  );
+  const restoreStaticEmbedProgress = useCallback((opts?: { resume?: boolean; forceSeek?: boolean }) => {
+    if (apiPlayerWanted || isLiveBroadcast) return;
+    const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
+    const live = staticTelemetry.getCurrentTime();
+    const fresh = staticTelemetry.isTelemetryFresh(800);
+    const shouldSeek = opts?.forceSeek || embedNeedsResumeSeek(live, seconds, fresh, Boolean(opts?.resume));
+    if (shouldSeek) staticTelemetry.seekTo(seconds, true);
+    if (opts?.resume && !staticTelemetry.getIsPlaying()) staticTelemetry.playVideo();
+  }, [apiPlayerWanted, isLiveBroadcast, staticTelemetry]);
 
-  /** Account-backed progress arrived — seek once without changing iframe src. */
   useEffect(() => {
-    if (isLiveBroadcast || !playbackLoaded || !remoteFetchDone || !artifactId || !youTubeVideoId) return;
-    if (accountProgressSyncedRef.current) return;
+    if (isLiveBroadcast || !playbackLoaded || !remoteFetchDone || !artifactId || !youTubeVideoId || accountProgressSyncedRef.current) return;
     accountProgressSyncedRef.current = true;
-
     const target = Math.max(0, Math.floor(savedStart));
-    if (target <= lockedEmbedStartRef.current) return;
-    lockedEmbedStartRef.current = target;
-    playbackFallbackRef.current = target;
-    setApiStartSeconds(target);
-    restoreStaticEmbedProgress({ forceSeek: true });
-  }, [
-    artifactId,
-    playbackLoaded,
-    remoteFetchDone,
-    restoreStaticEmbedProgress,
-    savedStart,
-    youTubeVideoId,
-    isLiveBroadcast,
-  ]);
+    if (target === lockedEmbedStartRef.current) return;
+    lockedEmbedStartRef.current = target; playbackFallbackRef.current = target;
+    setApiStartSeconds(target); restoreStaticEmbedProgress({ forceSeek: true });
+  }, [artifactId, playbackLoaded, remoteFetchDone, restoreStaticEmbedProgress, savedStart, youTubeVideoId, isLiveBroadcast]);
 
   const onStaticEmbedLoad = useCallback(() => {
-    embedVisibleRef.current = true;
-    setEmbedLoaded(true);
+    embedVisibleRef.current = true; setEmbedLoaded(true);
     const shouldResumeInline = !isLiveBroadcast && artifactId ? consumeArtifactInlineVideoResume(artifactId) : false;
     restoreStaticEmbedProgress(shouldResumeInline ? { resume: true, forceSeek: true } : undefined);
-    if (shouldResumeInline) {
-      staticTelemetry.resumeAfterLayoutReposition();
-    } else if (!apiPlayerWanted && !embedPrimedRef.current && !isLiveBroadcast) {
-      embedPrimedRef.current = true;
-      const seconds = Math.max(0, Math.floor(playbackFallbackRef.current));
-      window.setTimeout(() => staticTelemetry.primeToPausedFrame(seconds), 80);
-    }
-  }, [apiPlayerWanted, artifactId, isLiveBroadcast, restoreStaticEmbedProgress, staticTelemetry]);
-
-  const staticEmbedSrc = useMemo(() => {
-    if (!youTubeVideoId) return null;
-    return buildYouTubeEmbedSrc(youTubeVideoId, staticEmbedStart, {
-      liveEdge: isLiveBroadcast,
-    });
-  }, [isLiveBroadcast, staticEmbedStart, youTubeVideoId]);
+    if (shouldResumeInline) staticTelemetry.resumeAfterLayoutReposition();
+  }, [artifactId, isLiveBroadcast, restoreStaticEmbedProgress, staticTelemetry]);
+  const staticEmbedSrc = useMemo(() => youTubeVideoId
+    ? buildYouTubeEmbedSrc(youTubeVideoId, staticEmbedStart, { liveEdge: isLiveBroadcast }) : null,
+  [isLiveBroadcast, staticEmbedStart, youTubeVideoId]);
 
   const enableApiPlayer = useCallback(() => {
-    if (youtubeNeedsHostedPlayer()) return; // The hosted frame already exposes the same controls/telemetry.
-    const seconds = staticTelemetry.getCurrentTime();
-    playbackFallbackRef.current = seconds;
-    persistSeconds(seconds);
-    setApiStartSeconds(seconds);
-    setApiPlayerWanted(true);
+    if (youtubeNeedsHostedPlayer()) return;
+    const seconds = staticTelemetry.getCurrentTime(); playbackFallbackRef.current = seconds;
+    persistSeconds(seconds); setApiStartSeconds(seconds); setApiPlayerWanted(true);
   }, [persistSeconds, staticTelemetry]);
-
-  const activatePlayer = useCallback(
-    (opts?: { autoplay?: boolean }) => {
-      if (youtubeNeedsHostedPlayer()) {
-        if (opts?.autoplay) staticTelemetry.playVideo();
-        return;
-      }
-      enableApiPlayer();
-      if (opts?.autoplay) playWhenReadyRef.current = true;
-    },
-    [enableApiPlayer, staticTelemetry],
-  );
+  const activatePlayer = useCallback((opts?: { autoplay?: boolean }) => {
+    if (youtubeNeedsHostedPlayer()) { if (opts?.autoplay) staticTelemetry.playVideo(); return; }
+    enableApiPlayer();
+    if (opts?.autoplay) playWhenReadyRef.current = true;
+  }, [enableApiPlayer, staticTelemetry]);
 
   const lastSeekScrollRef = useRef({ at: 0, seconds: -1 });
-
-  const scrollTranscriptToSeconds = useCallback(
-    (seconds: number) => {
-      const now = Date.now();
-      if (
-        lastSeekScrollRef.current.seconds === seconds &&
-        now - lastSeekScrollRef.current.at < 300
-      ) {
-        return;
-      }
-      lastSeekScrollRef.current = { at: now, seconds };
-      const source = transcriptSegments
-        .filter(
-          (segment) =>
-            !segment.isParagraphBreak && segment.startSeconds != null && segment.startSeconds <= seconds,
-        )
-        .sort((left, right) => (right.startSeconds ?? 0) - (left.startSeconds ?? 0))[0];
-      if (source) transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
-    },
-    [transcriptSegments, transcriptRefs],
-  );
-
-  const seekVideoToSeconds = useCallback(
-    (seconds: number, opts?: { play?: boolean; scrollTranscript?: boolean }) => {
-      const start = Math.max(0, Math.floor(seconds));
-      playbackFallbackRef.current = start;
-      persistSeconds(start);
-
-      if (apiPlayerWanted && youtubePlayer.playerReady) {
-        youtubePlayer.seekTo(start, { play: opts?.play });
-      } else if (!apiPlayerWanted) {
-        staticTelemetry.seekTo(start, true);
-        if (opts?.play) staticTelemetry.playVideo();
-      } else {
-        setApiStartSeconds(start);
-        enableApiPlayer();
-        if (opts?.play) activatePlayer({ autoplay: true });
-        youtubePlayer.seekTo(start, { play: opts?.play });
-      }
-      if (opts?.scrollTranscript !== false) scrollTranscriptToSeconds(start);
-    },
-    [
-      activatePlayer,
-      apiPlayerWanted,
-      enableApiPlayer,
-      persistSeconds,
-      scrollTranscriptToSeconds,
-      staticTelemetry,
-      youtubePlayer.playerReady,
-      youtubePlayer.seekTo,
-    ],
-  );
-
-  const activateAndPlay = useCallback(() => {
-    if (apiPlayerWanted) {
-      activatePlayer({ autoplay: true });
+  const scrollTranscriptToSeconds = useCallback((seconds: number) => {
+    const now = Date.now();
+    if (lastSeekScrollRef.current.seconds === seconds && now - lastSeekScrollRef.current.at < 300) return;
+    lastSeekScrollRef.current = { at: now, seconds };
+    const source = transcriptSegments.filter(s => !s.isParagraphBreak && s.startSeconds != null && s.startSeconds <= seconds)
+      .sort((a, b) => (b.startSeconds ?? 0) - (a.startSeconds ?? 0))[0];
+    if (source) transcriptRefs.current[source.id]?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [transcriptSegments, transcriptRefs]);
+  const seekVideoToSeconds = useCallback((seconds: number, opts?: { play?: boolean; scrollTranscript?: boolean }) => {
+    if (!Number.isFinite(seconds)) return;
+    const start = Math.max(0, Math.floor(seconds));
+    playbackFallbackRef.current = start; persistSeconds(start, { intent: true });
+    if (apiPlayerWanted && youtubePlayer.playerReady) youtubePlayer.seekTo(start, { play: opts?.play });
+    else if (!apiPlayerWanted) {
+      staticTelemetry.seekTo(start, true);
+      if (opts?.play) staticTelemetry.playVideo();
     } else {
-      staticTelemetry.playVideo();
+      setApiStartSeconds(start);
+      if (opts?.play) playWhenReadyRef.current = true;
+      youtubePlayer.seekTo(start, { play: opts?.play });
     }
+    if (opts?.scrollTranscript !== false) scrollTranscriptToSeconds(start);
+  }, [apiPlayerWanted, persistSeconds, scrollTranscriptToSeconds, staticTelemetry, youtubePlayer.playerReady, youtubePlayer.seekTo]);
+  const activateAndPlay = useCallback(() => {
+    if (apiPlayerWanted) activatePlayer({ autoplay: true }); else staticTelemetry.playVideo();
   }, [activatePlayer, apiPlayerWanted, staticTelemetry]);
-
   const togglePlayback = useCallback(() => {
     if (apiPlayerWanted) {
-      if (youtubePlayer.playerReady) {
-        youtubePlayer.togglePlayback();
-      } else {
-        activatePlayer({ autoplay: true });
-      }
-      return;
-    }
-    staticTelemetry.togglePlayback();
-  }, [
-    activatePlayer,
-    apiPlayerWanted,
-    staticTelemetry,
-    youtubePlayer.playerReady,
-    youtubePlayer.togglePlayback,
-  ]);
-
+      if (youtubePlayer.playerReady) youtubePlayer.togglePlayback(); else activatePlayer({ autoplay: true });
+    } else staticTelemetry.togglePlayback();
+  }, [activatePlayer, apiPlayerWanted, staticTelemetry, youtubePlayer.playerReady, youtubePlayer.togglePlayback]);
   const getPlaybackSeconds = useCallback(() => {
     if (apiPlayerWanted && youtubePlayer.playerReady) return youtubePlayer.getCurrentTime();
-    const staticTime = staticTelemetry.getCurrentTime();
-    const fallback = playbackFallbackRef.current;
-    const fresh = staticTelemetry.isTelemetryFresh(2500);
-    return resolveEmbedPlaybackSeconds(staticTime, fallback, fresh);
-  }, [
-    apiPlayerWanted,
-    staticTelemetry,
-    youtubePlayer.playerReady,
-    youtubePlayer.getCurrentTime,
-  ]);
-
+    return resolveEmbedPlaybackSeconds(staticTelemetry.getCurrentTime(), playbackFallbackRef.current, staticTelemetry.isTelemetryFresh(2500));
+  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.playerReady, youtubePlayer.getCurrentTime]);
   const resyncPlaybackPosition = useCallback(() => {
-    if (apiPlayerWanted && youtubePlayer.playerReady) {
-      playbackFallbackRef.current = youtubePlayer.getCurrentTime();
-      return;
-    }
+    if (apiPlayerWanted && youtubePlayer.playerReady) { playbackFallbackRef.current = youtubePlayer.getCurrentTime(); return; }
     staticTelemetry.requestCurrentTime();
     window.setTimeout(() => {
       const t = staticTelemetry.getCurrentTime();
-      if (Number.isFinite(t) && t >= 0) {
-        playbackFallbackRef.current = Math.max(playbackFallbackRef.current, t);
-      }
+      if (Number.isFinite(t) && t >= 0) playbackFallbackRef.current = t;
     }, 100);
   }, [apiPlayerWanted, staticTelemetry, youtubePlayer.getCurrentTime, youtubePlayer.playerReady]);
-
   const isPlaying = apiPlayerWanted ? youtubePlayer.isPlaying : staticTelemetry.isPlaying;
-
-  const getIsPlaying = useCallback(() => {
-    if (apiPlayerWanted) return youtubePlayer.getIsPlaying();
-    return staticTelemetry.getIsPlaying();
-  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.getIsPlaying]);
-
-  const getWantsContinuousPlayback = useCallback(() => {
-    if (apiPlayerWanted) return youtubePlayer.getWantsContinuousPlayback();
-    return staticTelemetry.getWantsContinuousPlayback();
-  }, [apiPlayerWanted, staticTelemetry, youtubePlayer.getWantsContinuousPlayback]);
-
+  const getIsPlaying = useCallback(() => apiPlayerWanted ? youtubePlayer.getIsPlaying() : staticTelemetry.getIsPlaying(),
+    [apiPlayerWanted, staticTelemetry, youtubePlayer.getIsPlaying]);
+  const getWantsContinuousPlayback = useCallback(() => apiPlayerWanted ? youtubePlayer.getWantsContinuousPlayback() : staticTelemetry.getWantsContinuousPlayback(),
+    [apiPlayerWanted, staticTelemetry, youtubePlayer.getWantsContinuousPlayback]);
   const pauseVideo = useCallback(() => {
-    if (apiPlayerWanted) youtubePlayer.pauseVideo();
-    else staticTelemetry.pauseVideo();
+    if (apiPlayerWanted) youtubePlayer.pauseVideo(); else staticTelemetry.pauseVideo();
   }, [apiPlayerWanted, staticTelemetry, youtubePlayer.pauseVideo]);
-
   const playVideo = useCallback(() => {
-    if (apiPlayerWanted) youtubePlayer.playVideo();
-    else staticTelemetry.playVideo();
+    if (apiPlayerWanted) youtubePlayer.playVideo(); else staticTelemetry.playVideo();
   }, [apiPlayerWanted, staticTelemetry, youtubePlayer.playVideo]);
-
   const handleRestoreFromDocumentPip = useCallback(() => {
-    documentPip.exitDocumentPip();
-    youtubePip.scrollVideoIntoView();
+    documentPip.exitDocumentPip(); youtubePip.scrollVideoIntoView();
   }, [documentPip, youtubePip]);
-
-  return {
-    pipEnabled,
-    youtubePip,
-    youtubePlayer,
-    documentPip,
-    handleRestoreFromDocumentPip,
-    persistSeconds,
-    playbackFallbackRef,
-    seekVideoToSeconds,
-    scrollTranscriptToSeconds,
-    getPlaybackSeconds,
-    activatePlayer,
-    activateAndPlay,
-    togglePlayback,
-    isPlaying,
-    getIsPlaying,
-    getWantsContinuousPlayback,
-    pauseVideo,
-    playVideo,
-    resyncPlaybackPosition,
-    staticEmbedSrc,
-    onStaticEmbedLoad,
-    showApiPlayer: apiPlayerWanted,
-    useStaticPip: pipEnabled && !apiPlayerWanted,
-    playerReady: apiPlayerWanted ? youtubePlayer.playerReady : embedLoaded,
-  };
+  return { pipEnabled, youtubePip, youtubePlayer, documentPip, handleRestoreFromDocumentPip,
+    persistSeconds, playbackFallbackRef, seekVideoToSeconds, scrollTranscriptToSeconds, getPlaybackSeconds,
+    activatePlayer, activateAndPlay, togglePlayback, isPlaying, getIsPlaying, getWantsContinuousPlayback,
+    pauseVideo, playVideo, resyncPlaybackPosition, staticEmbedSrc, onStaticEmbedLoad,
+    showApiPlayer: apiPlayerWanted, useStaticPip: pipEnabled && !apiPlayerWanted,
+    playerReady: apiPlayerWanted ? youtubePlayer.playerReady : embedLoaded };
 }

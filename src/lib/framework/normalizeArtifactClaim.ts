@@ -12,9 +12,9 @@ function asScriptureRefs(value: unknown): ScriptureRef[] {
   return value
     .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
     .map((item) => {
-      const ref = typeof item.ref === "string" ? item.ref : "";
+      const ref = typeof item.ref === "string" ? item.ref : typeof item.reference === "string" ? item.reference : "";
       if (!ref) return null;
-      const note = typeof item.note === "string" ? item.note : item.note == null ? null : undefined;
+      const note = typeof item.note === "string" ? item.note : typeof item.relevance === "string" ? item.relevance : undefined;
       return { ref, note: note ?? undefined };
     })
     .filter((item): item is ScriptureRef => item != null);

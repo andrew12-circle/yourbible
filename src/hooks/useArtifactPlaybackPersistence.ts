@@ -1,110 +1,98 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { readPlaybackSecondsLocal, writePlaybackSecondsLocal } from "@/lib/framework/artifactPlaybackProgress";
 import {
-  fetchArtifactPlaybackProgress,
-  mergePlaybackSeconds,
-  readPlaybackSecondsLocal,
-  upsertArtifactPlaybackProgress,
-  writePlaybackSecondsLocal,
-} from "@/lib/framework/artifactPlaybackProgress";
+  latestPlaybackSnapshot, readPlaybackSnapshot, writePlaybackSnapshot, type PlaybackSnapshot,
+} from "@/lib/framework/playbackSnapshot";
 
-const PERSIST_DEBOUNCE_MS = 2000;
+type Pending = PlaybackSnapshot & { userId: string; artifactId: string };
+const MAX_WAIT_MS = 5000;
 
-/**
- * Account-backed watch progress (YouTube-style): loads on sign-in, debounced upsert while watching.
- * Session storage remains a fast local cache for the current tab.
- */
+/** Capture the owner with each write. Navigation/sign-out cannot retarget pending progress. */
 export function useArtifactPlaybackPersistence(artifactId: string | undefined) {
   const { user } = useAuth();
-  const [remoteSeconds, setRemoteSeconds] = useState<number | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  /** True once the account fetch finished (or was skipped when signed out). */
-  const [remoteFetchDone, setRemoteFetchDone] = useState(false);
-  const pendingSecondsRef = useRef<number | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const userIdRef = useRef(user?.id);
-  userIdRef.current = user?.id;
+  const userId = user?.id;
+  const scope = `${userId ?? "anonymous"}:${artifactId ?? ""}`;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
+  const [remote, setRemote] = useState<{ scope: string; snapshot: PlaybackSnapshot | null; done: boolean }>({
+    scope, snapshot: null, done: false,
+  });
+  const pending = useRef<Pending | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const writing = useRef<Promise<void>>(Promise.resolve());
 
-  const resolvedSeconds = artifactId
-    ? mergePlaybackSeconds(readPlaybackSecondsLocal(artifactId), remoteSeconds)
-    : 0;
+  const flushToServer = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const job = pending.current;
+    if (!job) return writing.current;
+    pending.current = null;
+    writing.current = writing.current.catch(() => {}).then(async () => {
+      const { error } = await supabase.from("artifact_playback_progress").upsert({
+        user_id: job.userId, artifact_id: job.artifactId, playback_seconds: job.seconds,
+        updated_at: new Date(job.updatedAt).toISOString(),
+      }, { onConflict: "user_id,artifact_id" });
+      if (error) {
+        console.warn("[artifactPlaybackProgress] save failed", error.message);
+        if (currentScope.current === `${job.userId}:${job.artifactId}` && !pending.current) pending.current = job;
+      }
+    });
+    return writing.current;
+  }, []);
 
   useEffect(() => {
-    if (!artifactId) {
-      setRemoteSeconds(null);
-      setLoaded(true);
-      setRemoteFetchDone(true);
-      return;
-    }
-
-    if (!user?.id) {
-      setRemoteSeconds(null);
-      setLoaded(true);
-      setRemoteFetchDone(true);
-      return;
-    }
-
     let cancelled = false;
-    setRemoteFetchDone(false);
-    // Local session cache is enough to start the embed; account sync runs in background.
-    setLoaded(true);
-
+    setRemote({ scope, snapshot: null, done: !userId || !artifactId });
+    if (!userId || !artifactId) return;
     void (async () => {
-      const remote = await fetchArtifactPlaybackProgress(user.id, artifactId);
-      if (cancelled) return;
-      setRemoteSeconds(remote);
-      const merged = mergePlaybackSeconds(readPlaybackSecondsLocal(artifactId), remote);
-      if (merged > 0) writePlaybackSecondsLocal(artifactId, merged);
-      setRemoteFetchDone(true);
-    })();
+      const { data, error } = await supabase.from("artifact_playback_progress")
+        .select("playback_seconds,updated_at").eq("user_id", userId).eq("artifact_id", artifactId).maybeSingle();
+      if (cancelled || currentScope.current !== scope) return;
+      const remoteTime = data?.updated_at ? Date.parse(data.updated_at) : NaN;
+      const snapshot = !error && data && Number.isFinite(remoteTime) && Number.isFinite(data.playback_seconds)
+        ? { seconds: Math.max(0, data.playback_seconds), updatedAt: remoteTime } : null;
+      const merged = latestPlaybackSnapshot(readPlaybackSnapshot(userId, artifactId), snapshot);
+      if (merged) {
+        writePlaybackSnapshot(userId, artifactId, merged);
+        writePlaybackSecondsLocal(artifactId, merged.seconds);
+      }
+      setRemote({ scope, snapshot: merged, done: true });
+    })().catch(() => {
+      if (!cancelled) setRemote({ scope, snapshot: null, done: true });
+    });
+    return () => { cancelled = true; void flushToServer(); };
+  }, [artifactId, userId, scope, flushToServer]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [artifactId, user?.id]);
-
-  const flushToServer = useCallback(async () => {
-    const uid = userIdRef.current;
-    if (!artifactId || !uid) return;
-    const pending = pendingSecondsRef.current;
-    if (pending == null) return;
-    pendingSecondsRef.current = null;
-    await upsertArtifactPlaybackProgress(uid, artifactId, pending);
-  }, [artifactId]);
-
-  const persistSeconds = useCallback(
-    (seconds: number) => {
-      if (!artifactId) return;
-      const s = Math.max(0, Math.floor(seconds));
-      writePlaybackSecondsLocal(artifactId, s);
-
-      const uid = userIdRef.current;
-      if (!uid) return;
-
-      pendingSecondsRef.current = s;
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        debounceRef.current = null;
-        void flushToServer();
-      }, PERSIST_DEBOUNCE_MS);
-    },
-    [artifactId, flushToServer],
-  );
+  const persistSeconds = useCallback((seconds: number, options?: { intent?: boolean }) => {
+    if (!artifactId || !Number.isFinite(seconds) || seconds < 0) return;
+    const snapshot = { seconds: Math.floor(seconds), updatedAt: Date.now() };
+    if (!options?.intent && userId && (remote.scope !== scope || !remote.done)) return;
+    writePlaybackSecondsLocal(artifactId, snapshot.seconds);
+    if (!userId) return;
+    writePlaybackSnapshot(userId, artifactId, snapshot);
+    pending.current = { ...snapshot, userId, artifactId };
+    if (!timer.current) timer.current = setTimeout(() => { void flushToServer(); }, MAX_WAIT_MS);
+  }, [artifactId, userId, remote.scope, remote.done, scope, flushToServer]);
 
   useEffect(() => {
-    const onHidden = () => {
-      if (document.hidden) void flushToServer();
-    };
-    const onPageHide = () => void flushToServer();
+    const onHidden = () => { if (document.hidden) void flushToServer(); };
+    const onPageHide = () => { void flushToServer(); };
     document.addEventListener("visibilitychange", onHidden);
     window.addEventListener("pagehide", onPageHide);
     return () => {
       document.removeEventListener("visibilitychange", onHidden);
       window.removeEventListener("pagehide", onPageHide);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
       void flushToServer();
     };
   }, [flushToServer]);
 
-  return { resolvedSeconds, loaded, persistSeconds, remoteSeconds, remoteFetchDone };
+  const local = artifactId && userId ? readPlaybackSnapshot(userId, artifactId) : null;
+  const merged = latestPlaybackSnapshot(local, remote.scope === scope ? remote.snapshot : null);
+  return {
+    resolvedSeconds: merged?.seconds ?? (artifactId ? readPlaybackSecondsLocal(artifactId) ?? 0 : 0),
+    loaded: true, persistSeconds, remoteSeconds: remote.scope === scope ? remote.snapshot?.seconds ?? null : null,
+    remoteFetchDone: remote.scope === scope && remote.done,
+  };
 }
