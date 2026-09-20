@@ -41,3 +41,8 @@ private/authorized-bible/
 # GitHub Actions workflows (Cursor OAuth cannot push these without `workflow` scope)
 .github/workflows/deploy-supabase-functions.yml
 .github/workflows/ci.yml
+
+# Visual originals and derivatives are acquired and verified during build.
+.visual-bible-cache/
+public/visual-bible/v1/*.webp
+public/visual-bible/v1/manifest.json
