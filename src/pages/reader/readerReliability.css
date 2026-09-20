@@ -8,3 +8,12 @@
 [data-bible-reader] [data-reading-area] .scripture-columns-2 {
   padding-block-start: max(8px, 0.45em);
 }
+
+/* These classes already use vertical-align: super. Tailwind's default relative
+   top:-0.5em for <sup> would raise the glyph a second time, outside the first
+   column line. Let the line box account for the superscript in both trees. */
+[data-reading-area] .scripture-footnote-mark,
+[data-reading-area] .scripture-page-footnotes-marker {
+  position: static;
+  top: auto;
+}
