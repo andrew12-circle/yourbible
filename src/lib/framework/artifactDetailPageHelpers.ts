@@ -6,16 +6,15 @@ import {
 } from "@/lib/framework/epistemology";
 import { formatClaimSourceClock, type TranscriptSegment } from "@/lib/transcriptSplit";
 import { claimResearchChatTitle } from "@/lib/myai/chatTitle";
+import { resolveFindingSource } from "@/lib/framework/claimEvidence";
 
 export function formatArtifactKind(kind: string): string {
   if (kind === "youtube") return "YouTube";
   return kind.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
 export function formatArtifactStatus(status: string): string {
   return status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
-
 export function titleLooksBad(title: string | null | undefined): boolean {
   if (!title) return true;
   const t = title.trim();
@@ -24,7 +23,6 @@ export function titleLooksBad(title: string | null | undefined): boolean {
   if (/^\d+(?:\.\d+)?[KMB]?\s+(views?|subscribers?)\b/i.test(t)) return true;
   return false;
 }
-
 export function withYouTubeTimestamp(url: string | null | undefined, seconds: number) {
   if (!url) return "";
   try {
@@ -35,109 +33,45 @@ export function withYouTubeTimestamp(url: string | null | undefined, seconds: nu
     return `${url}${url.includes("?") ? "&" : "?"}t=${Math.max(0, Math.floor(seconds))}s`;
   }
 }
-
-const SOURCE_STOPWORDS = new Set([
-  "about", "after", "again", "against", "also", "because", "before", "being", "between", "claim",
-  "could", "every", "from", "have", "into", "just", "like", "lord", "more", "much", "must",
-  "that", "their", "there", "these", "they", "this", "through", "what", "when", "where", "which",
-  "while", "with", "would", "your",
-]);
-
 export type ArtifactDetailClaimSource = {
-  id: string;
-  claim: string;
-  tone: string | null;
-  doctrine_tags: string[];
+  id: string; claim: string; tone: string | null; doctrine_tags: string[];
   scripture_supports: { ref: string; note?: string }[];
   scripture_challenges: { ref: string; note?: string }[];
-  match_relation: string | null;
-  matched_belief_id: string | null;
-  bias_flags: string[];
-  verdict: string | null;
-  epistemology?: ClaimEpistemology | null;
+  match_relation: string | null; matched_belief_id: string | null; bias_flags: string[];
+  verdict: string | null; epistemology?: ClaimEpistemology | null;
+  source_evidence?: unknown;
 };
-
-function sourceTermsForClaim(claim: ArtifactDetailClaimSource) {
-  const sourceText = [
-    claim.claim,
-    ...(claim.doctrine_tags ?? []),
-    ...(claim.scripture_supports ?? []).flatMap((s) => [s.ref, s.note ?? ""]),
-    ...(claim.scripture_challenges ?? []).flatMap((s) => [s.ref, s.note ?? ""]),
-  ].join(" ");
-
-  return Array.from(
-    new Set(
-      sourceText
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, " ")
-        .split(/\s+/)
-        .filter((term) => term.length > 3 && !SOURCE_STOPWORDS.has(term)),
-    ),
-  );
+/** Legacy claims without evidence remain unverified; related keywords are not a source citation. */
+export function findClaimSource(claim: ArtifactDetailClaimSource, segments: TranscriptSegment[]): TranscriptSegment | null {
+  return resolveFindingSource(claim.source_evidence, segments);
 }
-
-export function findClaimSource(claim: ArtifactDetailClaimSource, segments: TranscriptSegment[]) {
-  const terms = sourceTermsForClaim(claim);
-  if (!terms.length) return null;
-
-  let best: { segment: TranscriptSegment; score: number } | null = null;
-  for (const segment of segments) {
-    if (segment.isParagraphBreak || !segment.text.trim()) continue;
-    const text = segment.text.toLowerCase();
-    const score = terms.reduce((sum, term) => sum + (text.includes(term) ? 1 : 0), 0);
-    if (score > 0 && (!best || score > best.score)) best = { segment, score };
-  }
-
-  if (!best || best.score < Math.min(2, terms.length)) return null;
-  return best.segment;
-}
-
 export type ArtifactDetailMatchedBelief = {
-  id: string;
-  topic: string;
-  statement: string;
-  answer: string | null;
-  confidence: number;
+  id: string; topic: string; statement: string; answer: string | null; confidence: number;
 };
-
 export function buildClaimResearchMarkdown(
   artifactTitle: string | null,
   claim: ArtifactDetailClaimSource,
   source: TranscriptSegment | null | undefined,
   belief: ArtifactDetailMatchedBelief | undefined,
 ): string {
-  const lines: string[] = [];
-  lines.push("## Artifact claim research");
-  lines.push("");
-  if (artifactTitle?.trim()) {
-    lines.push(`**Artifact:** ${artifactTitle.trim()}`);
-    lines.push("");
-  }
-  lines.push("## Claim");
-  lines.push(claim.claim.trim());
-  lines.push("");
-  if (claim.verdict) {
-    lines.push("## Verdict (so far)");
-    lines.push(`- **${claim.verdict}**`);
-    lines.push("");
-  }
-  if (claim.tone?.trim()) {
-    lines.push("## Tone");
-    lines.push(claim.tone.trim());
-    lines.push("");
-  }
+  const lines: string[] = ["## Artifact claim research", ""];
+  if (artifactTitle?.trim()) lines.push(`**Artifact:** ${artifactTitle.trim()}`, "");
+  lines.push("## Source claim (AI-extracted; not a verdict)", claim.claim.trim(), "");
+  if (claim.verdict) lines.push("## My verdict (so far)", `- **${claim.verdict}**`, "");
+  if (claim.tone?.trim()) lines.push("## AI tone interpretation", claim.tone.trim(), "");
   if (claim.doctrine_tags?.length) {
     lines.push("## Tags");
     for (const t of claim.doctrine_tags) lines.push(`- ${t}`);
     lines.push("");
   }
   if (claim.match_relation) {
-    lines.push("## Relation to your framework");
-    lines.push(claim.match_relation === "new" ? "New to your framework" : `You ${claim.match_relation}`);
+    lines.push("## AI comparison with your framework");
+    lines.push(claim.source_evidence && !belief ? "Not compared yet" :
+      claim.match_relation === "new" ? "No matching belief was identified" : `Suggested relation: ${claim.match_relation}`);
     lines.push("");
   }
   if (claim.bias_flags?.length) {
-    lines.push("## Flags");
+    lines.push("## AI flags to examine");
     for (const f of claim.bias_flags) lines.push(`- ${f}`);
     lines.push("");
   }
@@ -145,58 +79,38 @@ export function buildClaimResearchMarkdown(
   if (source?.text?.trim()) {
     const clock = formatClaimSourceClock(source.startSeconds, source.label);
     const quote = cleanTranscriptQuoteForDisplay(source.text);
-    if (clock) lines.push(`**[${clock}]**`);
+    if (clock) lines.push(`**[${clock}]${source.timestampEstimated ? " — approximate timing" : ""}**`);
     lines.push("> " + (quote || source.text.trim()).replace(/\n/g, "\n> "));
-  } else {
-    lines.push("_No linked transcript snippet._");
-  }
+    lines.push("", "_The quote matches the transcript. This does not verify the claim's truth or the speaker's intent._");
+  } else lines.push("_Source not verified. No transcript quotation or exact timestamp has been inferred._");
   lines.push("");
   if (belief) {
-    lines.push("## Your belief context");
-    lines.push(`**Statement:** ${belief.statement}`);
-    if (belief.answer?.trim()) {
-      lines.push("");
-      lines.push(belief.answer.trim());
-    }
-    lines.push("");
-    lines.push(`- Confidence: ${belief.confidence}%`);
-    lines.push("");
+    lines.push("## Your belief context", `**Statement:** ${belief.statement}`);
+    if (belief.answer?.trim()) lines.push("", belief.answer.trim());
+    lines.push("", `- Confidence: ${belief.confidence}%`, "");
   }
   const sup = claim.scripture_supports ?? [];
   const chal = claim.scripture_challenges ?? [];
   if (sup.length || chal.length) {
-    lines.push("## Scripture");
+    lines.push("## AI-suggested Scripture for examination");
     if (sup.length) {
-      lines.push("### Supports");
-      for (const s of sup) {
-        lines.push(`- **${s.ref}**${s.note ? ` — ${s.note}` : ""}`);
-      }
+      lines.push("### Possible support");
+      for (const s of sup) lines.push(`- **${s.ref}**${s.note ? ` — ${s.note}` : ""}`);
       lines.push("");
     }
     if (chal.length) {
-      lines.push("### Challenges");
-      for (const s of chal) {
-        lines.push(`- **${s.ref}**${s.note ? ` — ${s.note}` : ""}`);
-      }
+      lines.push("### Possible challenges or qualifications");
+      for (const s of chal) lines.push(`- **${s.ref}**${s.note ? ` — ${s.note}` : ""}`);
       lines.push("");
     }
   }
-
   const epistemology = parseClaimEpistemology(claim.epistemology);
-  if (epistemology) {
-    lines.push(...formatEpistemologyMarkdownSections(epistemology));
-  }
-
-  lines.push("---");
-  lines.push("");
-  lines.push("_Add your notes below._");
-  lines.push("");
+  if (epistemology) lines.push(...formatEpistemologyMarkdownSections(epistemology));
+  lines.push("---", "", "_Add your notes below._", "");
   return lines.join("\n");
 }
-
 export function buildClaimResearchJournalTitle(
-  _artifactTitle: string | null,
-  claim: Pick<ArtifactDetailClaimSource, "claim">,
+  _artifactTitle: string | null, claim: Pick<ArtifactDetailClaimSource, "claim">,
 ): string {
   return claimResearchChatTitle(claim.claim);
 }
