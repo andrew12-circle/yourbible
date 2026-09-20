@@ -1,4 +1,5 @@
 import { principalFindings, type ArtifactFindingEvidence } from "@/lib/framework/artifactFindingEvidence";
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import ArtifactCollapsibleSection from "@/components/framework/artifact-detail/ArtifactCollapsibleSection";
 import ArtifactMobileInsightHeroRail from "@/components/framework/artifact-detail/ArtifactMobileInsightHeroRail";
@@ -27,15 +28,22 @@ export default function ArtifactMobileOverview({ claims, artifactId, artifactSta
   frameworkOverview, onSelectClaim, activeClaimId, onSeeScripture, corpusStanding,
   pinnedVideoPane = false, hideKeyInsightsRail = false, className }: Props) {
   const [entitiesExpanded, setEntitiesExpanded] = useState(false);
-  const principals = principalFindings(claims);
-  const hasRankedFindings = claims.some(claim => claim.is_primary);
+  const [allFindingsScope, setAllFindingsScope] = useState<string | null>(null);
+  const showAll = allFindingsScope === artifactId;
+  const ranked = claims.some(claim => claim.is_primary);
+  const principals = ranked && !showAll ? principalFindings(claims) : claims;
   return (
     <section id="overview" className={cn("space-y-10 md:space-y-12", className)} aria-label="Study overview">
       {claimsCount > 0 && !hideKeyInsightsRail ? (
         <div id="key-insights" className="scroll-mt-4 space-y-4 md:space-y-5">
-          <ArtifactStudySectionHeader title={hasRankedFindings ? "Principal findings" : "Key insights"} count={principals.length}
-            countLabel={`${principals.length} shown · ${claimsCount} total findings`} className={artifactMobileStudyContentInset} />
+          <ArtifactStudySectionHeader title={ranked ? showAll ? "All findings" : "Principal findings" : "Key insights"} count={principals.length}
+            countLabel={ranked ? `${principals.length} shown · ${claimsCount} total findings` : `${claimsCount} insights`} className={artifactMobileStudyContentInset} />
           <ArtifactMobileInsightHeroRail claims={principals} activeClaimId={activeClaimId} onSelectClaim={onSelectClaim} onSeeScripture={onSeeScripture} />
+          {ranked && claims.some(claim => !claim.is_primary) ? <div className={artifactMobileStudyContentInset}>
+            <Button type="button" size="sm" variant="outline" onClick={() => setAllFindingsScope(showAll ? null : artifactId)}>
+              {showAll ? "Show principal findings" : `Show all ${claimsCount} findings`}
+            </Button>
+          </div> : null}
         </div>
       ) : null}
       {frameworkOverview ? <ArtifactOverviewSummary overview={frameworkOverview} headerClassName={artifactMobileStudyContentInset} /> : null}

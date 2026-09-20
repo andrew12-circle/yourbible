@@ -27,16 +27,16 @@ type Props = {
 export default function ArtifactDesktopOverview({ claims, artifactId, artifactStatus, artifactMetadata, claimsCount, entitiesCount,
   frameworkOverview, onNavigate, onSelectClaim, claimSources, onSeeScripture, onSeeInTranscript,
   isReadableDocument = false, onReanalyze, reanalyzeDisabled = false, corpusStanding, className }: Props) {
-  const principals = principalFindings(claims);
-  const hasRankedFindings = claims.some(claim => claim.is_primary);
+  const ranked = claims.some(claim => claim.is_primary);
+  const principals = ranked ? principalFindings(claims) : claims;
   const seeInSourceLabel = isReadableDocument ? "See in reader" : "See in transcript";
   return (
     <section id="overview" className={cn(artifactScrollMt, "space-y-10", className)} aria-label="Overview">
       {frameworkOverview ? <ArtifactOverviewSummary overview={frameworkOverview} /> : null}
       {corpusStanding ? <ArtifactLibraryStanding artifactId={artifactId} claimsCount={claimsCount} {...corpusStanding} /> : null}
       <div id="key-insights" className={cn(artifactScrollMt, "space-y-4 scroll-mt-28")}>
-        <ArtifactStudySectionHeader title={hasRankedFindings ? "Principal findings" : "Key claims"} count={principals.length || undefined}
-          countLabel={claimsCount > 0 ? `${principals.length} shown · ${claimsCount} total findings` : undefined}
+        <ArtifactStudySectionHeader title={ranked ? "Principal findings" : "Key claims"} count={principals.length || undefined}
+          countLabel={claimsCount > 0 ? ranked ? `${principals.length} shown · ${claimsCount} total findings` : `${claimsCount} claims` : undefined}
           description="Open a finding to inspect its source, research it, and record your own conclusion."
           actionLabel={claimsCount > 0 ? "View all" : undefined} onAction={claimsCount > 0 ? () => onNavigate("#claims") : undefined} />
         {claimsCount > 0 ? <ArtifactInsightRail claims={principals} claimSources={claimSources} onSelectClaim={onSelectClaim}
