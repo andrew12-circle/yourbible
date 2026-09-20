@@ -93,14 +93,10 @@ describe("parsePassageHtml", () => {
     );
   });
 
-  it("repairs glued pronoun I from older cached parsers", () => {
-    expect(
-      sanitizePubVerseText(
-        "IDIDN't know him, but ICAME baptizing with water so that he might be revealed to Israel.",
-      ),
-    ).toBe(
-      "I didn't know him, but I came baptizing with water so that he might be revealed to Israel.",
-    );
+  it("does not guess word boundaries from uppercase text without source markup", () => {
+    const original = "IDIDN't know him, but ICAME baptizing with water so that he might be revealed to Israel.";
+    expect(sanitizePubVerseText(original)).toBe(original);
+    expect(sanitizePubVerseText("ISRAEL ISAIAH IMAGE")).toBe("ISRAEL ISAIAH IMAGE");
   });
 
   it("strips stray carets and doubled commas from cross-ref debris", () => {

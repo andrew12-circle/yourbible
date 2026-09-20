@@ -63,5 +63,6 @@ export function buildAdjacentStreamChapters(
 export function streamChapterCompositionKey(
   chapters: ReaderChapterPassage[],
 ): string {
-  return chapters.map((ch) => `${ch.bookAbbr}:${ch.chapter}`).join("|");
+  // Notes, headings, poetry and equal-length text edits also change pagination.
+  return JSON.stringify(chapters);
 }

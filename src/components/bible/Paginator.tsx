@@ -1,296 +1,78 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFontLoadRevision } from "@/hooks/useFontLoadRevision";
-import type { PassageVerse as Verse } from "@/lib/bible/api";
-import { groupVersesIntoParagraphs } from "@/lib/bible/parsePassageHtml";
-import { splitJesusSpeechForChapter, type Segment } from "@/lib/bible/redLetter";
-import {
-  buildHolmanHeadingMeasureHtml,
-} from "@/lib/bible/holmanStudyLayout";
+import type { PassageVerse, PoetryBlock } from "@/lib/bible/api";
+import { splitJesusSpeechForChapter } from "@/lib/bible/redLetter";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
+import type { ReaderChapterPassage, ReaderStreamUnit } from "@/lib/bible/readerStream";
+import { buildStreamSliceMeasureHtml, buildStreamSliceFootnotesMeasureHtml } from "@/lib/bible/streamSliceMeasureHtml";
+import { applyScriptureColumnMeasureHtml, applyHolmanStudyMeasureHtml, scriptureContentFitsPage } from "@/lib/bible/readerColumnMeasure";
 import { cn } from "@/lib/utils";
-import {
-  applyScriptureColumnMeasureHtml,
-  applyHolmanStudyMeasureHtml,
-  scriptureContentFitsPage,
-} from "@/lib/bible/readerColumnMeasure";
-import {
-  buildVerseInnerHtml,
-  scriptureParagraphClassNameMeasure,
-  wrapVerseShellHtml,
-} from "@/lib/bible/scriptureParagraph";
-import { buildVerseXrefsInnerHtml } from "@/lib/bible/verseBodyRender";
 
 interface Props {
-  verses: Verse[];
-  /** Verse numbers that begin a new paragraph — must match the live reader. */
+  verses: PassageVerse[];
   paragraphStarts: number[];
-  /** Section headings keyed by the first verse they precede. */
   headings?: { beforeVerse: number; text: string }[];
-  /** Book abbreviation — used for red-letter detection */
+  poetryBlocks?: PoetryBlock[];
   bookAbbr: string;
-  /** Chapter number — used for red-letter detection */
   chapter: number;
-  /** Width of one page's text area (px) */
   pageWidth: number;
-  /** Height of one page's text area (px) — pages after the first. */
   pageHeight: number;
-  /** First page text area (px); smaller when a chapter header sits above the article. */
   firstPageHeight?: number;
-  /** Class names matching how the verses will render in real pages (typography) */
   className?: string;
-  /** Optional additional class names that wrap the inner column container (e.g. "columns-2 gap-5") */
   columnsClassName?: string;
-  /** Footer reserved height per page (chapter nav etc.) */
   footerHeight?: number;
-  /** Optional inline style applied to the measurement node so paginator
-   * splits stay in sync with the live page when text size changes. */
   fontSizeStyle?: React.CSSProperties;
   studyLayout?: ResolvedStudyLayout;
-  /** Called with the verse-index splits: pages[i] = verses[splits[i]..splits[i+1]] */
+  measurementKey?: string;
   onSplitsChange: (splits: number[]) => void;
 }
+const EMPTY_HEADINGS: NonNullable<Props["headings"]> = [];
+const EMPTY_POETRY: PoetryBlock[] = [];
 
-/**
- * Headlessly measures verses to calculate where each page ends.
- * Renders a hidden, page-sized DOM and binary-searches verse boundaries.
- */
-export function Paginator({
-  verses,
-  paragraphStarts,
-  headings = [],
-  bookAbbr,
-  chapter,
-  pageWidth,
-  pageHeight,
-  firstPageHeight,
-  className,
-  columnsClassName,
-  footerHeight = 0,
-  fontSizeStyle,
-  studyLayout = "inline",
-  onSplitsChange,
-}: Props) {
+/** Single-page measurement uses the same paragraph, poetry and footnote renderer as spreads. */
+export function Paginator({ verses, paragraphStarts, headings = EMPTY_HEADINGS, poetryBlocks = EMPTY_POETRY, bookAbbr, chapter, pageWidth, pageHeight, firstPageHeight, className, columnsClassName, footerHeight = 0, fontSizeStyle, studyLayout = "inline", measurementKey, onSplitsChange }: Props) {
   const ref = useRef<HTMLDivElement>(null);
-  const [revision, setRevision] = useState(0);
   const fontLoadRevision = useFontLoadRevision();
-  const lastSplitsRef = useRef<string>("");
-  const paragraphStartSet = useMemo(() => new Set(paragraphStarts), [paragraphStarts]);
-  const headingByVerse = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const h of headings) m.set(h.beforeVerse, h.text);
-    return m;
-  }, [headings]);
-
-  // Pre-compute red-letter segmentation across the whole chapter so multi-
-  // verse quotes are measured with the same red-text rendering the live
-  // page uses.
-  const redSegments = useMemo(
-    () => splitJesusSpeechForChapter(bookAbbr, chapter, verses),
-    [bookAbbr, chapter, verses],
-  );
-
+  const chapters = useMemo<ReaderChapterPassage[]>(() => [{ bookAbbr, bookName: bookAbbr, chapter, verses, paragraphStarts, headings, poetryBlocks }], [bookAbbr, chapter, verses, paragraphStarts, headings, poetryBlocks]);
+  const stream = useMemo<ReaderStreamUnit[]>(() => verses.map((verse) => ({ kind: "verse", bookAbbr, bookName: bookAbbr, chapter, verse })), [verses, bookAbbr, chapter]);
+  const red = useMemo(() => new Map([[`${bookAbbr}|${chapter}`, splitJesusSpeechForChapter(bookAbbr, chapter, verses)]]), [bookAbbr, chapter, verses]);
+  const contentKey = JSON.stringify(chapters);
   const resolvedFirstPageHeight = firstPageHeight ?? pageHeight;
-
-  // Serialize array props so parent inline `?? []` fallbacks do not retrigger every render.
-  const versesKey = useMemo(
-    () => verses.map((v) => `${v.number}:${v.text.length}`).join(","),
-    [verses],
-  );
-  const paragraphStartsKey = paragraphStarts.join(",");
-  const headingsKey = useMemo(
-    () => headings.map((h) => `${h.beforeVerse}\0${h.text}`).join("\x01"),
-    [headings],
-  );
-
-  // Recompute when inputs that actually affect measurement change.
+  const fontSize = fontSizeStyle?.fontSize;
+  const fontFamily = fontSizeStyle?.fontFamily;
   useEffect(() => {
-    lastSplitsRef.current = "";
-    setRevision((r) => r + 1);
-  }, [
-    versesKey,
-    paragraphStartsKey,
-    headingsKey,
-    bookAbbr,
-    chapter,
-    pageWidth,
-    pageHeight,
-    resolvedFirstPageHeight,
-    footerHeight,
-    className,
-    columnsClassName,
-    fontSizeStyle?.fontSize,
-    fontSizeStyle?.fontFamily,
-    studyLayout,
-    fontLoadRevision,
-  ]);
-
-  useEffect(() => {
-    if (!ref.current || pageHeight <= 0 || verses.length === 0) {
-      const next = [0, verses.length];
-      const key = next.join(",");
-      if (lastSplitsRef.current !== key) {
-        lastSplitsRef.current = key;
-        onSplitsChange(next);
-      }
-      return;
-    }
     const node = ref.current;
-    const splits: number[] = [0];
-    let i = 0;
-    let isFirstPage = true;
-    while (i < verses.length) {
-      const baseHeight = isFirstPage ? resolvedFirstPageHeight : pageHeight;
-      const pageLimit = baseHeight - footerHeight;
-      // Add verses one at a time until we overflow
-      let lastFit = i;
-      let lo = i + 1;
-      let hi = verses.length;
-      // exponential search to find a too-many size, then binary search down
-      let n = 1;
-      while (i + n <= verses.length) {
-        renderInto(
-          node,
-          verses.slice(i, i + n),
-          redSegments,
-          paragraphStartSet,
-          headingByVerse,
-          bookAbbr,
-          chapter,
-          columnsClassName,
-          pageLimit,
-          studyLayout,
-        );
-        if (scriptureContentFitsPage(node, pageLimit, columnsClassName)) {
-          lastFit = i + n;
-          n *= 2;
-        } else {
-          break;
-        }
-      }
-      // binary search between lastFit and min(i+n, verses.length)
-      lo = lastFit + 1;
-      hi = Math.min(i + n, verses.length);
+    if (!node || pageWidth <= 0 || pageHeight <= 0 || !stream.length) return;
+    const fits = (start: number, end: number, limit: number) => {
+      const slice = stream.slice(start, end);
+      const body = buildStreamSliceMeasureHtml(slice, chapters, red, studyLayout);
+      const footnotes = buildStreamSliceFootnotesMeasureHtml(slice);
+      if (studyLayout === "holman" || footnotes) applyHolmanStudyMeasureHtml(node, body, "", footnotes, columnsClassName, limit);
+      else applyScriptureColumnMeasureHtml(node, body, columnsClassName, limit);
+      return scriptureContentFitsPage(node, limit, columnsClassName);
+    };
+    const splits = [0];
+    let start = 0;
+    while (start < stream.length) {
+      const limit = Math.max(1, (start === 0 ? resolvedFirstPageHeight : pageHeight) - footerHeight);
+      let lastFit = start;
+      let count = 1;
+      while (start + count <= stream.length && fits(start, start + count, limit)) { lastFit = start + count; count *= 2; }
+      let lo = lastFit + 1;
+      let hi = Math.min(start + count, stream.length);
       while (lo <= hi) {
         const mid = Math.floor((lo + hi) / 2);
-        renderInto(
-          node,
-          verses.slice(i, mid),
-          redSegments,
-          paragraphStartSet,
-          headingByVerse,
-          bookAbbr,
-          chapter,
-          columnsClassName,
-          pageLimit,
-          studyLayout,
-        );
-        if (scriptureContentFitsPage(node, pageLimit, columnsClassName)) {
-          lastFit = mid;
-          lo = mid + 1;
-        } else {
-          hi = mid - 1;
-        }
+        if (fits(start, mid, limit)) { lastFit = mid; lo = mid + 1; }
+        else hi = mid - 1;
       }
-      // Ensure progress
-      if (lastFit === i) lastFit = i + 1;
-      splits.push(lastFit);
-      i = lastFit;
-      isFirstPage = false;
+      start = Math.max(start + 1, lastFit);
+      splits.push(start);
     }
-    const key = splits.join(",");
-    if (lastSplitsRef.current !== key) {
-      lastSplitsRef.current = key;
-      onSplitsChange(splits);
-    }
+    onSplitsChange(splits);
+    // Content serialization prevents equal-length edits or new notes from reusing stale measurements.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision]);
-
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: "fixed",
-        top: -99999,
-        left: -99999,
-        width: pageWidth,
-        visibility: "hidden",
-        pointerEvents: "none",
-      }}
-    >
-      <div
-        ref={ref}
-        data-reading-area
-        className={cn(className, studyLayout === "holman" && "reader-holman-study")}
-        style={{ width: pageWidth, ...fontSizeStyle }}
-      />
-    </div>
-  );
-}
-
-function renderInto(
-  node: HTMLDivElement,
-  verses: Verse[],
-  redSegments: Map<number, Segment[]>,
-  paragraphStarts: Set<number>,
-  headingByVerse: Map<number, string>,
-  bookAbbr: string,
-  chapter: number,
-  columnsClassName: string | undefined,
-  contentHeightPx: number,
-  studyLayout: ResolvedStudyLayout,
-) {
-  const groups = groupVersesIntoParagraphs(verses, paragraphStarts);
-  const bodyHtml = groups
-    .map((group) => {
-      const first = group.verses[0]?.number;
-      const heading = first != null ? headingByVerse.get(first) : undefined;
-      const headingHtml = heading
-        ? studyLayout === "holman"
-          ? buildHolmanHeadingMeasureHtml(heading, bookAbbr, escapeHtml)
-          : `<p class="scripture-heading">${escapeHtml(heading)}</p>`
-        : "";
-      const versesHtml = group.verses
-        .map((v) => {
-          const inner = buildVerseInnerHtml(
-            v.number,
-            v.text ?? "",
-            redSegments,
-            escapeHtml,
-            v,
-            studyLayout,
-          );
-          const xrefs = buildVerseXrefsInnerHtml(v, escapeHtml, studyLayout);
-          return wrapVerseShellHtml(
-            v.number,
-            chapter,
-            inner,
-            group.isContinuation,
-            xrefs,
-          );
-        })
-        .join("");
-      const paraClass = scriptureParagraphClassNameMeasure(group.isContinuation);
-      const paraHtml = `<p class="${paraClass}" style="orphans:2;widows:2">${versesHtml}</p>`;
-      if (studyLayout === "holman") {
-        return `${headingHtml}${paraHtml}`;
-      }
-      return `${headingHtml}${paraHtml}`;
-    })
-    .join("");
-  if (studyLayout === "holman") {
-    applyHolmanStudyMeasureHtml(
-      node,
-      bodyHtml,
-      "",
-      "",
-      columnsClassName,
-      contentHeightPx,
-    );
-    return;
-  }
-  applyScriptureColumnMeasureHtml(node, bodyHtml, columnsClassName, contentHeightPx);
-}
-
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  }, [contentKey, pageWidth, pageHeight, resolvedFirstPageHeight, footerHeight, className, columnsClassName, studyLayout, measurementKey, fontSize, fontFamily, fontLoadRevision, onSplitsChange]);
+  return <div aria-hidden style={{ position: "fixed", top: -99999, left: -99999, width: pageWidth, visibility: "hidden", pointerEvents: "none" }}>
+    <div ref={ref} data-reading-area className={cn(className, studyLayout === "holman" && "reader-holman-study")} style={{ width: pageWidth, ...fontSizeStyle }} />
+  </div>;
 }

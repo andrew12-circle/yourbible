@@ -80,10 +80,7 @@ function joinSmallCapSpan(first: string, rest: string): string {
   return first + rest;
 }
 
-/** Fix pronoun I merged with a following word from older parsers (IDIDN'T → I didn't). */
-function repairGluedPronounI(text: string): string {
-  return text.replace(/\bI([A-Z][A-Za-z']+)/g, (_m, tail: string) => `I ${tail.toLowerCase()}`);
-}
+
 
 /** Divine-name span abuts following word when poetry lines merge (the + Lord + requires → theLord). */
 function repairGluedDivineName(text: string): string {
@@ -112,7 +109,7 @@ function repairSplitInitialCaps(text: string): string {
  */
 export function sanitizePubVerseText(text: string, options?: { trim?: boolean }): string {
   const trim = options?.trim !== false;
-  let t = repairGluedPronounI(text);
+  let t = text;
   t = repairGluedDivineName(t);
   t = repairSplitInitialCaps(t);
   t = t.replace(new RegExp(`#\\s*${PUB_DASH.source}\\s*#`, "g"), "\u2014");

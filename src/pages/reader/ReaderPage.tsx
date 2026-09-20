@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  startTransition,
 } from "react";
 import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,7 +34,7 @@ import {
   writeStoredReaderFontScale,
 } from "@/lib/bible/readerFontScale";
 import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
-import { isBundledBibleId } from "@/lib/bible/bibleEditions";
+import { isSupportedReaderBibleId } from "@/lib/bible/bibleEditions";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
 import { ReaderPageHeader, ReaderPageFooter, ReaderPageBodyPlaceholder } from "@/pages/reader/ReaderPageChrome";
 import { renderReaderPageScripture } from "@/pages/reader/renderReaderPageScripture";
@@ -91,7 +90,6 @@ const READER_INK_DEFAULT_TOOL: InkTool = "fineline";
 const READER_INK_DEFAULT_COLOR = "#007aff";
 const READER_INK_DEFAULT_SIZE = INK_PEN_SIZES[0];
 import {
-  areSameSplits,
   isPageSplitsReady,
   pageCountFromSplits,
   pageVerseSlice,
@@ -103,13 +101,7 @@ import {
   buildReaderStream,
   READER_PAGINATOR_SPLIT_REVISION,
   sliceReaderPage,
-  findSpreadPageForVerse,
-  interimSpreadDisplaySplits,
-  isSpreadDoubleColumnSplitsReady,
   sliceReaderSpreadPane,
-  spreadPageForChapterEnd,
-  spreadPageForChapterStart,
-  spreadPageForChapterStartLeftPane,
 } from "@/lib/bible/readerStream";
 import { useAdjacentPassages } from "@/hooks/useAdjacentPassages";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
@@ -177,6 +169,11 @@ import { useBookIntroduction } from "@/hooks/useBookIntroduction";
 import { useReaderToolbarSelection } from "@/hooks/useReaderToolbarSelection";
 import { useReaderSelectionMarks } from "@/hooks/useReaderSelectionMarks";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
+import { useReaderPosition } from "@/hooks/useReaderPosition";
+import { useReaderChapterNavigation } from "@/hooks/useReaderChapterNavigation";
+import { useReaderOverflowRecovery } from "@/hooks/useReaderOverflowRecovery";
+import { useFontLoadRevision } from "@/hooks/useFontLoadRevision";
+import "./readerReliability.css";
 
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 /** Approximate chapter title block above the first page article (px). */
@@ -244,12 +241,13 @@ export default function ReaderPage() {
   const [bibleId, setBibleId] = useState<string>(() => {
     const stored = localStorage.getItem(LS_BIBLE_KEY);
     if (readCanon() === "ethiopian") return stored === EOTC_BIBLE_ID ? stored : "";
-    return isBundledBibleId(stored) ? stored : "";
+    return isSupportedReaderBibleId(stored) ? stored! : "";
   });
   const bibleEditionAbbr = useMemo(
     () => displayBibles.find((b) => b.id === bibleId)?.abbreviation,
     [displayBibles, bibleId],
   );
+  const { openChapter, pending: chapterNavigationPending } = useReaderChapterNavigation(bibleId, bibleEditionAbbr);
   const currentBible = useMemo(
     () => displayBibles.find((b) => b.id === bibleId),
     [displayBibles, bibleId],
@@ -277,6 +275,7 @@ export default function ReaderPage() {
     data: passage,
     isLoading: loadingPassage,
     isError: passageError,
+    refetch: refetchPassage,
   } = usePassage(bibleId, book.abbr, chapter, true, bibleEditionAbbr);
   const { data: bookIntro } = useBookIntroduction(bibleId, book.abbr, chapter);
   const showCachedHint = !online || (passageError && !!passage);
@@ -388,6 +387,7 @@ export default function ReaderPage() {
   }, [fontChoice, updateProfile]);
 
   const readerSpread = useReaderSpread();
+  const readerFontRevision = useFontLoadRevision();
   const prevChapterRef = useMemo(() => getPrevChapterRef(book.abbr, chapter), [book.abbr, chapter]);
   const nextChapterRef = useMemo(() => getNextChapterRef(book.abbr, chapter), [book.abbr, chapter]);
   const adjacentPassages = useAdjacentPassages(
@@ -582,18 +582,21 @@ export default function ReaderPage() {
   useEffect(() => {
     setStaleLayoutInk(false);
   }, [layoutFingerprint]);
-  const [splits, setSplits] = useState<number[]>([0]);
-  const handleSplitsChange = useCallback((next: number[]) => {
-    setSplits((prev) => (areSameSplits(prev, next) ? prev : next));
-  }, []);
+  const singlePaginationKey = useMemo(() => [
+    bibleId, book.abbr, chapter, layoutFingerprint, fontChoice, fontScale,
+    readerFontRevision, pageBox.w, pageBox.h, paginatorFirstPageHeight,
+    subsequentPageHeight, spreadColumnLayout, effectiveStudyLayout,
+    JSON.stringify(passage), PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION,
+  ].join("|"), [bibleId, book.abbr, chapter, layoutFingerprint, fontChoice, fontScale,
+    readerFontRevision, pageBox.w, pageBox.h, paginatorFirstPageHeight,
+    subsequentPageHeight, spreadColumnLayout, effectiveStudyLayout, passage]);
+  const { streamSplits: splits, onStreamSplitsChange: handleSplitsChange } =
+    useKeyedReaderStreamSplits(singlePaginationKey);
   const verses = passage?.verses ?? [];
   const activeStudyLayout = useMemo(
     () => (chapterStudyParseReliable(verses) ? effectiveStudyLayout : "inline"),
     [verses, effectiveStudyLayout],
   );
-  useEffect(() => {
-    setSplits([0]);
-  }, [book.abbr, chapter, readerSpread, fontScale, fontChoice, spreadColumnLayout, activeStudyLayout, PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION]);
   const streamChapters = useMemo(
     () => {
       if (readerSpread) {
@@ -647,16 +650,12 @@ export default function ReaderPage() {
       passage,
     ],
   );
-  const plateFocus = useMemo(
-    () => ({ bookAbbr: book.abbr, chapter }),
-    [book.abbr, chapter],
-  );
   const readerStream = useMemo(
     () =>
       streamChapters.length > 0
-        ? buildReaderStream(streamChapters, { plateFocus })
+        ? buildReaderStream(streamChapters)
         : [],
-    [streamChapters, plateFocus],
+    [streamChapters],
   );
   const streamCompositionKey = useMemo(
     () => streamChapterCompositionKey(streamChapters),
@@ -684,6 +683,8 @@ export default function ReaderPage() {
     [fontChoice, fontScale, scriptureFont, readerFontLayout],
   );
   const streamPaginationKey = [
+    bibleId,
+    readerFontRevision,
     streamCompositionKey,
     layoutFingerprint,
     fontChoice,
@@ -716,6 +717,13 @@ export default function ReaderPage() {
   const { tbSel, setTbSel, tbSelRef, pinnedSelection, clearWindowSelection } =
     useReaderToolbarSelection(verseLengths, inkMode);
   useEffect(() => {
+    setActiveVerse(null);
+    setSheetOpen(false);
+    setNoteOpen(null);
+    setTbSel(null);
+    window.getSelection()?.removeAllRanges();
+  }, [bibleId, book.abbr, chapter, setTbSel]);
+  useEffect(() => {
     if (!spreadStudyActive || !tbSel?.pageSide) return;
     setAnchorPageSide(tbSel.pageSide);
   }, [spreadStudyActive, tbSel?.pageSide, setAnchorPageSide]);
@@ -735,21 +743,9 @@ export default function ReaderPage() {
     streamSplits,
     readerStream,
   });
-  const displayStreamSplits = useMemo(() => {
-    if (!useSpreadDoubleColumn || !useBookSpread) return navStreamSplits;
-    if (streamSplitsReady) return navStreamSplits;
-    return interimSpreadDisplaySplits(navStreamSplits, readerStream);
-  }, [
-    useSpreadDoubleColumn,
-    useBookSpread,
-    streamSplitsReady,
-    navStreamSplits,
-    readerStream,
-  ]);
-  const spreadPanesRenderable =
-    !useSpreadDoubleColumn ||
-    !useBookSpread ||
-    isSpreadDoubleColumnSplitsReady(displayStreamSplits, readerStream.length);
+  // Only measured boundaries are displayable; never synthesize a half-chapter page.
+  const displayStreamSplits = navStreamSplits;
+  const spreadPanesRenderable = streamSplitsReady;
   const paginatorFooterHeight = READER_COLUMN_FOOTER_GUARD_PX;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
   const routeChapterStartNumber = readReaderPageStartNumber(location.state, book.abbr, chapter);
@@ -777,80 +773,24 @@ export default function ReaderPage() {
     return m;
   }, [bibleId, useStreamReader, streamChapters, book.abbr, chapter, verses]);
 
-  const [chapterPage, setChapterPage] = useState(0);
-  const [spreadPageIdx, setSpreadPageIdx] = useState(0);
-  const [pendingSpreadEnd, setPendingSpreadEnd] = useState(false);
-  const skipSpreadUrlSyncRef = useRef(true);
-  const lastSpreadAnchorKeyRef = useRef("");
-  const spreadReadingAnchorRef = useRef<{ bookAbbr: string; chapter: number; verse: number } | null>(
-    null,
-  );
-  const lastStreamCompositionKeyRef = useRef("");
+  const position = useReaderPosition({
+    bibleId, bookAbbr: book.abbr, chapter, verses, stream: readerStream,
+    useStream: useStreamReader, splits: useStreamReader ? navStreamSplits : splits,
+    ready: verses.length > 0 && (useStreamReader ? streamSplitsReady : splitsReady),
+    spread: effectiveSpread,
+    layoutKey: `${useStreamReader ? streamPaginationKey : singlePaginationKey}|${(useStreamReader ? navStreamSplits : splits).join(",")}`,
+    requestedVerse: Number(searchParams.get("v")) || undefined,
+    enterAtEnd: Boolean((location.state as { readerEnterAtEnd?: boolean } | null)?.readerEnterAtEnd),
+  });
+  const chapterPage = position.page;
+  const spreadPageIdx = position.page;
+  const pendingVerse = position.anchor?.verse ?? null;
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
   useEffect(() => {
-    setChapterPage(0);
-    setSpreadPageIdx(0);
-    setPendingSpreadEnd(false);
-    skipSpreadUrlSyncRef.current = true;
-    lastSpreadAnchorKeyRef.current = "";
-    spreadReadingAnchorRef.current = null;
-    lastStreamCompositionKeyRef.current = "";
-  }, [book.abbr, chapter, fontScale, spreadColumnLayout]);
-
-  useEffect(() => {
-    if (lastStreamCompositionKeyRef.current === streamCompositionKey) return;
-    lastStreamCompositionKeyRef.current = streamCompositionKey;
-    lastSpreadAnchorKeyRef.current = "";
-  }, [streamCompositionKey]);
-
-  useEffect(() => {
-    if (!useBookSpread || !streamSplitsReady || !spreadReadingAnchorRef.current) return;
-    const anchor = spreadReadingAnchorRef.current;
-    const target = findSpreadPageForVerse(
-      readerStream,
-      navStreamSplits,
-      anchor.bookAbbr,
-      anchor.chapter,
-      anchor.verse,
-    );
-    setSpreadPageIdx((prev) => (prev === target ? prev : target));
-  }, [streamCompositionKey, streamSplitsReady, navStreamSplits, readerStream, useBookSpread]);
-
-  useEffect(() => {
-    if (!useBookSpread || !streamSplitsReady) return;
-    const left = sliceReaderSpreadPane(
-      readerStream,
-      navStreamSplits,
-      spreadPageIdx,
-      "left",
-      readerStream.length,
-    );
-    const lastGroup = left?.verseGroups.at(-1);
-    const lastVerse = lastGroup?.verses.at(-1);
-    if (lastGroup && lastVerse) {
-      spreadReadingAnchorRef.current = {
-        bookAbbr: lastGroup.bookAbbr,
-        chapter: lastGroup.chapter,
-        verse: lastVerse.number,
-      };
-    }
-  }, [
-    useBookSpread,
-    streamSplitsReady,
-    spreadPageIdx,
-    navStreamSplits,
-    readerStream,
-  ]);
-
-  useEffect(() => {
     if (!scrollMode) return;
-    const el = document.querySelector<HTMLElement>("[data-ink-anchor]");
-    el?.scrollTo(0, 0);
+    document.querySelector<HTMLElement>("[data-bible-scroll]")?.scrollTo(0, 0);
   }, [book.abbr, chapter, scrollMode]);
-
   useBibleScrollWheel(scrollMode, `${book.abbr}-${chapter}`);
-
-  const [pendingVerse, setPendingVerse] = useState<number | null>(null);
 
   const bookmarkVerse = useMemo(() => {
     if (activeVerse?.number) return activeVerse.number;
@@ -858,11 +798,6 @@ export default function ReaderPage() {
     if (tbSel?.verses[0]) return tbSel.verses[0];
     return 1;
   }, [activeVerse?.number, pendingVerse, tbSel?.verses]);
-
-  useEffect(() => {
-    const v = parseInt(searchParams.get("v") ?? "", 10);
-    if (v > 0) setPendingVerse(v);
-  }, [book.abbr, chapter, searchParams]);
 
   useEffect(() => {
     if (dailyToastShown.current) return;
@@ -881,184 +816,30 @@ export default function ReaderPage() {
     navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: preserved });
   }, [location.pathname, location.search, location.state, navigate]);
 
-  useEffect(() => {
-    if (pendingVerse == null) return;
-    if (useStreamReader) {
-      if (!streamSplitsReady) return;
-      let target = 0;
-      if (useBookSpread && useSpreadDoubleColumn) {
-        let leftPaneTarget = -1;
-        let anyTarget = 0;
-        for (let p = 0; p < navStreamSplits.length - 1; p += 2) {
-          const left = sliceReaderSpreadPane(
-            readerStream,
-            navStreamSplits,
-            p,
-            "left",
-            readerStream.length,
-          );
-          const onLeft = left?.verseGroups.some(
-            (g) =>
-              g.bookAbbr === book.abbr &&
-              g.chapter === chapter &&
-              g.verses.some((v) => v.number === pendingVerse),
-          );
-          if (onLeft && leftPaneTarget < 0) leftPaneTarget = p;
-          for (const side of ["left", "right"] as const) {
-            const slice = sliceReaderSpreadPane(
-              readerStream,
-              navStreamSplits,
-              p,
-              side,
-              readerStream.length,
-            );
-            const containsVerse = slice?.verseGroups.some(
-              (g) =>
-                g.bookAbbr === book.abbr &&
-                g.chapter === chapter &&
-                g.verses.some((v) => v.number === pendingVerse),
-            );
-            if (containsVerse) anyTarget = p;
-          }
-        }
-        target = leftPaneTarget >= 0 ? leftPaneTarget : anyTarget;
-      } else if (useBookSpread) {
-        for (let p = 0; p < navStreamSplits.length - 1; p++) {
-          const slice = sliceReaderPage(readerStream, navStreamSplits, p);
-          const containsVerse = slice?.verseGroups.some(
-            (g) =>
-              g.bookAbbr === book.abbr &&
-              g.chapter === chapter &&
-              g.verses.some((v) => v.number === pendingVerse),
-          );
-          if (containsVerse) target = p;
-        }
-        if (useBookSpread && target % 2 === 1) target -= 1;
-      }
-      if (useBookSpread) setSpreadPageIdx(Math.max(0, target));
-      else setChapterPage(Math.max(0, target));
-      setPendingVerse(null);
-      return;
-    }
-    if (!splitsReady) return;
-    let target = 0;
-    for (let i = 0; i < splits.length; i++) {
-      if (splits[i] < pendingVerse) target = i;
-      else break;
-    }
-    setChapterPage(Math.max(0, target));
-    setPendingVerse(null);
-  }, [
-    pendingVerse,
-    splits,
-    splitsReady,
-    navStreamSplits,
-    streamSplitsReady,
-    readerStream,
-    useStreamReader,
-    useBookSpread,
-    useSpreadDoubleColumn,
-    book.abbr,
-    chapter,
-  ]);
-
-  useEffect(() => {
-    if (!useStreamReader || !streamSplitsReady || pendingVerse != null) return;
-    const anchorKey = `${book.abbr}|${chapter}|${pendingSpreadEnd ? "end" : "start"}`;
-    const needsAnchor = lastSpreadAnchorKeyRef.current !== anchorKey;
-    if (!needsAnchor) return;
-    lastSpreadAnchorKeyRef.current = anchorKey;
-    spreadReadingAnchorRef.current = null;
-    if (useBookSpread && pendingSpreadEnd) {
-      setSpreadPageIdx(
-        spreadPageForChapterEnd(readerStream, navStreamSplits, book.abbr, chapter),
-      );
-      setPendingSpreadEnd(false);
-      return;
-    }
-    const startPage = useSpreadDoubleColumn
-      ? spreadPageForChapterStartLeftPane(
-          readerStream,
-          navStreamSplits,
-          book.abbr,
-          chapter,
-        )
-      : spreadPageForChapterStart(
-          readerStream,
-          navStreamSplits,
-          book.abbr,
-          chapter,
-        );
-    if (useBookSpread) setSpreadPageIdx(startPage);
-    else setChapterPage(startPage);
-  }, [
-    useStreamReader,
-    useBookSpread,
-    streamSplitsReady,
-    navStreamSplits,
-    readerStream,
-    book.abbr,
-    chapter,
-    pendingSpreadEnd,
-    pendingVerse,
-    useSpreadDoubleColumn,
-  ]);
-
   const pagesPerTurn = effectiveSpread ? 2 : 1;
 
   const goPage = (delta: number) => {
+    if (!passage || !(useStreamReader ? streamSplitsReady : splitsReady)) return;
     lockPageFlip();
-    const sel = window.getSelection();
-    if (sel) sel.removeAllRanges();
+    window.getSelection()?.removeAllRanges();
     tbSelRef.current = null;
     setTbSel(null);
     setFlipDirection(delta > 0 ? "forward" : "back");
-    if (useBookSpread) {
-      const next = spreadPageIdx + delta * pagesPerTurn;
-      if (next < 0) {
-        const prev = getPrevChapterRef(book.abbr, chapter);
-        if (prev) {
-          setPendingSpreadEnd(true);
-          navigate(`/read/${prev.book.abbr}/${prev.chapter}`, { state: withReaderPageStartNumber(location.state, readerStream, navStreamSplits, book.abbr, chapter, routeChapterStartNumber, prev.book.abbr, prev.chapter) });
-        }
-        return;
-      }
-      if (!streamSplitsReady) {
-        return;
-      }
-      if (next >= totalStreamPages) {
-        const nxt = getNextChapterRef(book.abbr, chapter);
-        if (nxt) navigate(`/read/${nxt.book.abbr}/${nxt.chapter}`, { state: withReaderPageStartNumber(location.state, readerStream, navStreamSplits, book.abbr, chapter, routeChapterStartNumber, nxt.book.abbr, nxt.chapter) });
-        return;
-      }
-      startTransition(() => setSpreadPageIdx(next));
+    const next = position.page + delta * pagesPerTurn;
+    if (next < 0 || next >= totalPagesForNav) {
+      // When a spread contains neighbors, cross the edge of the displayed window,
+      // not the route chapter whose neighbor has already been read.
+      const edge = useStreamReader && readerStream.length
+        ? readerStream[delta < 0 ? 0 : readerStream.length - 1]
+        : null;
+      const ref = delta < 0
+        ? getPrevChapterRef(edge?.bookAbbr ?? book.abbr, edge?.chapter ?? chapter)
+        : getNextChapterRef(edge?.bookAbbr ?? book.abbr, edge?.chapter ?? chapter);
+      if (ref) void openChapter(ref.book.abbr, ref.chapter, delta < 0,
+        useBookSpread ? withReaderPageStartNumber(location.state, readerStream, navStreamSplits, book.abbr, chapter, routeChapterStartNumber, ref.book.abbr, ref.chapter) : location.state);
       return;
     }
-    if (useStreamReader && streamSplitsReady) {
-      const next = chapterPage + delta * pagesPerTurn;
-      if (next < 0) {
-        const prev = getPrevChapterRef(book.abbr, chapter);
-        if (prev) navigate(`/read/${prev.book.abbr}/${prev.chapter}`);
-        return;
-      }
-      if (next >= totalStreamPages) {
-        const nxt = getNextChapterRef(book.abbr, chapter);
-        if (nxt) navigate(`/read/${nxt.book.abbr}/${nxt.chapter}`);
-        return;
-      }
-      startTransition(() => setChapterPage(next));
-      return;
-    }
-    const next = chapterPage + delta * pagesPerTurn;
-    if (next < 0) {
-      const prev = getPrevChapterRef(book.abbr, chapter);
-      if (prev) navigate(`/read/${prev.book.abbr}/${prev.chapter}`);
-    } else if (next >= totalPagesForNav) {
-      const nxt = getNextChapterRef(book.abbr, chapter);
-      if (nxt) navigate(`/read/${nxt.book.abbr}/${nxt.chapter}`);
-    } else {
-      startTransition(() => setChapterPage(next));
-    }
+    position.setPage((previous) => previous + delta * pagesPerTurn);
   };
 
   // ---- Verse interactions ----
@@ -1072,7 +853,7 @@ export default function ReaderPage() {
   ) => {
     e.stopPropagation();
     if (verseBook !== book.abbr || verseChapter !== chapter) {
-      navigate(`/read/${verseBook}/${verseChapter}?v=${v.number}`);
+      void openChapter(verseBook, verseChapter, false, undefined, v.number);
       return;
     }
     setActiveVerse(v);
@@ -1350,7 +1131,7 @@ export default function ReaderPage() {
       );
     }
 
-    const pageOutOfRange = !scrollMode && pageIdx >= totalPagesForNav;
+    const pageOutOfRange = !scrollMode && (useSpreadDoubleColumn && side === "right" ? pageIdx + 1 : pageIdx) >= totalPagesForNav;
     const splitsForPage =
       useStreamReader && displayStreamSplits.length >= 2
         ? displayStreamSplits
@@ -1499,7 +1280,12 @@ export default function ReaderPage() {
             onOpenSettings={openReaderSettings}
           />
         </div>
-        {showPagePlaceholder ? (
+        {passageError && !passage ? (
+          <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+            <p>This chapter could not be opened. Your saved notes have not changed.</p>
+            <button type="button" className="min-h-11 rounded border px-4 py-2" onClick={() => void refetchPassage()}>Retry chapter</button>
+          </div>
+        ) : showPagePlaceholder ? (
           <ReaderPageBodyPlaceholder
             pageLoading={pageLoading || pageWaitingForPagination}
             showMeasureArticle={attachMeasureRef != null}
@@ -1615,14 +1401,14 @@ export default function ReaderPage() {
   const canGoForwardMobile = scrollMode ? nextChapterRef != null : !atLastPage || nextChapterRef != null;
   const handleMobileNavBack = () => {
     if (scrollMode) {
-      if (prevChapterRef) navigate(`/read/${prevChapterRef.book.abbr}/${prevChapterRef.chapter}`);
+      if (prevChapterRef) void openChapter(prevChapterRef.book.abbr, prevChapterRef.chapter);
       return;
     }
     goPage(-1);
   };
   const handleMobileNavForward = () => {
     if (scrollMode) {
-      if (nextChapterRef) navigate(`/read/${nextChapterRef.book.abbr}/${nextChapterRef.chapter}`);
+      if (nextChapterRef) void openChapter(nextChapterRef.book.abbr, nextChapterRef.chapter);
       return;
     }
     goPage(1);
@@ -1633,6 +1419,8 @@ export default function ReaderPage() {
   const mobileChromeBottom = readerMobileSceneBottomClass(showReaderDock);
   const mobilePageTurnBottom = readerMobilePageTurnBottomClass(showReaderDock, compactChrome);
 
+  useReaderOverflowRecovery(`${singlePaginationKey}|${streamPaginationKey}|${activePageIdx}`);
+
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;
 
@@ -1641,10 +1429,11 @@ export default function ReaderPage() {
   return (
     <div
       data-bible-reader
+      aria-busy={chapterNavigationPending || loadingPassage}
       data-cropped-spread={!effectiveSpread ? "" : undefined}
       data-hub-fullscreen={hubFullscreen || undefined}
       className={cn(
-        "relative transition-all duration-700 overflow-hidden",
+        "relative overflow-hidden",
         (containedInHub || !showHubShell || hubFullscreen) && "flex h-full min-h-0 flex-col",
         showHubShell && hubFullscreen && "fixed inset-0 z-[100] min-h-0 h-[100dvh] bg-fabric",
         !showHubShell && "h-[100dvh]",
@@ -1694,18 +1483,11 @@ export default function ReaderPage() {
         currentChapter={chapter}
         currentVerseCount={verses.length}
         onJumpTo={(b, c, v) => {
-          if (v && v > 0) setPendingVerse(v);
           if (b.abbr === book.abbr && c === chapter) {
-            if (!v) {
-              if (readerSpread) {
-                lastSpreadAnchorKeyRef.current = "";
-                setPendingSpreadEnd(false);
-              } else {
-                setChapterPage(0);
-              }
-            }
+            if (v && v > 0) position.goToVerse(v);
+            else position.goToStart();
           } else {
-            navigate(`/read/${b.abbr}/${c}`);
+            void openChapter(b.abbr, c, false, undefined, v);
           }
         }}
         fontScale={fontScale}
@@ -1806,6 +1588,8 @@ export default function ReaderPage() {
                   ? `L-${book.abbr}-${chapter}-${leftIdx}`
                   : `P-${book.abbr}-${chapter}-${chapterPage}`
               }
+              scopeKey={`${user?.id ?? "guest"}:${bibleId}:${book.abbr}:${chapter}`}
+              ready={!!passage && (useStreamReader ? streamSplitsReady : splitsReady)}
               direction={flipDirection}
               side="left"
               enableSlide={!effectiveSpread}
@@ -1822,7 +1606,9 @@ export default function ReaderPage() {
             <SwipePage side="right" onTurn={goPage} inkMode={inkMode}>
               <PageFlip
                 pageKey={`R-${book.abbr}-${chapter}-${rightIdx}`}
-                direction={flipDirection}
+                scopeKey={`${user?.id ?? "guest"}:${bibleId}:${book.abbr}:${chapter}`}
+              ready={!!passage && (useStreamReader ? streamSplitsReady : splitsReady)}
+              direction={flipDirection}
                 side="right"
               >
                 {renderPageSurface(rightIdx, "right")}
@@ -1869,7 +1655,6 @@ export default function ReaderPage() {
       {!scrollMode && paginatorReady && useStreamReader && streamChapters.length > 0 && !!passage ? (
         <BookPaginator
           chapters={streamChapters}
-          plateFocus={plateFocus}
           pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, subsequentPageHeight || paginatorFirstPageHeight)}
           firstPageHeight={Math.max(180, paginatorFirstPageHeight || subsequentPageHeight)}
@@ -1888,6 +1673,8 @@ export default function ReaderPage() {
           verses={verses}
           paragraphStarts={paginatorParagraphStarts}
           headings={paginatorHeadings}
+          poetryBlocks={passage?.poetryBlocks}
+          measurementKey={singlePaginationKey}
           bookAbbr={book.abbr}
           chapter={chapter}
           pageWidth={pageBox.w}

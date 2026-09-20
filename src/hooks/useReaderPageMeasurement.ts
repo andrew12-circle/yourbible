@@ -1,166 +1,74 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-const PAGE_BOX_QUANT = 12;
-
-function quantizePageBox(width: number, height: number) {
-  const w = Math.round(width / PAGE_BOX_QUANT) * PAGE_BOX_QUANT;
-  const h = Math.round(height / PAGE_BOX_QUANT) * PAGE_BOX_QUANT;
-  return { w, h };
+/** Never round up and give the paginator more room than the actual page. */
+export function quantizePageBox(width: number, height: number) {
+  return { w: Math.max(0, Math.floor(width)), h: Math.max(0, Math.floor(height)) };
 }
-
 export function useReaderPageMeasurement(bookAbbr: string, chapter: number) {
-  const [pageBox, setPageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const [pageBox, setPageBox] = useState({ w: 0, h: 0 });
   const [firstPageHeight, setFirstPageHeight] = useState(0);
-  const articleRoRef = useRef<ResizeObserver | null>(null);
-  const measureRafRef = useRef<number | null>(null);
-  const articleElsRef = useRef<{ first: HTMLElement | null; rest: HTMLElement | null }>({
-    first: null,
-    rest: null,
-  });
-  const measureFirstRef = useRef<(el: HTMLElement | null) => void>(() => {});
-  const measureRestRef = useRef<(el: HTMLElement | null) => void>(() => {});
-  const flipLockUntil = useRef(0);
-
-  const applyArticleMeasureBox = useCallback((role: "first" | "rest", el: HTMLElement | null) => {
-    if (!el || performance.now() < flipLockUntil.current) return;
-    const box = quantizePageBox(el.clientWidth, el.clientHeight);
-    if (role === "first" && box.h > 0) {
-      setFirstPageHeight((prev) => (prev === box.h ? prev : box.h));
-    }
-    if (box.w > 0 && box.h > 0) {
-      setPageBox((prev) => (prev.w === box.w && prev.h === box.h ? prev : box));
-    } else if (role === "first" && box.w > 0) {
-      setPageBox((prev) => (prev.w === box.w ? prev : { w: box.w, h: prev.h }));
-    }
+  const els = useRef<{ first: HTMLElement | null; rest: HTMLElement | null }>({ first: null, rest: null });
+  const observer = useRef<ResizeObserver | null>(null);
+  const raf = useRef<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lockUntil = useRef(0);
+  const scheduleRef = useRef<() => void>(() => {});
+  const sync = useCallback(() => {
+    if (performance.now() < lockUntil.current) { scheduleRef.current(); return; }
+    const first = els.current.first;
+    const rest = els.current.rest;
+    const firstBox = first ? quantizePageBox(first.clientWidth, first.clientHeight) : null;
+    const restBox = rest ? quantizePageBox(rest.clientWidth, rest.clientHeight) : null;
+    if (firstBox && firstBox.h > 0) setFirstPageHeight((old) => old === firstBox.h ? old : firstBox.h);
+    const next = restBox && restBox.w > 0 && restBox.h > 0 ? restBox : firstBox;
+    if (next && next.w > 0 && next.h > 0) setPageBox((old) => old.w === next.w && old.h === next.h ? old : next);
   }, []);
-
-  const syncPageMeasurements = useCallback(() => {
-    if (performance.now() < flipLockUntil.current) return;
-    const firstEl = articleElsRef.current.first;
-    const restEl = articleElsRef.current.rest;
-    const nextFirst = firstEl
-      ? quantizePageBox(firstEl.clientWidth, firstEl.clientHeight).h
-      : 0;
-    const restBox = restEl
-      ? quantizePageBox(restEl.clientWidth, restEl.clientHeight)
-      : null;
-    if (nextFirst > 0) {
-      setFirstPageHeight((prev) => (prev === nextFirst ? prev : nextFirst));
+  const schedule = useCallback(() => {
+    if (timer.current != null || raf.current != null) return;
+    const remaining = lockUntil.current - performance.now();
+    if (remaining > 0) {
+      timer.current = setTimeout(() => { timer.current = null; scheduleRef.current(); }, Math.ceil(remaining) + 1);
+      return;
     }
-    if (restBox && restBox.w > 0 && restBox.h > 0) {
-      setPageBox((prev) =>
-        prev.w === restBox.w && prev.h === restBox.h ? prev : restBox,
-      );
-    } else if (firstEl) {
-      const firstBox = quantizePageBox(firstEl.clientWidth, firstEl.clientHeight);
-      if (firstBox.w > 0 && firstBox.h > 0) {
-        setPageBox((prev) =>
-          prev.w === firstBox.w && prev.h === firstBox.h ? prev : firstBox,
-        );
-      } else if (firstBox.w > 0) {
-        setPageBox((prev) =>
-          prev.w === firstBox.w ? prev : { w: firstBox.w, h: prev.h },
-        );
+    raf.current = requestAnimationFrame(() => { raf.current = null; sync(); });
+  }, [sync]);
+  scheduleRef.current = schedule;
+  const attach = useCallback(() => {
+    observer.current?.disconnect();
+    if (typeof ResizeObserver !== "undefined") {
+      observer.current = new ResizeObserver(schedule);
+      for (const el of [els.current.first, els.current.rest]) {
+        if (!el) continue;
+        observer.current.observe(el);
+        if (el.parentElement) observer.current.observe(el.parentElement);
       }
     }
-  }, []);
-
-  const scheduleSyncPageMeasurements = useCallback(() => {
-    if (measureRafRef.current != null) return;
-    measureRafRef.current = requestAnimationFrame(() => {
-      measureRafRef.current = null;
-      syncPageMeasurements();
-    });
-  }, [syncPageMeasurements]);
-
-  const attachArticleObservers = useCallback(() => {
-    if (articleRoRef.current) {
-      articleRoRef.current.disconnect();
-      articleRoRef.current = null;
-    }
-    const { first, rest } = articleElsRef.current;
-    if (!first && !rest) return;
-    const ro = new ResizeObserver(() => scheduleSyncPageMeasurements());
-    if (first) {
-      ro.observe(first);
-      if (first.parentElement) ro.observe(first.parentElement);
-    }
-    if (rest) {
-      ro.observe(rest);
-      if (rest.parentElement) ro.observe(rest.parentElement);
-    }
-    articleRoRef.current = ro;
-    scheduleSyncPageMeasurements();
-  }, [scheduleSyncPageMeasurements]);
-
-  const bindArticleMeasure = useCallback(
-    (role: "first" | "rest") => (el: HTMLElement | null) => {
-      if (articleElsRef.current[role] === el) {
-        if (el) applyArticleMeasureBox(role, el);
-        return;
-      }
-      articleElsRef.current[role] = el;
-      if (el) applyArticleMeasureBox(role, el);
-      attachArticleObservers();
-    },
-    [applyArticleMeasureBox, attachArticleObservers],
-  );
-
-  measureFirstRef.current = bindArticleMeasure("first");
-  measureRestRef.current = bindArticleMeasure("rest");
-
-  const onMeasureFirstRef = useCallback((el: HTMLElement | null) => {
-    measureFirstRef.current(el);
-  }, []);
-
-  const onMeasureRestRef = useCallback((el: HTMLElement | null) => {
-    measureRestRef.current(el);
-  }, []);
-
+    schedule();
+  }, [schedule]);
+  const onMeasureFirstRef = useCallback((el: HTMLElement | null) => { els.current.first = el; attach(); }, [attach]);
+  const onMeasureRestRef = useCallback((el: HTMLElement | null) => { els.current.rest = el; attach(); }, [attach]);
   useLayoutEffect(() => {
-    scheduleSyncPageMeasurements();
-    return () => {
-      articleRoRef.current?.disconnect();
-      articleRoRef.current = null;
-    };
-  }, [bookAbbr, chapter, scheduleSyncPageMeasurements]);
-
+    // Reattach after chapter-effect cleanup, even when React reuses the article.
+    attach();
+    return () => observer.current?.disconnect();
+  }, [bookAbbr, chapter, attach]);
   useEffect(() => {
-    const onResize = () => scheduleSyncPageMeasurements();
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
-    const vv = window.visualViewport;
-    vv?.addEventListener("resize", onResize);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("orientationchange", schedule);
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", schedule);
     return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-      vv?.removeEventListener("resize", onResize);
-      if (measureRafRef.current != null) {
-        cancelAnimationFrame(measureRafRef.current);
-        measureRafRef.current = null;
-      }
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("orientationchange", schedule);
+      viewport?.removeEventListener("resize", schedule);
+      observer.current?.disconnect();
+      if (raf.current != null) cancelAnimationFrame(raf.current);
+      if (timer.current != null) clearTimeout(timer.current);
+      raf.current = null; timer.current = null;
     };
-  }, [scheduleSyncPageMeasurements]);
-
-  const lockPageFlip = useCallback(() => {
-    flipLockUntil.current = performance.now() + 420;
-  }, []);
-
-  const subsequentPageHeight = pageBox.h > 0 ? pageBox.h : 0;
-  const paginatorFirstPageHeight =
-    firstPageHeight > 0 ? firstPageHeight : subsequentPageHeight;
-  const paginatorReady =
-    (pageBox.w > 0 || firstPageHeight > 0) &&
-    Math.max(subsequentPageHeight, paginatorFirstPageHeight, firstPageHeight) > 0;
-
-  return {
-    pageBox,
-    firstPageHeight,
-    subsequentPageHeight,
-    paginatorFirstPageHeight,
-    paginatorReady,
-    onMeasureFirstRef,
-    onMeasureRestRef,
-    lockPageFlip,
-  };
+  }, [schedule]);
+  const lockPageFlip = useCallback(() => { lockUntil.current = performance.now() + 420; schedule(); }, [schedule]);
+  const subsequentPageHeight = pageBox.h;
+  const paginatorFirstPageHeight = firstPageHeight || subsequentPageHeight;
+  return { pageBox, firstPageHeight, subsequentPageHeight, paginatorFirstPageHeight, paginatorReady: pageBox.w > 0 && paginatorFirstPageHeight > 0, onMeasureFirstRef, onMeasureRestRef, lockPageFlip };
 }

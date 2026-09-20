@@ -1,0 +1,9 @@
+/* Inline artwork must not inherit the full-page illustration height. */
+[data-bible-reader] .scripture-plate--compact { height: auto; min-height: 0; margin-bottom: 1em; }
+/* Preserve access when a single verse or its notes exceed the available page. */
+article[data-reader-overflow] { overflow: auto !important; overscroll-behavior: contain; }
+article[data-reader-overflow] [class*="scripture-columns"] { columns: 1 !important; column-count: 1 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+article[data-reader-overflow] .scripture-page-stack,
+article[data-reader-overflow] .holman-study-stack,
+article[data-reader-overflow] .scripture-page-stack > div,
+article[data-reader-overflow] .holman-study-stack > div { height: auto !important; max-height: none !important; overflow: visible !important; flex: none !important; }

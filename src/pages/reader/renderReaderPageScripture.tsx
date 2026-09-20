@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { renderReaderScrollStream } from "./renderReaderScrollStream";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
 import { ScriptureVirtualChapter, ScriptureDocumentBlocks } from "@/components/scripture";
 import type { PassageVerse, PoetryBlock } from "@/lib/bible/api";
@@ -83,7 +84,6 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
     passagePoetryBlocks,
     streamSlice,
     pageContentReady,
-    inlineChapterPlates,
     renderVerse,
     activeStudyLayout,
     useStudyPageStack,
@@ -140,30 +140,10 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
 
   const scriptureContent: ReactNode =
     scrollMode && useStreamReader && streamChapters.length > 0 ? (
-      <>
-        {inlineChapterPlates
-          .filter((p) => p.beforeVerse === 1)
-          .map((plate) => (
-            <ScripturePlate key={plate.id} plate={plate} compact />
-          ))}
-        {scriptureNodes(
-          streamChapters.map((ch) => ({
-            bookAbbr: ch.bookAbbr,
-            chapter: ch.chapter,
-            verses: ch.verses,
-          })),
-          (bookAbbr, ch) =>
-            new Set(paragraphStartsForChapter(streamChapters, bookAbbr, ch)),
-          (bookAbbr, ch) =>
-            new Map(
-              headingsForChapter(streamChapters, bookAbbr, ch).map((h) => [
-                h.beforeVerse,
-                h.text,
-              ]),
-            ),
-          (bookAbbr, ch) => poetryBlocksForChapter(streamChapters, bookAbbr, ch),
-        )}
-      </>
+      renderReaderScrollStream(
+        streamChapters.filter((ch) => ch.bookAbbr === book.abbr && ch.chapter === chapter),
+        scriptureNodes,
+      )
     ) : scrollMode && scrollDocumentBlocks.length > 0 ? (
       <ScriptureVirtualChapter
         blocks={scrollDocumentBlocks}
@@ -222,6 +202,9 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
         () => passagePoetryBlocks,
       )
     ) : null;
+
+  // An illustration occupies its own page, never a Scripture column or footnote stack.
+  if (!scrollMode && streamSlice?.isPlatePage && pageContentReady) return scriptureContent;
 
   if (useStudyPageStack) {
     return wrapHolmanStudyContent(
