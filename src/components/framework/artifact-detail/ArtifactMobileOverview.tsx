@@ -28,11 +28,12 @@ export default function ArtifactMobileOverview({ claims, artifactId, artifactSta
   pinnedVideoPane = false, hideKeyInsightsRail = false, className }: Props) {
   const [entitiesExpanded, setEntitiesExpanded] = useState(false);
   const principals = principalFindings(claims);
+  const hasRankedFindings = claims.some(claim => claim.is_primary);
   return (
     <section id="overview" className={cn("space-y-10 md:space-y-12", className)} aria-label="Study overview">
       {claimsCount > 0 && !hideKeyInsightsRail ? (
         <div id="key-insights" className="scroll-mt-4 space-y-4 md:space-y-5">
-          <ArtifactStudySectionHeader title="Principal findings" count={principals.length}
+          <ArtifactStudySectionHeader title={hasRankedFindings ? "Principal findings" : "Key insights"} count={principals.length}
             countLabel={`${principals.length} shown · ${claimsCount} total findings`} className={artifactMobileStudyContentInset} />
           <ArtifactMobileInsightHeroRail claims={principals} activeClaimId={activeClaimId} onSelectClaim={onSelectClaim} onSeeScripture={onSeeScripture} />
         </div>
