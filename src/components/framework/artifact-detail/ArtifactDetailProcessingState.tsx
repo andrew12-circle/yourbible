@@ -1,4 +1,5 @@
 import ArtifactAnalysisStatus, { readArtifactAnalysisState } from "@/components/framework/artifact-detail/ArtifactAnalysisStatus";
+import ArtifactTranscriptOnlyStudy from "@/components/framework/artifact-detail/ArtifactTranscriptOnlyStudy";
 import ArtifactFindingHistory from "@/components/framework/artifact-detail/ArtifactFindingHistory";
 import { FileText, RefreshCw } from "lucide-react";
 import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
@@ -13,24 +14,28 @@ type Props = {
   artifact: ArtifactRow; inFlight: boolean; elapsed: number;
   stageLabel: Record<string, string>; stageHint: Record<string, string>;
   studyClaimsCount: number; mobilePinnedPane: boolean; retryingFetch: boolean;
+  onSeekTranscriptSeconds?: (seconds: number) => void;
   onPasteTranscript: () => void; onReanalyze: () => void; onRetryFetch: () => void;
 };
 export default function ArtifactDetailProcessingState({ artifact, inFlight, elapsed, stageLabel, stageHint,
-  studyClaimsCount, mobilePinnedPane, retryingFetch, onPasteTranscript, onReanalyze, onRetryFetch }: Props) {
+  studyClaimsCount, mobilePinnedPane, retryingFetch, onPasteTranscript, onReanalyze, onRetryFetch, onSeekTranscriptSeconds }: Props) {
   const versionedAnalysis = readArtifactAnalysisState(artifact.metadata);
+  const hasTranscript = Boolean(artifact.raw_text?.trim());
   const hasStudyOutput = Boolean(artifact.raw_text?.trim() || studyClaimsCount > 0);
   const transcriptStalled = inFlight && !hasStudyOutput && elapsed >= 140;
   const showTranscriptRecovery = artifact.kind === "youtube" && Boolean(artifact.url?.trim()) &&
     (!inFlight || transcriptStalled) && artifact.status !== "error" && !hasStudyOutput;
   return (
     <>
-      <ArtifactAnalysisStatus artifact={artifact} findingsCount={studyClaimsCount} onResume={onReanalyze} />
+      <ArtifactAnalysisStatus artifact={artifact} findingsCount={studyClaimsCount} onResume={onReanalyze} showError={!hasTranscript} />
       {versionedAnalysis ? <ArtifactFindingHistory artifactId={artifact.id} /> : null}
-      {!versionedAnalysis && inFlight && !transcriptStalled ? (
-        <ArtifactPipelineBanner status={artifact.status} kind={artifact.kind} elapsed={elapsed}
+      {!versionedAnalysis && inFlight && !transcriptStalled && !artifact.error ? (
+        hasTranscript ? <section className="mb-4 rounded-xl border border-border/60 p-4 text-sm" role="status">
+          <p className="font-medium">Transcript saved · AI analysis pending</p>
+          <p className="mt-1 text-muted-foreground">Use transcript-only study while enhanced analysis is pending. No need to paste or fetch the text again.</p>
+        </section> : <ArtifactPipelineBanner status={artifact.status} kind={artifact.kind} elapsed={elapsed}
           label={stageLabel[artifact.status] ?? "Working…"} hint={stageHint[artifact.status] ?? ""}
-          onPasteTranscript={onPasteTranscript}
-          onRetryAnalyze={artifact.status === "analyzing" && artifact.raw_text?.trim() ? onReanalyze : undefined} />
+          onPasteTranscript={onPasteTranscript} />
       ) : null}
       {showTranscriptRecovery ? (
         <section className={cn("mb-5 rounded-2xl border border-amber-500/35 bg-amber-500/10 p-4 text-sm shadow-sm",
@@ -46,14 +51,18 @@ export default function ArtifactDetailProcessingState({ artifact, inFlight, elap
           </div>
         </section>
       ) : null}
-      {!versionedAnalysis && artifact.error && artifact.status === "error" ? (
-        <ArtifactTranscriptFetchErrorCard error={artifact.error}
+      {artifact.error && (hasTranscript || (!versionedAnalysis && artifact.status === "error")) ? (
+        <ArtifactTranscriptFetchErrorCard error={artifact.error} hasTranscript={hasTranscript}
           variant={isNonBlockingAnalysisError({ error: artifact.error, rawText: artifact.raw_text, claimsCount: studyClaimsCount }) ? "warning" : "destructive"}
           retryingFetch={retryingFetch} inFlight={inFlight}
           showRetry={artifact.kind === "youtube" && Boolean(artifact.url) && !artifact.raw_text?.trim()}
-          showReanalyze={Boolean(artifact.raw_text?.trim())} onRetry={onRetryFetch} onPaste={onPasteTranscript} onReanalyze={onReanalyze}
+          showReanalyze={hasTranscript && !versionedAnalysis} onRetry={onRetryFetch} onPaste={onPasteTranscript} onReanalyze={onReanalyze}
           className={mobilePinnedPane ? artifactMobileStudyContentInset : undefined} />
       ) : null}
+      {hasTranscript ? <ArtifactTranscriptOnlyStudy key={artifact.id} artifactId={artifact.id} text={artifact.raw_text}
+        initiallyOpen={Boolean(artifact.error) || studyClaimsCount === 0 || Boolean(versionedAnalysis && versionedAnalysis.state !== "complete")}
+        onSeek={artifact.kind === "youtube" ? onSeekTranscriptSeconds : undefined}
+        className={mobilePinnedPane ? artifactMobileStudyContentInset : undefined} /> : null}
     </>
   );
 }

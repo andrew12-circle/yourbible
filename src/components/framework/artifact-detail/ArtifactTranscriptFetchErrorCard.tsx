@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   error: string;
+  /** Saved text is usable even when enhanced analysis fails. */
+  hasTranscript?: boolean;
   retryingFetch?: boolean;
   inFlight?: boolean;
   showRetry?: boolean;
@@ -18,12 +20,19 @@ type Props = {
 };
 
 /** Split server transcript errors into a short headline + technical log. */
-export function parseTranscriptFetchError(error: string): {
+export function parseTranscriptFetchError(error: string, hasTranscript = false): {
   headline: string;
   hint: string | null;
   attempts: string | null;
 } {
   const trimmed = error.trim();
+  if (hasTranscript) return {
+    headline: "Transcript saved. AI analysis unavailable.",
+    hint: transcriptBillingBlocked(trimmed)
+      ? "Enhanced analysis is blocked by provider billing. Transcript-only study below needs no AI credits. Keep watching, reading, searching, and taking notes; previous findings remain available."
+      : "Enhanced analysis could not finish. Transcript-only study below needs no AI credits. Keep watching, reading, searching, and taking notes; previous findings remain available.",
+    attempts: trimmed || null,
+  };
   if (transcriptBillingBlocked(trimmed)) return {
     headline: "Automatic transcription is blocked by provider billing.",
     hint: "The configured AI provider has exhausted its prepaid credits. The app owner needs to restore that balance. Captions can still be retried independently; repeated retries cannot repair billing.",
@@ -77,6 +86,7 @@ export function parseTranscriptFetchError(error: string): {
 
 export default function ArtifactTranscriptFetchErrorCard({
   error,
+  hasTranscript = false,
   retryingFetch = false,
   inFlight = false,
   showRetry = false,
@@ -87,8 +97,8 @@ export default function ArtifactTranscriptFetchErrorCard({
   className,
   variant = "destructive",
 }: Props) {
-  const { headline, hint, attempts } = parseTranscriptFetchError(error);
-  const warning = variant === "warning";
+  const { headline, hint, attempts } = parseTranscriptFetchError(error, hasTranscript);
+  const warning = hasTranscript || variant === "warning";
 
   return (
     <div
@@ -99,7 +109,7 @@ export default function ArtifactTranscriptFetchErrorCard({
           : "border-destructive/40 bg-destructive/10 text-destructive",
         className,
       )}
-      role="alert"
+      role={warning ? "status" : "alert"}
     >
       <p
         className={cn(
@@ -121,20 +131,20 @@ export default function ArtifactTranscriptFetchErrorCard({
       ) : null}
 
       <div className="mt-3 flex flex-wrap gap-2">
-        {showRetry && onRetry ? (
+        {!hasTranscript && showRetry && onRetry ? (
           <Button size="sm" variant="outline" disabled={retryingFetch || inFlight} onClick={onRetry}>
             <RefreshCw className={cn("mr-1 h-3.5 w-3.5", retryingFetch && "animate-spin")} aria-hidden />
             {retryingFetch ? "Fetching…" : "Try fetch again"}
           </Button>
         ) : null}
-        <Button size="sm" variant="outline" onClick={onPaste}>
+        {!hasTranscript ? <Button size="sm" variant="outline" onClick={onPaste}>
           <FileText className="mr-1 h-3.5 w-3.5" aria-hidden />
           Paste transcript
-        </Button>
+        </Button> : null}
         {showReanalyze && onReanalyze ? (
           <Button size="sm" variant="outline" disabled={inFlight} onClick={onReanalyze}>
             <RefreshCw className="mr-1 h-3.5 w-3.5" aria-hidden />
-            Re-analyze
+            {hasTranscript ? "Retry AI analysis" : "Re-analyze"}
           </Button>
         ) : null}
       </div>

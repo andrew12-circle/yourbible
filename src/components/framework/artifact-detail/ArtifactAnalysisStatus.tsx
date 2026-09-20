@@ -14,8 +14,8 @@ export function readArtifactAnalysisState(metadata: unknown) {
     updatedAt: typeof row.updated_at === "string" ? Date.parse(row.updated_at) : 0 };
 }
 
-export default function ArtifactAnalysisStatus({ artifact, findingsCount, onResume }: {
-  artifact: ArtifactRow; findingsCount: number; onResume: () => void;
+export default function ArtifactAnalysisStatus({ artifact, findingsCount, onResume, showError = true }: {
+  artifact: ArtifactRow; findingsCount: number; onResume: () => void; showError?: boolean;
 }) {
   const analysis = readArtifactAnalysisState(artifact.metadata);
   if (!analysis) return null;
@@ -31,7 +31,7 @@ export default function ArtifactAnalysisStatus({ artifact, findingsCount, onResu
         {!complete && findingsCount > 0 ? " Your previous findings and research remain available until replacement results are ready." : ""}
         {complete && analysis.candidates > findingsCount ? ` ${analysis.candidates} candidates evaluated; ${findingsCount} findings published after consolidation.` : ""}
       </p>
-      {artifact.error ? <p className="mt-2 text-muted-foreground">{artifact.error}</p> : null}
+      {showError && artifact.error ? <p className="mt-2 text-muted-foreground">{artifact.error}</p> : null}
       {stopped || unresponsive ? <Button type="button" size="sm" variant="outline" className="mt-2" onClick={onResume}>Resume unfinished analysis</Button> : null}
     </section>
   );

@@ -1534,6 +1534,7 @@ export default function ArtifactDetailPage() {
         onPasteTranscript={() => setPasteOpen(true)}
         onRetryFetch={() => void retryFetch()}
         onReanalyze={() => void reanalyze()}
+        onSeekTranscriptSeconds={(seconds) => seekVideoToSeconds(seconds, { play: true })}
       />
 
       <ArtifactDetailStudyColumnWrapper
