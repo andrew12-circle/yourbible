@@ -4,31 +4,37 @@ import path from "path";
 import { VitePWA } from "vite-plugin-pwa";
 import { componentTagger } from "lovable-tagger";
 import { youtubeCaptionsDevPlugin } from "./scripts/vite-plugin-youtube-captions";
+import { visualBibleAssetsPlugin } from "./scripts/vite-plugin-visual-bible";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
-    port: 8083,
-    strictPort: true,
-    hmr: {
-      overlay: false,
-    },
+    host: "::", port: 8083, strictPort: true,
+    hmr: { overlay: false },
   },
   plugins: [
     react(),
     youtubeCaptionsDevPlugin(),
+    visualBibleAssetsPlugin(),
     VitePWA({
       registerType: "prompt",
       includeAssets: ["app-icon-192.png", "app-icon-512.png", "site.webmanifest"],
       manifest: false,
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2,json}"],
-        // Production does not ship the unattested full-text CSB cache. Keeping
-        // it out of the precache also lets activation clean older corpus caches.
-        globIgnores: ["children-books/**/*", ...(mode === "production" ? ["bibles/**/*"] : [])],
+        // Keep existing reader caches; the expanded library is cached only as viewed.
+        // Production still excludes the unattested full-text CSB corpus.
+        globIgnores: ["children-books/**/*", "visual-bible/**/*", ...(mode === "production" ? ["bibles/**/*"] : [])],
         navigateFallback: "/index.html",
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        runtimeCaching: [{
+          urlPattern: ({ url, sameOrigin, request }) => sameOrigin && request.destination === "image" && url.pathname.startsWith("/visual-bible/v1/"),
+          handler: "CacheFirst",
+          options: {
+            cacheName: "visual-bible-v1",
+            cacheableResponse: { statuses: [200] },
+            expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true },
+          },
+        }],
       },
     }),
     mode === "development" && componentTagger(),

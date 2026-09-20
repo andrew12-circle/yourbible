@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1040" viewBox="0 0 1400 1040" role="img" aria-labelledby="title description">
+  <title id="title">Acts: a narrative journey</title>
+  <desc id="description">Selected narrative settings: Jerusalem, Acts 1–7; Judea and Samaria, Acts 8–12; Cyprus and Galatia, Acts 13–14; Macedonia and Greece, Acts 16–20; Jerusalem, Acts 21–23; Caesarea, Acts 24–26; toward Rome, Acts 27–28. Not a map or a complete chronology.</desc>
+  <rect width="1400" height="1040" fill="#f7f3e9"/>
+  <g font-family="Georgia,serif" fill="#243b3b">
+    <text x="80" y="85" font-size="20" letter-spacing="5">YOURBIBLE / READING GUIDE</text>
+    <text x="80" y="160" font-size="58">Acts: a narrative journey</text>
+    <text x="80" y="207" font-family="Arial,sans-serif" font-size="23">Follow selected settings in the story, from Jerusalem toward Rome.</text>
+  </g>
+  <path d="M126 290V854" stroke="#b19865" stroke-width="4"/>
+  <g font-family="Arial,sans-serif" fill="#243b3b">
+    <g transform="translate(0 280)"><circle cx="126" cy="0" r="13" fill="#243b3b"/><text x="168" y="9" font-size="30">Jerusalem</text><text x="820" y="9" font-size="26">Acts 1–7</text></g>
+    <g transform="translate(0 370)"><circle cx="126" cy="0" r="13" fill="#243b3b"/><text x="168" y="9" font-size="30">Judea and Samaria</text><text x="820" y="9" font-size="26">Acts 8–12</text></g>
+    <g transform="translate(0 460)"><circle cx="126" cy="0" r="13" fill="#243b3b"/><text x="168" y="9" font-size="30">Cyprus and Galatia</text><text x="820" y="9" font-size="26">Acts 13–14</text></g>
+    <g transform="translate(0 550)"><circle cx="126" cy="0" r="13" fill="#243b3b"/><text x="168" y="9" font-size="30">Macedonia and Greece</text><text x="820" y="9" font-size="26">Acts 16–20</text></g>
+    <g transform="translate(0 640)"><circle cx="126" cy="0" r="13" fill="#243b3b"/><text x="168" y="9" font-size="30">Return to Jerusalem</text><text x="820" y="9" font-size="26">Acts 21–23</text></g>
+    <g transform="translate(0 730)"><circle cx="126" cy="0" r="13" fill="#243b3b"/><text x="168" y="9" font-size="30">Caesarea</text><text x="820" y="9" font-size="26">Acts 24–26</text></g>
+    <g transform="translate(0 820)"><circle cx="126" cy="0" r="13" fill="#243b3b"/><text x="168" y="9" font-size="30">The voyage toward Rome</text><text x="820" y="9" font-size="26">Acts 27–28</text></g>
+    <text x="80" y="941" font-size="23">Selective narrative overview • Not a travel map or complete chronology</text>
+    <text x="80" y="981" font-size="20">Original YourBible study diagram. Compare the chapter references while reading.</text>
+  </g>
+</svg>

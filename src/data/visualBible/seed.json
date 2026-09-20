@@ -1,0 +1,115 @@
+[
+  {
+    "id": "met-436453", "revision": 1, "kind": "artwork", "title": "Esther before Ahasuerus", "creator": "Artemisia Gentileschi", "date": "1620s", "culture": "Italian", "medium": "Oil on canvas",
+    "description": "A dramatic painted interpretation of Esther approaching the Persian king. Notice how gesture and the spacing of the figures convey the danger of the encounter.",
+    "caution": "The museum describes a theatrical interpretation, not a reconstruction of the Persian court. Artistic details should not be read back into Scripture.",
+    "tags": ["Esther", "courage", "Persia", "Baroque"],
+    "passages": [{"book":"Est","chapter":5,"relationship":"depiction","note":"An interpretation of Esther approaching the king; the painting adds dramatic details."}],
+    "source": {"name":"The Metropolitan Museum of Art","objectId":"69.281","url":"https://www.metmuseum.org/art/collection/search/436453","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gift of Elinor Dorrance Ingersoll, 1969.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/436453/2016369/main-image", "alt":"Esther before Ahasuerus — Artemisia Gentileschi"
+  },
+  {
+    "id":"met-371732", "revision":1, "kind":"artwork", "title":"The Hundred Guilder Print", "creator":"Rembrandt (Rembrandt van Rijn)", "date":"1648", "culture":"Dutch", "medium":"Etching, engraving and drypoint",
+    "description":"Rembrandt brings several episodes from Matthew 19 into one composition. Look at how light and the gathered figures direct attention toward Christ.",
+    "caution":"A composite interpretation of a chapter, not a picture of one documented moment.",
+    "tags":["Jesus","healing","children","Matthew","Baroque"],
+    "passages":[{"book":"Mat","chapter":19,"relationship":"depiction","note":"The museum identifies several episodes from Matthew 19 combined in one scene."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"29.107.35","url":"https://www.metmuseum.org/art/collection/search/371732","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. H. O. Havemeyer Collection, Bequest of Mrs. H. O. Havemeyer, 1929.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/371732/758309/main-image", "alt":"The Hundred Guilder Print — Rembrandt"
+  },
+  {
+    "id":"met-336222", "revision":1, "kind":"artwork", "title":"Adam and Eve", "creator":"Albrecht Dürer", "date":"1504", "culture":"German", "medium":"Engraving",
+    "description":"An engraved interpretation of the first humans, set among closely observed animals and vegetation. Fine lines distinguish skin, fur and bark.",
+    "caution":"Includes artistic nudity and later symbolism. It is a Renaissance interpretation, not a literal reconstruction of Eden.",
+    "tags":["Genesis","Eden","creation","Renaissance"],
+    "passages":[{"book":"Gen","chapter":3,"relationship":"depiction","note":"An artistic treatment of Adam and Eve and the forbidden fruit."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"19.73.1","url":"https://www.metmuseum.org/art/collection/search/336222","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Fletcher Fund, 1919.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/336222/766616/main-image", "alt":"Adam and Eve — Albrecht Dürer"
+  },
+  {
+    "id":"met-436504", "revision":1, "kind":"artwork", "title":"The Adoration of the Magi", "creator":"Giotto di Bondone", "date":"possibly ca. 1320", "culture":"Italian", "medium":"Tempera on wood, gold ground",
+    "description":"A gold-ground panel presenting the visit of the Magi. Notice the gestures around the child and the architectural framing of the scene.",
+    "caution":"The dating is uncertain. Clothing, setting and gestures are artistic interpretation, not eyewitness evidence.",
+    "tags":["Jesus","Magi","Nativity","medieval"],
+    "passages":[{"book":"Mat","chapter":2,"verse":1,"endVerse":12,"relationship":"depiction","note":"An interpretation of the visit and homage of the Magi."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"11.126.1","url":"https://www.metmuseum.org/art/collection/search/436504","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. John Stewart Kennedy Fund, 1911.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/436504/2216475/main-image", "alt":"The Adoration of the Magi — Giotto di Bondone"
+  },
+  {
+    "id":"met-328905", "revision":1, "kind":"artifact", "title":"Sealed clay case for a legal tablet", "creator":"Maker unidentified", "date":"ca. 20th–19th century BCE", "culture":"Old Assyrian Trading Colony; probably Kültepe", "medium":"Clay",
+    "description":"A clay envelope impressed with cylinder seals, associated with a record of a lawsuit. It offers a tangible example of ancient legal documentation.",
+    "caution":"A comparison from a different setting, not Abraham’s document and not evidence identifying the transaction in Genesis 23.",
+    "tags":["seals","law","writing","trade","Anatolia"],
+    "passages":[{"book":"Gen","chapter":23,"relationship":"cultural-context","note":"Compare the idea of a witnessed transaction with surviving ancient legal records; this object is not connected to Abraham."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"66.245.5b","url":"https://www.metmuseum.org/art/collection/search/328905","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gift of Mr. and Mrs. J. J. Klejman, 1966.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/328905/713230/main-image", "alt":"Ancient clay tablet case with writing and seal impressions"
+  },
+  {
+    "id":"met-322443", "revision":1, "kind":"artifact", "title":"Sickle sword", "creator":"Maker unidentified", "date":"ca. 1307–1275 BCE", "culture":"Middle Assyrian; Northern Mesopotamia", "medium":"Bronze",
+    "description":"An ancient curved bronze sword. Its shape offers a concrete comparison when reading imagery about weapons and peace.",
+    "caution":"This object predates Isaiah by centuries. It is not a weapon from an event described in Isaiah, and its form does not establish how it was used.",
+    "tags":["sword","weapons","Assyria","peace"],
+    "passages":[{"book":"Isa","chapter":2,"verse":4,"relationship":"cultural-context","note":"A comparison for the imagery of swords, not an object from Isaiah’s lifetime."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"11.166.1","url":"https://www.metmuseum.org/art/collection/search/322443","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gift of J. Pierpont Morgan, 1911.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/322443/715647/main-image", "alt":"Curved Assyrian bronze sickle sword"
+  },
+  {
+    "id":"met-245196", "revision":1, "kind":"artifact", "title":"Glass ribbed bowl", "creator":"Maker unidentified", "date":"1st century CE", "culture":"Roman; Early Imperial", "medium":"Glass",
+    "description":"A surviving ribbed glass bowl from the early Roman imperial world. Notice its material, shallow profile and repeated ribs.",
+    "caution":"A period comparison for daily-life vessels, not a vessel owned or used by Jesus or his followers.",
+    "tags":["bowl","vessels","washing","daily life","Roman"],
+    "passages":[{"book":"Mrk","chapter":7,"verse":1,"endVerse":4,"relationship":"cultural-context","note":"A material-culture comparison alongside references to washing vessels."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"81.10.39","url":"https://www.metmuseum.org/art/collection/search/245196","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gift of Henry G. Marquand, 1881.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/245196/530723/main-image", "alt":"Roman ribbed glass bowl"
+  },
+  {
+    "id":"met-547804", "revision":1, "kind":"artifact", "title":"Head of Augustus", "creator":"Maker unidentified", "date":"30–14 BCE", "culture":"Roman Egypt; possibly Memphis", "medium":"Faience",
+    "description":"A surviving small portrait head of Augustus, the ruler named at the opening of Luke 2. The object makes the imperial setting more tangible.",
+    "caution":"An imperial portrait, not evidence for a particular census or the circumstances of Jesus’ birth. The object’s date and origin follow the museum record.",
+    "tags":["Augustus","Rome","Egypt","empire","birth of Jesus"],
+    "passages":[{"book":"Luk","chapter":2,"verse":1,"relationship":"cultural-context","note":"Augustus is named in Luke 2:1; this portrait supplies imperial context."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"26.7.1428","url":"https://www.metmuseum.org/art/collection/search/547804","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gift of Edward S. Harkness, 1926.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/547804/1216926/main-image", "alt":"Ancient faience portrait head of Augustus"
+  },
+  {
+    "id":"met-249528", "revision":1, "kind":"artifact", "title":"Glass gold-band perfume bottle", "creator":"Maker unidentified", "date":"1st century BCE", "culture":"Greek; Late Hellenistic", "medium":"Glass and gold leaf",
+    "description":"A slender ancient perfume container with gold-band decoration. It shows one of the designs used for storing fragrant substances.",
+    "caution":"This is a glass alabastron, not alabaster. It is not the vessel in Luke 7 and should not be presented as an exact illustration of that object.",
+    "tags":["perfume","anointing","bottle","daily life","Hellenistic"],
+    "passages":[{"book":"Luk","chapter":7,"verse":37,"endVerse":38,"relationship":"cultural-context","note":"A comparison for perfume containers, distinct from the alabaster vessel named in this passage."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"17.194.286a, b","url":"https://www.metmuseum.org/art/collection/search/249528","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gift of J. Pierpont Morgan, 1917.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/249528/530898/main-image", "alt":"Ancient glass perfume bottle with gold-band decoration"
+  },
+  {
+    "id":"walters-w839-recto", "revision":1, "kind":"manuscript", "title":"Ethiopian Gospel-book leaf: the entombment of Christ", "creator":"Ethiopian artist unidentified", "date":"late 14th century", "culture":"Ethiopia; Lake Tana region", "medium":"Ink and paint on parchment",
+    "description":"The recto of a surviving illustrated Gospel-book leaf shows Joseph and Nicodemus carrying Christ toward the tomb.",
+    "caution":"A medieval manuscript illustration, not an original first-century Gospel manuscript. Its visual traditions are distinct from the wording of the passage.",
+    "tags":["Ethiopian","Gospel","manuscript","burial","Joseph","Nicodemus"],
+    "passages":[{"book":"Jhn","chapter":19,"verse":38,"endVerse":42,"relationship":"textual-history","note":"A later Ethiopian visual interpretation of the burial of Christ."}],
+    "source":{"name":"The Walters Art Museum","objectId":"W.839, recto","url":"https://art.thewalters.org/object/W.839/","license":"CC0","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Walters Art Museum. Gift of Mr. and Mrs. Joseph Knopfelmacher, 1996.","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://art.thewalters.org/object/W.839/?download=CPS_W.839.R_Fp_DD_ED22-tms.jpg", "alt":"Ethiopian Gospel-book leaf showing the entombment of Christ"
+  },
+  {
+    "id":"kinneret-2021", "revision":1, "kind":"place-photo", "title":"The Sea of Galilee and its surrounding fields", "creator":"Davidi Vardi", "date":"5 November 2021", "culture":"Sea of Galilee region", "medium":"Digital photograph",
+    "description":"A present-day view across agricultural land toward the Sea of Galilee. It helps establish the relationship between the lake and surrounding terrain.",
+    "caution":"A modern landscape, including modern agriculture and settlements, not a reconstruction of the first century.",
+    "tags":["Galilee","lake","Kinneret","landscape","fishing"],
+    "passages":[
+      {"book":"Mat","chapter":4,"verse":18,"endVerse":22,"relationship":"geography","note":"The lake setting helps visualize the calling of fishermen."},
+      {"book":"Mrk","chapter":4,"verse":35,"endVerse":41,"relationship":"geography","note":"Geographic context for a crossing of the lake."},
+      {"book":"Luk","chapter":5,"verse":1,"endVerse":11,"relationship":"geography","note":"Geographic context for fishing on the lake."},
+      {"book":"Jhn","chapter":21,"verse":1,"endVerse":14,"relationship":"geography","note":"Geographic context for the Sea of Tiberias."}
+    ],
+    "source":{"name":"Wikimedia Commons / PikiWiki","objectId":"117291","url":"https://commons.wikimedia.org/wiki/File:117291_the_kinneret_area_PikiWiki_Israel.jpg","license":"CC BY 2.5","licenseUrl":"https://creativecommons.org/licenses/by/2.5/","credit":"Davidi Vardi Pikiwiki Israel","checkedOn":"2026-09-20"},
+    "review":"source-checked", "imageUrl":"https://upload.wikimedia.org/wikipedia/commons/7/74/117291_the_kinneret_area_PikiWiki_Israel.jpg", "alt":"Modern fields and settlements beside the Sea of Galilee"
+  },
+  {
+    "id":"acts-overview", "revision":1, "kind":"timeline", "title":"Acts: a narrative journey", "creator":"YourBible", "date":"2026", "culture":"Study diagram", "medium":"Original digital diagram",
+    "description":"A selective reading guide through several settings in Acts, from Jerusalem to Rome. The sequence follows the narrative rather than attempting to date every event.",
+    "caution":"Not a travel map, complete chronology or archaeological object. The diagram deliberately omits disputed calendar dates.",
+    "tags":["Acts","Paul","Jerusalem","Rome","timeline"],
+    "passages":[{"book":"Act","chapter":1,"endChapter":28,"relationship":"narrative-overview","note":"A selective overview of the book’s narrative settings."}],
+    "source":{"name":"YourBible","objectId":"acts-overview-v1","url":"/read/study/artwork","license":"YourBible original","credit":"YourBible. Original study diagram; Scripture references supplied for comparison."},
+    "review":"original", "imageUrl":"/visual-bible/v1/acts-overview.svg", "alt":"Selected narrative settings in Acts, with chapter references"
+  }
+]
