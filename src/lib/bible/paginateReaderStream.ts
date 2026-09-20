@@ -1,12 +1,22 @@
 import type { ReaderStreamUnit } from "./readerStream";
 
+/** Validate a fixed prefix before remeasuring the current page and unread suffix. */
+export function readerPaginationPrefix(length: number, prefix?: readonly number[]): number[] {
+  if (!prefix?.length || prefix[0] !== 0 || prefix.at(-1)! > length) return [0];
+  for (let i = 0; i < prefix.length; i++) {
+    if (!Number.isInteger(prefix[i]) || prefix[i] < 0 || (i > 0 && prefix[i] <= prefix[i - 1])) return [0];
+  }
+  return [...prefix];
+}
+
 /** Measure text only. Artwork is an explicit, immutable single-page boundary. */
 export function paginateReaderStream(
   stream: ReaderStreamUnit[],
   textFits: (start: number, end: number, pageIndex: number) => boolean,
+  fixedPrefix?: readonly number[],
 ): number[] {
-  const splits = [0];
-  let start = 0;
+  const splits = readerPaginationPrefix(stream.length, fixedPrefix);
+  let start = splits.at(-1)!;
   while (start < stream.length) {
     if (stream[start].kind === "plate") {
       splits.push(++start);
@@ -28,8 +38,8 @@ export function paginateReaderStream(
       if (textFits(start, mid, pageIndex)) { lastFit = mid; lo = mid + 1; }
       else hi = mid - 1;
     }
-    // A title never owns an empty text page. Oversized text remains scrollable
-    // through the reader's overflow recovery rather than being discarded.
+    // A title never owns an empty text page. An irreducible unit is preserved;
+    // the reader offers explicit continuous reading, never silently scrolls a page.
     const minimum = stream[start].kind === "chapter-header" && start + 1 < cap ? start + 2 : start + 1;
     start = Math.min(cap, Math.max(minimum, lastFit));
     splits.push(start);

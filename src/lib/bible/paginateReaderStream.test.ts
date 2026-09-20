@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paginateReaderStream } from "./paginateReaderStream";
+import { paginateReaderStream, readerPaginationPrefix } from "./paginateReaderStream";
 import { buildReaderStream, type ReaderChapterPassage } from "./readerStream";
 const chapter: ReaderChapterPassage = { bookAbbr: "Gen", bookName: "Genesis", chapter: 4, verses: Array.from({ length: 26 }, (_, i) => ({ number: i + 1, text: `Synthetic verse ${i + 1}` })), paragraphStarts: [1], headings: [], poetryBlocks: [] };
 describe("deterministic artwork page boundaries", () => {
@@ -28,4 +28,27 @@ describe("deterministic artwork page boundaries", () => {
     expect(splits.at(-1)).toBe(stream.length);
   });
   it("does not synthesize a page for an empty document", () => expect(paginateReaderStream([], () => true)).toEqual([0]));
+});
+
+describe("forward-only fit correction", () => {
+  it("keeps read spreads unchanged and puts the exact unread unit first", () => {
+    const stream = buildReaderStream([chapter]);
+    const original = paginateReaderStream(stream, (start, end) => end - start <= 6);
+    const page = 4;
+    const prefix = original.slice(0, page + 1);
+    const corrected = paginateReaderStream(stream, (start, end, index) => {
+      expect(start).toBeGreaterThanOrEqual(prefix.at(-1)!);
+      expect(index).toBeGreaterThanOrEqual(page);
+      return end - start <= 3;
+    }, prefix);
+    expect(corrected.slice(0, page + 1)).toEqual(prefix);
+    const before = stream.slice(0, prefix.at(-1));
+    const unread = corrected.slice(page, -1).flatMap((start, index) => stream.slice(start, corrected[page + index + 1]));
+    expect([...before, ...unread]).toEqual(stream);
+  });
+  it("rejects invalid prefixes rather than omitting any content", () => {
+    for (const prefix of [[1], [0, 0], [0, 4, 2], [0, -1], [0, 1.5], [0, 31]]) {
+      expect(readerPaginationPrefix(30, prefix)).toEqual([0]);
+    }
+  });
 });

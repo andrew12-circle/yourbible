@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { readerVisibleFit } from "./readerVisibleFit";
 
 /** Gap between facing page text areas when measuring a four-column spread (~2× spine gutter). */
 export const SPREAD_MEASURE_GAP_PX = 112;
@@ -243,10 +244,6 @@ function studyStackScriptureColumnsEl(stack: HTMLElement): HTMLElement | null {
   return stack.querySelector('[class*="scripture-columns"]') as HTMLElement | null;
 }
 
-function studyStackFootnotesEl(stack: HTMLElement): HTMLElement | null {
-  return stack.querySelector(".scripture-page-footnotes") as HTMLElement | null;
-}
-
 export function applyHolmanStudyMeasureHtml(
   node: HTMLDivElement,
   scriptureHtml: string,
@@ -267,27 +264,13 @@ export function applyHolmanStudyMeasureHtml(
       : "width:100%;";
   const columnsInner = columnsClassName
     ? `<div class="${columnsClassName}" style="height:100%;max-height:100%;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
-    : scriptureHtml;
-  const scriptureSectionStyle =
-    `height:${columnH}px;max-height:${columnH}px;flex:0 0 auto;overflow:hidden;display:flex;flex-direction:column;min-height:0;min-width:0`;
-  const scriptureSection = `<div style="${scriptureSectionStyle}">${columnsInner}</div>`;
-  if (!connectionsHtml && !footnotesHtml) {
-    node.innerHTML =
-      `<div class="scripture-page-stack holman-study-stack reader-holman-study" style="height:${h}px;max-height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
-      scriptureSection +
-      `</div>`;
-    return;
-  }
-  const columnsInnerLegacy = columnsClassName
-    ? `<div class="${columnsClassName}" style="height:${columnH}px;max-height:${columnH}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
-    : scriptureHtml;
-  const scriptureSectionLegacy = `<div style="flex:1 1 auto;min-height:0;overflow:hidden;display:flex;flex-direction:column">${columnsInnerLegacy}</div>`;
+    : `<div style="flex:1 1 0%;min-height:0;overflow:hidden">${scriptureHtml}</div>`;
+  // Match the live fixed Scripture section, including its clipped single-column
+  // child. Flex shrinking a different hidden tree used to accept whole chapters.
+  const sectionStyle = `height:${columnH}px;max-height:${columnH}px;flex:0 0 auto;overflow:hidden;display:flex;flex-direction:column;min-height:0;min-width:0`;
   node.innerHTML =
-    `<div class="scripture-page-stack holman-study-stack" style="height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
-    scriptureSectionLegacy +
-    connectionsHtml +
-    footnotesHtml +
-    `</div>`;
+    `<div class="scripture-page-stack holman-study-stack" style="height:${h}px;max-height:${h}px;overflow:hidden;display:flex;flex-direction:column;${width}min-height:0;box-sizing:border-box">` +
+    `<div style="${sectionStyle}">${columnsInner}</div>` + connectionsHtml + footnotesHtml + `</div>`;
 }
 
 export function applyScriptureColumnMeasureHtml(
@@ -317,27 +300,9 @@ function scriptureColumnsHaveClippedOverflow(columns: HTMLElement): boolean {
   if (columns.scrollWidth > columns.clientWidth + 2) return true;
   if (columns.scrollHeight > columns.clientHeight + 1) return true;
 
-  const box = columns.getBoundingClientRect();
-  if (box.height <= 0) return false;
-
-  const clipBottom = box.bottom - READER_LIVE_COLUMN_SAFETY_PX;
-  const clipRight = box.right - 10;
-  const blocks = columns.querySelectorAll(
-    ".scripture-paragraph, .scripture-heading, .scripture-plate",
-  );
-  for (let i = 0; i < blocks.length; i++) {
-    const rect = blocks[i]!.getBoundingClientRect();
-    if (rect.height <= 0 && rect.width <= 0) continue;
-    if (rect.bottom > clipBottom) return true;
-    if (rect.right > clipRight) return true;
-  }
-  return false;
-}
-
-function resetColumnMeasureStyles(col: HTMLElement): void {
-  col.style.height = "";
-  col.style.maxHeight = "";
-  col.style.overflow = "";
+  // Paragraph bounding rectangles span the full column height when fragmented;
+  // treating that union as overflow rejected valid left→right column flow.
+  return !readerVisibleFit(columns).fits;
 }
 
 /** True when a spread slice stays in the left page's two columns (not col 3+). */
@@ -381,51 +346,25 @@ export function scriptureContentFitsPage(
   contentHeightPx: number,
   columnsClassName?: string,
 ): boolean {
-  const limit = Math.max(1, Math.round(contentHeightPx));
-  const studyStack = node.querySelector(".scripture-page-stack, .holman-study-stack") as HTMLElement | null;
+  const limit = Math.max(1, Math.floor(contentHeightPx));
+  const studyStack = node.querySelector<HTMLElement>(".scripture-page-stack, .holman-study-stack");
   if (studyStack) {
-    studyStack.style.height = `${limit}px`;
-    studyStack.style.maxHeight = `${limit}px`;
-    studyStack.style.overflow = "hidden";
-
-    let fits = studyStack.scrollHeight <= limit + 1;
+    if (studyStack.scrollHeight > limit + 1) return false;
+    // Check every constrained child, including SINGLE-column Scripture. A
+    // clipped child can fit its parent while most of its text is invisible.
+    const sections = studyStack.querySelectorAll<HTMLElement>('[style*="overflow:hidden"]');
+    for (const section of sections) {
+      if (section.clientHeight > 0 && section.scrollHeight > section.clientHeight + 1) return false;
+      if (section.clientWidth > 0 && section.scrollWidth > section.clientWidth + 1) return false;
+    }
     const columns = studyStackScriptureColumnsEl(studyStack);
-    if (columns && fits) {
-      if (columns.clientHeight <= 0) fits = false;
-      if (scriptureColumnsHaveClippedOverflow(columns)) fits = false;
+    if (columns && (columns.clientHeight <= 0 || scriptureColumnsHaveClippedOverflow(columns))) return false;
+    for (const chrome of studyStack.querySelectorAll<HTMLElement>(".scripture-connections-row, .scripture-page-footnotes")) {
+      if (chrome.getBoundingClientRect().bottom > studyStack.getBoundingClientRect().bottom + 1) return false;
     }
-    const connections = studyStack.querySelector(".scripture-connections-row") as HTMLElement | null;
-    if (connections && fits) {
-      const stackRect = studyStack.getBoundingClientRect();
-      const connRect = connections.getBoundingClientRect();
-      if (connRect.bottom > stackRect.bottom + 1) fits = false;
-    }
-    const footnotes = studyStackFootnotesEl(studyStack);
-    if (footnotes && fits) {
-      const stackRect = studyStack.getBoundingClientRect();
-      const notesRect = footnotes.getBoundingClientRect();
-      if (notesRect.bottom > stackRect.bottom + 1) fits = false;
-    }
-
-    studyStack.style.height = "";
-    studyStack.style.maxHeight = "";
-    studyStack.style.overflow = "";
-    return fits;
+    return readerVisibleFit(node, limit).fits;
   }
-  if (!columnsClassName) {
-    return node.scrollHeight <= limit;
-  }
-  const col = node.firstElementChild as HTMLElement | null;
-  if (!col) return true;
-
-  const columnLimit = readerScriptureColumnsHeightPx(limit);
-  col.style.height = `${columnLimit}px`;
-  col.style.maxHeight = `${columnLimit}px`;
-  col.style.overflow = "hidden";
-
-  try {
-    return !scriptureColumnsHaveClippedOverflow(col);
-  } finally {
-    resetColumnMeasureStyles(col);
-  }
+  if (!columnsClassName) return node.scrollHeight <= limit && readerVisibleFit(node, limit).fits;
+  const columns = node.firstElementChild as HTMLElement | null;
+  return !columns || !scriptureColumnsHaveClippedOverflow(columns);
 }

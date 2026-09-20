@@ -1,24 +1,14 @@
+import { Fragment, createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import type { PassageVerse } from "@/lib/bible/api";
-import { groupVersesIntoParagraphs, poetryLevelForVerse } from "@/lib/bible/parsePassageHtml";
 import type { Segment } from "@/lib/bible/redLetter";
-import {
-  buildHolmanHeadingMeasureHtml,
-  buildHolmanPageFootnotesMeasureHtml,
-} from "@/lib/bible/holmanStudyLayout";
+import { buildHolmanPageFootnotesMeasureHtml } from "@/lib/bible/holmanStudyLayout";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
+import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
+import { renderScriptureParagraphNodes } from "@/lib/bible/readerScriptureRender";
 import {
-  buildVerseInnerHtml,
-  scriptureParagraphClassNameMeasure,
-  scripturePoetryClassNameMeasure,
-  wrapVerseShellHtml,
-} from "@/lib/bible/scriptureParagraph";
-import { buildVerseXrefsInnerHtml } from "@/lib/bible/verseBodyRender";
-import {
-  headingsForChapter,
-  paragraphStartsForChapter,
-  poetryBlocksForChapter,
-  type ReaderChapterPassage,
-  type ReaderStreamUnit,
+  headingsForChapter, paragraphStartsForChapter, poetryBlocksForChapter,
+  type ReaderChapterPassage, type ReaderStreamUnit,
 } from "@/lib/bible/readerStream";
 import { biblePlateAssetUrl } from "@/lib/bible/biblePlateAssets";
 
@@ -65,59 +55,24 @@ export function buildStreamSliceMeasureHtml(
 
   const flushBatch = () => {
     if (!batch || batch.verses.length === 0) return;
-    const paragraphStarts = new Set(
-      paragraphStartsForChapter(chapters, batch.bookAbbr, batch.chapter),
+    // Measure the actual React paragraph and verse markup. A separate HTML
+    // approximation drifts on button widths, poetry, continuation and spacing.
+    const renderVerse = createReaderVerseRenderer({
+      bibleId: "measure", bookAbbr: batch.bookAbbr, chapter: batch.chapter,
+      useBookSpread: true, studyLayout, redSegments: new Map(),
+      redSegmentsByChapter: redByChapter,
+      ulFor: () => undefined, hlsFor: () => [], noteFor: () => undefined,
+      onVerseNumberClick: () => {}, navigate: () => {}, setNoteOpen: () => {},
+    });
+    const nodes = renderScriptureParagraphNodes(
+      [batch],
+      (book, chapter) => new Set(paragraphStartsForChapter(chapters, book, chapter)),
+      (book, chapter) => new Map(headingsForChapter(chapters, book, chapter).map((heading) => [heading.beforeVerse, heading.text])),
+      renderVerse,
+      (book, chapter) => poetryBlocksForChapter(chapters, book, chapter),
+      { studyLayout },
     );
-    const headingByVerse = new Map<number, string>();
-    for (const h of headingsForChapter(chapters, batch.bookAbbr, batch.chapter)) {
-      headingByVerse.set(h.beforeVerse, h.text);
-    }
-    const poetryBlocks = poetryBlocksForChapter(chapters, batch.bookAbbr, batch.chapter);
-    const redSegments =
-      redByChapter.get(`${batch.bookAbbr}|${batch.chapter}`) ??
-      new Map<number, Segment[]>();
-    const groups = groupVersesIntoParagraphs(batch.verses, paragraphStarts);
-    for (const group of groups) {
-      const first = group.verses[0]?.number;
-      const heading = first != null ? headingByVerse.get(first) : undefined;
-      const versesHtml = group.verses
-        .map((v) => {
-          const inner = buildVerseInnerHtml(
-            v.number,
-            v.text ?? "",
-            redSegments,
-            escapeHtml,
-            v,
-            studyLayout,
-          );
-          const xrefs = buildVerseXrefsInnerHtml(v, escapeHtml, studyLayout);
-          return wrapVerseShellHtml(
-            v.number,
-            batch!.chapter,
-            inner,
-            group.isContinuation,
-            xrefs,
-          );
-        })
-        .join("");
-      const poetryLevel = first != null ? poetryLevelForVerse(poetryBlocks, first) : 0;
-      const paraClass =
-        poetryLevel > 0
-          ? scripturePoetryClassNameMeasure(poetryLevel, group.isContinuation)
-          : scriptureParagraphClassNameMeasure(group.isContinuation);
-      const paraHtml = `<p class="${paraClass}" style="orphans:2;widows:2">${versesHtml}</p>`;
-      if (studyLayout === "holman") {
-        if (heading) {
-          parts.push(buildHolmanHeadingMeasureHtml(heading, batch!.bookAbbr, escapeHtml));
-        }
-        parts.push(paraHtml);
-      } else {
-        if (heading) {
-          parts.push(`<p class="scripture-heading">${escapeHtml(heading)}</p>`);
-        }
-        parts.push(paraHtml);
-      }
-    }
+    parts.push(renderToStaticMarkup(createElement(Fragment, null, nodes)));
     batch = null;
   };
 

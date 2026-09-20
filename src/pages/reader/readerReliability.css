@@ -1,9 +1,23 @@
 /* Inline artwork must not inherit the full-page illustration height. */
 [data-bible-reader] .scripture-plate--compact { height: auto; min-height: 0; margin-bottom: 1em; }
-/* Preserve access when a single verse or its notes exceed the available page. */
-article[data-reader-overflow] { overflow: auto !important; overscroll-behavior: contain; }
-article[data-reader-overflow] [class*="scripture-columns"] { columns: 1 !important; column-count: 1 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
-article[data-reader-overflow] .scripture-page-stack,
-article[data-reader-overflow] .holman-study-stack,
-article[data-reader-overflow] .scripture-page-stack > div,
-article[data-reader-overflow] .holman-study-stack > div { height: auto !important; max-height: none !important; overflow: visible !important; flex: none !important; }
+/* Page mode is paginated. Overflow is remeasured, never changed to a scrolling column. */
+[data-bible-reader] [data-reader-fit-notice] { pointer-events: auto; }
+
+/* Raised note markers at a column boundary need real headroom, not a looser
+   clipping test. The hidden measure and live columns share this inset. */
+[data-bible-reader] [data-reading-area] .scripture-columns-2 {
+  padding-block-start: max(8px, 0.45em);
+}
+
+/* These classes already use vertical-align: super. Tailwind's default relative
+   top:-0.5em for <sup> would raise the glyph a second time, outside the first
+   column line. Let the line box account for the superscript in both trees. */
+[data-reading-area] .scripture-footnote-mark {
+  position: static;
+  top: auto;
+}
+
+[data-reading-area] .scripture-page-footnotes-marker {
+  position: static;
+  top: auto;
+}

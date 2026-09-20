@@ -6,6 +6,8 @@ import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import type { ReaderChapterPassage, ReaderStreamUnit } from "@/lib/bible/readerStream";
 import { buildStreamSliceMeasureHtml, buildStreamSliceFootnotesMeasureHtml } from "@/lib/bible/streamSliceMeasureHtml";
 import { applyScriptureColumnMeasureHtml, applyHolmanStudyMeasureHtml, scriptureContentFitsPage } from "@/lib/bible/readerColumnMeasure";
+import { readerPaginationPrefix } from "@/lib/bible/paginateReaderStream";
+import { readerPageFootnotesEnabled } from "@/lib/bible/holmanStudyLayout";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -24,13 +26,14 @@ interface Props {
   fontSizeStyle?: React.CSSProperties;
   studyLayout?: ResolvedStudyLayout;
   measurementKey?: string;
+  fixedPrefix?: readonly number[];
   onSplitsChange: (splits: number[]) => void;
 }
 const EMPTY_HEADINGS: NonNullable<Props["headings"]> = [];
 const EMPTY_POETRY: PoetryBlock[] = [];
 
 /** Single-page measurement uses the same paragraph, poetry and footnote renderer as spreads. */
-export function Paginator({ verses, paragraphStarts, headings = EMPTY_HEADINGS, poetryBlocks = EMPTY_POETRY, bookAbbr, chapter, pageWidth, pageHeight, firstPageHeight, className, columnsClassName, footerHeight = 0, fontSizeStyle, studyLayout = "inline", measurementKey, onSplitsChange }: Props) {
+export function Paginator({ verses, paragraphStarts, headings = EMPTY_HEADINGS, poetryBlocks = EMPTY_POETRY, bookAbbr, chapter, pageWidth, pageHeight, firstPageHeight, className, columnsClassName, footerHeight = 0, fontSizeStyle, studyLayout = "inline", measurementKey, fixedPrefix, onSplitsChange }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const fontLoadRevision = useFontLoadRevision();
   const chapters = useMemo<ReaderChapterPassage[]>(() => [{ bookAbbr, bookName: bookAbbr, chapter, verses, paragraphStarts, headings, poetryBlocks }], [bookAbbr, chapter, verses, paragraphStarts, headings, poetryBlocks]);
@@ -46,13 +49,13 @@ export function Paginator({ verses, paragraphStarts, headings = EMPTY_HEADINGS, 
     const fits = (start: number, end: number, limit: number) => {
       const slice = stream.slice(start, end);
       const body = buildStreamSliceMeasureHtml(slice, chapters, red, studyLayout);
-      const footnotes = buildStreamSliceFootnotesMeasureHtml(slice);
+      const footnotes = readerPageFootnotesEnabled(false) ? buildStreamSliceFootnotesMeasureHtml(slice) : "";
       if (studyLayout === "holman" || footnotes) applyHolmanStudyMeasureHtml(node, body, "", footnotes, columnsClassName, limit);
       else applyScriptureColumnMeasureHtml(node, body, columnsClassName, limit);
       return scriptureContentFitsPage(node, limit, columnsClassName);
     };
-    const splits = [0];
-    let start = 0;
+    const splits = readerPaginationPrefix(stream.length, fixedPrefix);
+    let start = splits.at(-1)!;
     while (start < stream.length) {
       const limit = Math.max(1, (start === 0 ? resolvedFirstPageHeight : pageHeight) - footerHeight);
       let lastFit = start;
@@ -71,8 +74,8 @@ export function Paginator({ verses, paragraphStarts, headings = EMPTY_HEADINGS, 
     onSplitsChange(splits);
     // Content serialization prevents equal-length edits or new notes from reusing stale measurements.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contentKey, pageWidth, pageHeight, resolvedFirstPageHeight, footerHeight, className, columnsClassName, studyLayout, measurementKey, fontSize, fontFamily, fontLoadRevision, onSplitsChange]);
+  }, [contentKey, pageWidth, pageHeight, resolvedFirstPageHeight, footerHeight, className, columnsClassName, studyLayout, measurementKey, fixedPrefix, fontSize, fontFamily, fontLoadRevision, onSplitsChange]);
   return <div aria-hidden style={{ position: "fixed", top: -99999, left: -99999, width: pageWidth, visibility: "hidden", pointerEvents: "none" }}>
-    <div ref={ref} data-reading-area className={cn(className, studyLayout === "holman" && "reader-holman-study")} style={{ width: pageWidth, ...fontSizeStyle }} />
+    <div ref={ref} data-reading-area className={cn(className, studyLayout === "holman" && "reader-holman-study")} style={{ display: "flow-root", width: pageWidth, ...fontSizeStyle }} />
   </div>;
 }
