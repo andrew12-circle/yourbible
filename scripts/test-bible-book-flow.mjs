@@ -120,6 +120,7 @@ try {
     {name:'single-large', columns:'single', notes:false, study:'inline', scale:1.5, width:1260, height:800},
     {name:'double-poetry-large', columns:'double', notes:true, poetry:true, study:'holman', scale:1.5, width:1260, height:800},
     {name:'double-plain', columns:'double', notes:false, study:'inline', scale:1, width:1440, height:950},
+    {name:'oversized-unit', columns:'double', notes:false, study:'inline', scale:1.5, width:1260, height:800, oversized:true},
   ];
   for (scenario of scenarios) {
     page = await browser.newPage({viewport:{width:scenario.width,height:scenario.height}});
@@ -143,6 +144,37 @@ try {
       return route.abort();
     });
     await page.goto(origin+'/'+basename(scratch)+'/index.html'); await settled();
+    if (scenario.oversized) {
+      const notice = page.getByRole('button', {name:'Open full passage', exact:true}).first();
+      await notice.waitFor({state:'visible',timeout:30000});
+      assert.equal(await page.evaluate(() => localStorage.getItem('yb.reader.displayMode')), 'pages', 'Overflow silently changed reading mode');
+      assert.equal(await page.locator('[data-bible-scroll], [data-reader-overflow]').count(), 0, 'Overflow silently enabled scrolling');
+      const bookPages = await page.locator('[data-reader-page-side] article[data-reading-area]').evaluateAll(nodes => nodes.map(node => ({
+        overflowY: getComputedStyle(node).overflowY,
+        columns: node.querySelector('[class*="scripture-columns"]') ? getComputedStyle(node.querySelector('[class*="scripture-columns"]')).columnCount : null,
+      })));
+      for (const bookPage of bookPages) {
+        assert(!/auto|scroll/.test(bookPage.overflowY), 'Oversized book page acquired an internal scrollbar');
+        if (bookPage.columns) assert.equal(bookPage.columns, '2', 'Overflow collapsed the selected columns');
+      }
+      const savedFont = await page.evaluate(() => localStorage.getItem('yb.fontScale'));
+      const cached = requests.length;
+      await page.screenshot({path:join(output,'book-flow-oversized-notice.png')});
+      await notice.click();
+      await page.locator('[data-bible-scroll]').first().waitFor({state:'visible'});
+      await settled();
+      assert.equal(await page.evaluate(() => localStorage.getItem('yb.reader.displayMode')), 'scroll', 'Explicit full-passage action did not open continuous reading');
+      assert.equal(await page.evaluate(() => localStorage.getItem('yb.fontScale')), savedFont, 'Full-passage recovery changed the font size');
+      assert.equal(await page.locator('[data-reader-fit-notice]').count(), 0, 'Fit notice remained over continuous reading');
+      const expected = syntheticPassage('Jhn',3).verses[0].text.trim();
+      const actual = await page.locator('[data-bible-scroll] [data-verse-id]').first().textContent();
+      assert(actual?.includes(expected), 'Full-passage recovery lost or changed words');
+      assert.equal(requests.length, cached, 'Opening an already loaded full passage fetched Scripture');
+      await page.screenshot({path:join(output,'book-flow-oversized-continuous.png')});
+      record('oversized-unit: fixed book pages retain columns; explicit full-passage choice preserves every word and font size without a provider request');
+      await page.close();page=null;
+      continue;
+    }
     const collected=[], geometries=[];steps=[];
     let reachedNext=false;
     for(let step=0;step<80;step++) {
