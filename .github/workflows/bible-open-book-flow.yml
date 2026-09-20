@@ -2,9 +2,9 @@ name: Bible open-book flow
 on:
   push:
     branches: [main, 'fix/bible-open-book-flow']
-    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', '.github/workflows/bible-open-book-flow.yml']
+    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', 'scripts/test-bible-marker-styles.mjs', '.github/workflows/bible-open-book-flow.yml']
   pull_request:
-    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', '.github/workflows/bible-open-book-flow.yml']
+    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', 'scripts/test-bible-marker-styles.mjs', '.github/workflows/bible-open-book-flow.yml']
 concurrency:
   group: reader-open-book-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
@@ -30,10 +30,15 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci
-      - run: npm run lint
-      - run: npm test
-      - run: npm run build
-      - run: node scripts/check-journal-type-regressions.mjs a071419454cc9a7a68608afb75668dfe642fd799
+      - run: npm run lint 2>&1 | tee "$RUNNER_TEMP/reader-lint.log"
+      - run: npm test 2>&1 | tee "$RUNNER_TEMP/reader-tests.log"
+      - run: npm run build 2>&1 | tee "$RUNNER_TEMP/reader-build.log"
+      - run: node scripts/check-journal-type-regressions.mjs a071419454cc9a7a68608afb75668dfe642fd799 2>&1 | tee "$RUNNER_TEMP/reader-types.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-book-flow-regression
+          path: ${{ runner.temp }}/reader-*.log
   book-flow:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -53,6 +58,7 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
         run: |
+          node scripts/test-bible-marker-styles.mjs 2>&1 | tee "$RUNNER_TEMP/reader-markers.log"
           node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/reader-browser.log"
           node scripts/diagnose-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
       - uses: actions/upload-artifact@v4
@@ -60,6 +66,7 @@ jobs:
         with:
           name: reader-book-flow-evidence
           path: |
+            ${{ runner.temp }}/reader-markers.log
             ${{ runner.temp }}/reader-browser.log
             ${{ runner.temp }}/bible-reader-*.png
             ${{ runner.temp }}/bible-reader-results.json
