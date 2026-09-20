@@ -13,7 +13,7 @@ export function useReaderChapterNavigation(bibleId: string, bibleAbbr?: string) 
   const sequence = useRef(0);
   const [pending, setPending] = useState(false);
   useEffect(() => { sequence.current += 1; setPending(false); return () => { sequence.current += 1; }; }, [bibleId, location.pathname]);
-  const openChapter = useCallback(async (bookAbbr: string, chapter: number, enterAtEnd = false, state?: unknown) => {
+  const openChapter = useCallback(async (bookAbbr: string, chapter: number, enterAtEnd = false, state?: unknown, verse?: number) => {
     if (!bibleId) return;
     const request = ++sequence.current;
     setPending(true);
@@ -21,7 +21,7 @@ export function useReaderChapterNavigation(bibleId: string, bibleAbbr?: string) 
       await client.fetchQuery({ queryKey: passageQueryKey(bibleId, bookAbbr, chapter), queryFn: ({ signal }) => fetchPassageWithCache(bibleId, bookAbbr, chapter, signal, bibleAbbr), staleTime: 7 * 24 * 60 * 60 * 1000 });
       if (request !== sequence.current) return;
       const previous = state ?? location.state;
-      navigate(`/read/${bookAbbr}/${chapter}`, { state: { ...(previous && typeof previous === "object" ? previous : {}), readerEnterAtEnd: enterAtEnd } });
+      navigate(`/read/${bookAbbr}/${chapter}${verse && verse > 0 ? `?v=${verse}` : ""}`, { state: { ...(previous && typeof previous === "object" ? previous : {}), readerEnterAtEnd: enterAtEnd } });
     } catch (error) {
       if (request !== sequence.current) return;
       toast({ title: "Couldn't open that chapter", description: error instanceof Error ? error.message : "Your current page is still available. Try again.", variant: "destructive" });

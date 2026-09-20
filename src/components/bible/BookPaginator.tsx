@@ -20,6 +20,7 @@ import {
 } from "@/lib/bible/readerStream";
 import {
   buildStreamSliceMeasureHtml,
+  buildStreamSliceFootnotesMeasureHtml,
 } from "@/lib/bible/streamSliceMeasureHtml";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { cn } from "@/lib/utils";
@@ -544,12 +545,13 @@ function renderStreamSlice(
     redByChapter,
     studyLayout,
   );
-  if (studyLayout === "holman") {
+  const footnotesHtml = buildStreamSliceFootnotesMeasureHtml(slice);
+  if (studyLayout === "holman" || footnotesHtml) {
     applyHolmanStudyMeasureHtml(
       node,
       scriptureHtml,
       "",
-      "",
+      footnotesHtml,
       columnsClassName,
       contentHeightPx,
       measureOptions,
