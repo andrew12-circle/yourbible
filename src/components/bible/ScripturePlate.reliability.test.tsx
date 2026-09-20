@@ -28,10 +28,10 @@ describe("stable chapter illustrations", () => {
     expect(container.querySelectorAll("[data-test-verse]")).toHaveLength(10);
   });
   it("holds a complete page during remeasurement but never under a different chapter", () => {
-    const { container, rerender } = render(<PageFlip pageKey="p1" scopeKey="John3" ready><p>Chapter three</p></PageFlip>);
-    rerender(<PageFlip pageKey="p1" scopeKey="John3" ready={false}><p>Measuring</p></PageFlip>);
+    const { container, rerender } = render(<PageFlip direction="forward" pageKey="p1" scopeKey="John3" ready><p>Chapter three</p></PageFlip>);
+    rerender(<PageFlip direction="forward" pageKey="p1" scopeKey="John3" ready={false}><p>Measuring</p></PageFlip>);
     expect(container.textContent).toBe("Chapter three"); expect(container.querySelector("[inert]")).not.toBeNull();
-    rerender(<PageFlip pageKey="p1" scopeKey="John4" ready={false}><p>Loading chapter four</p></PageFlip>);
+    rerender(<PageFlip direction="forward" pageKey="p1" scopeKey="John4" ready={false}><p>Loading chapter four</p></PageFlip>);
     expect(container.textContent).toBe("Loading chapter four");
   });
 });

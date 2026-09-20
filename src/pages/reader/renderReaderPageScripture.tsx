@@ -203,6 +203,9 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
       )
     ) : null;
 
+  // An illustration occupies its own page, never a Scripture column or footnote stack.
+  if (!scrollMode && streamSlice?.isPlatePage && pageContentReady) return scriptureContent;
+
   if (useStudyPageStack) {
     return wrapHolmanStudyContent(
       spreadColumnLayout,

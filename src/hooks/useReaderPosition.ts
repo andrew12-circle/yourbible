@@ -58,7 +58,18 @@ export function useReaderPosition(options: Options) {
     }
     return clamp(snapshot.page);
   }, [ready, snapshot, intent, splits, indexForIntent, spread, layoutKey, units, clamp]);
-  const anchor = ready ? anchorAtPage(page) : snapshot.intent === intent ? snapshot.anchor : null;
+  const anchor = useMemo(() => {
+    if (!ready) return snapshot.intent === intent ? snapshot.anchor : null;
+    // Keep the exact logical anchor through repeated reflows. Replacing it with
+    // each new page's first verse makes font-down/font-up cycles drift backwards.
+    if (snapshot.intent === intent && snapshot.anchor) {
+      const index = units.findIndex((unit) => unit.id === snapshot.anchor!.id);
+      const start = splits[page] ?? 0;
+      const end = splits[Math.min(page + (spread ? 2 : 1), splits.length - 1)] ?? units.length;
+      if (index >= start && index < end) return snapshot.anchor;
+    }
+    return anchorAtPage(page);
+  }, [ready, snapshot, intent, units, splits, page, spread, anchorAtPage]);
   useLayoutEffect(() => {
     if (!ready) return;
     setSnapshot((previous) => previous.intent === intent && previous.layout === layoutKey && previous.page === page && previous.anchor?.id === anchor?.id ? previous : { intent, layout: layoutKey, page, anchor });
