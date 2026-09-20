@@ -5,10 +5,11 @@ import PrayerRequestCard from "./PrayerRequestCard";
 import PraiseReportCard from "./PraiseReportCard";
 import type { PrayerRequestRow } from "@/lib/prayer/types";
 
+// Prayer requested/answered fields are dates; journal entry and audit fields are timestamps.
 const request: PrayerRequestRow = {
   id: "request-1", user_id: "test-user", title: "Family provision",
   prayer_text: "Please provide what our family needs.", purpose: "Cover household needs",
-  category: "family", status: "waiting", requested_at: "2026-07-02T12:00:00Z",
+  category: "family", status: "waiting", requested_at: "2026-07-02",
   deadline: "2026-07-31", answered_at: null, amount_requested: 2500, amount_provided: null,
   answer_text: null, private_notes: "", scripture_refs: [], praise_report_entry_id: null,
   sort_order: 0, created_at: "2026-07-02T12:00:00Z", updated_at: "2026-07-02T12:00:00Z",
@@ -27,6 +28,7 @@ describe("Prayer cards", () => {
     expect(screen.getByText(request.prayer_text)).toBeInTheDocument();
     expect(screen.getByText("$2,500")).toBeInTheDocument();
     expect(screen.getByText(/waiting/i)).toBeInTheDocument();
+    expect(screen.getByText(/Requested July 2, 2026/)).toBeInTheDocument();
     expect(screen.getByText("View request")).toBeInTheDocument();
     expect(container.querySelector('[class*="prayer-scroll"]')).toBeNull();
     expect(screen.queryByText("Open scroll")).not.toBeInTheDocument();
@@ -49,7 +51,7 @@ describe("Prayer cards", () => {
   it("uses a plain praise card and retains the journal link, story and answer metadata", () => {
     const { container } = render(
       <MemoryRouter><PraiseReportCard entry={entry} linkedRequest={{
-        ...request, status: "answered", answered_at: "2026-07-20T12:00:00Z", amount_provided: 2500,
+        ...request, status: "answered", answered_at: "2026-07-20", amount_provided: 2500,
       }} /></MemoryRouter>,
     );
     expect(screen.getByRole("link")).toHaveAttribute("href", "/journal/praise-1");
@@ -57,6 +59,7 @@ describe("Prayer cards", () => {
     expect(screen.getByRole("heading", { name: entry.title })).toBeInTheDocument();
     expect(screen.getByText(entry.body)).toBeInTheDocument();
     expect(screen.getByText(/Waited 18 days/)).toBeInTheDocument();
+    expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument();
     expect(screen.getByText("Read praise report")).toBeInTheDocument();
     expect(container.querySelector('[class*="prayer-scroll"]')).toBeNull();
   });
