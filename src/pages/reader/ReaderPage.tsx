@@ -171,6 +171,8 @@ import { useReaderSelectionMarks } from "@/hooks/useReaderSelectionMarks";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
 import { useReaderPosition } from "@/hooks/useReaderPosition";
 import { useReaderChapterNavigation } from "@/hooks/useReaderChapterNavigation";
+import { ReaderPageFitNotice } from "@/components/bible/ReaderPageFitNotice";
+import { useReaderFitCorrection } from "@/hooks/useReaderFitCorrection";
 import { useReaderOverflowRecovery } from "@/hooks/useReaderOverflowRecovery";
 import { useFontLoadRevision } from "@/hooks/useFontLoadRevision";
 import "./readerReliability.css";
@@ -582,13 +584,16 @@ export default function ReaderPage() {
   useEffect(() => {
     setStaleLayoutInk(false);
   }, [layoutFingerprint]);
+  const fitCorrection = useReaderFitCorrection(
+    `${bibleId}|${book.abbr}|${chapter}|${layoutFingerprint}|${fontChoice}|${fontScale}|${readerFontRevision}|${effectiveStudyLayout}|${pageBox.w}|${pageBox.h}`,
+  );
   const singlePaginationKey = useMemo(() => [
     bibleId, book.abbr, chapter, layoutFingerprint, fontChoice, fontScale,
-    readerFontRevision, pageBox.w, pageBox.h, paginatorFirstPageHeight,
+    readerFontRevision, fitCorrection.reserve, pageBox.w, pageBox.h, paginatorFirstPageHeight,
     subsequentPageHeight, spreadColumnLayout, effectiveStudyLayout,
     JSON.stringify(passage), PASSAGE_PARSER_REVISION, READER_PAGINATOR_SPLIT_REVISION,
   ].join("|"), [bibleId, book.abbr, chapter, layoutFingerprint, fontChoice, fontScale,
-    readerFontRevision, pageBox.w, pageBox.h, paginatorFirstPageHeight,
+    readerFontRevision, fitCorrection.reserve, pageBox.w, pageBox.h, paginatorFirstPageHeight,
     subsequentPageHeight, spreadColumnLayout, effectiveStudyLayout, passage]);
   const { streamSplits: splits, onStreamSplitsChange: handleSplitsChange } =
     useKeyedReaderStreamSplits(singlePaginationKey);
@@ -684,6 +689,7 @@ export default function ReaderPage() {
   );
   const streamPaginationKey = [
     bibleId,
+    fitCorrection.reserve,
     readerFontRevision,
     streamCompositionKey,
     layoutFingerprint,
@@ -746,7 +752,7 @@ export default function ReaderPage() {
   // Only measured boundaries are displayable; never synthesize a half-chapter page.
   const displayStreamSplits = navStreamSplits;
   const spreadPanesRenderable = streamSplitsReady;
-  const paginatorFooterHeight = READER_COLUMN_FOOTER_GUARD_PX;
+  const paginatorFooterHeight = READER_COLUMN_FOOTER_GUARD_PX + fitCorrection.reserve;
   const totalPagesForNav = useStreamReader ? totalStreamPages : totalPagesInChapter;
   const routeChapterStartNumber = readReaderPageStartNumber(location.state, book.abbr, chapter);
 
@@ -785,6 +791,11 @@ export default function ReaderPage() {
   const chapterPage = position.page;
   const spreadPageIdx = position.page;
   const pendingVerse = position.anchor?.verse ?? null;
+  const pageFitProblems = useReaderOverflowRecovery(
+    `${singlePaginationKey}|${streamPaginationKey}|${position.page}|${navStreamSplits.join(",")}|${splits.join(",")}`,
+    fitCorrection.requestCorrection,
+    fitCorrection.canCorrect,
+  );
   const [flipDirection, setFlipDirection] = useState<"forward" | "back">("forward");
   useEffect(() => {
     if (!scrollMode) return;
@@ -1185,6 +1196,7 @@ export default function ReaderPage() {
       (isCurrentLeftPage && !measuresFirstPage);
     const globalPage = continuousReaderPageNumber(readerStream, navStreamSplits, book.abbr, chapter, paginatorPageIndex, routeChapterStartNumber);
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
+    const pageFitProblem = !scrollMode && pageFitProblems[side];
     const pageLoading = loadingPassage && verses.length === 0;
     const ready = scrollMode || pageContentReady;
     const showPagePlaceholder = pageLoading || pageOutOfRange || (!scrollMode && !pageContentReady);
@@ -1312,6 +1324,7 @@ export default function ReaderPage() {
               key={`${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`}
               ref={attachMeasureRef}
               data-reading-area
+              {...(pageFitProblem ? { inert: "" } : {})}
               data-reader-selection-disabled={containsAdjacentChapter || undefined}
               aria-busy={!ready}
               className={cn(
@@ -1354,12 +1367,17 @@ export default function ReaderPage() {
                 holmanNavigateRef,
               })}
             </article>
+            {pageFitProblem ? <ReaderPageFitNotice onOpenFullPassage={() => {
+              setDisplayMode("scroll");
+              writeReaderDisplayMode("scroll");
+              if (pageBookAbbr !== book.abbr || pageChapter !== chapter) void openChapter(pageBookAbbr, pageChapter);
+            }} /> : null}
           </div>
         )}
         {!pageLoading && ready ? (
           <ReaderInkLayer
             layerId={inkLayerId}
-            interactive={inkMode}
+            interactive={inkMode && !pageFitProblem}
             getAnchorEl={getInkAnchorEl(inkLayerId)}
             userId={user?.id}
             pageKey={{ book: pageBookAbbr, chapter: pageChapter, pageIndex: pageIdx, side }}
@@ -1419,7 +1437,6 @@ export default function ReaderPage() {
   const mobileChromeBottom = readerMobileSceneBottomClass(showReaderDock);
   const mobilePageTurnBottom = readerMobilePageTurnBottomClass(showReaderDock, compactChrome);
 
-  useReaderOverflowRecovery(`${singlePaginationKey}|${streamPaginationKey}|${activePageIdx}`);
 
   if (!loading && !user) return <Navigate to="/auth" replace />;
   if (!loading && user && needsOnboarding(profile)) return <Navigate to="/onboarding" replace />;

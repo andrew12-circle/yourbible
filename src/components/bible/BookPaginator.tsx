@@ -54,6 +54,6 @@ export function BookPaginator({ chapters, plateFocus, pageWidth, pageHeight, fir
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contentKey, plateFocus?.bookAbbr, plateFocus?.chapter, pageWidth, pageHeight, resolvedFirstPageHeight, footerHeight, className, columnsClassName, spreadMode, studyLayout, measurementKey, fontSize, fontFamily, fontLoadRevision, onSplitsChange]);
   return <div aria-hidden style={{ position: "fixed", top: -99999, left: -99999, width: pageWidth, visibility: "hidden", pointerEvents: "none" }}>
-    <div ref={ref} data-reading-area className={cn(className, studyLayout === "holman" && "reader-holman-study")} style={{ width: pageWidth, ...fontSizeStyle }} />
+    <div ref={ref} data-reading-area className={cn(className, studyLayout === "holman" && "reader-holman-study")} style={{ display: "flow-root", width: pageWidth, ...fontSizeStyle }} />
   </div>;
 }

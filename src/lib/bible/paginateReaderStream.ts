@@ -28,8 +28,8 @@ export function paginateReaderStream(
       if (textFits(start, mid, pageIndex)) { lastFit = mid; lo = mid + 1; }
       else hi = mid - 1;
     }
-    // A title never owns an empty text page. Oversized text remains scrollable
-    // through the reader's overflow recovery rather than being discarded.
+    // A title never owns an empty text page. An irreducible unit is preserved;
+    // the reader offers explicit continuous reading, never silently scrolls a page.
     const minimum = stream[start].kind === "chapter-header" && start + 1 < cap ? start + 2 : start + 1;
     start = Math.min(cap, Math.max(minimum, lastFit));
     splits.push(start);

@@ -4,6 +4,11 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 export function quantizePageBox(width: number, height: number) {
   return { w: Math.max(0, Math.floor(width)), h: Math.max(0, Math.floor(height)) };
 }
+/** Both faces share one allocation size; never size the left face from a wider right face. */
+export function smallestReaderPageBox(boxes: Array<{ w: number; h: number } | null>) {
+  const available = boxes.filter((box): box is { w: number; h: number } => !!box && box.w > 0 && box.h > 0);
+  return available.length ? { w: Math.min(...available.map((box) => box.w)), h: Math.min(...available.map((box) => box.h)) } : null;
+}
 export function useReaderPageMeasurement(bookAbbr: string, chapter: number) {
   const [pageBox, setPageBox] = useState({ w: 0, h: 0 });
   const [firstPageHeight, setFirstPageHeight] = useState(0);
@@ -19,8 +24,8 @@ export function useReaderPageMeasurement(bookAbbr: string, chapter: number) {
     const rest = els.current.rest;
     const firstBox = first ? quantizePageBox(first.clientWidth, first.clientHeight) : null;
     const restBox = rest ? quantizePageBox(rest.clientWidth, rest.clientHeight) : null;
-    if (firstBox && firstBox.h > 0) setFirstPageHeight((old) => old === firstBox.h ? old : firstBox.h);
-    const next = restBox && restBox.w > 0 && restBox.h > 0 ? restBox : firstBox;
+    const next = smallestReaderPageBox([firstBox, restBox]);
+    if (next) setFirstPageHeight((old) => old === next.h ? old : next.h);
     if (next && next.w > 0 && next.h > 0) setPageBox((old) => old.w === next.w && old.h === next.h ? old : next);
   }, []);
   const schedule = useCallback(() => {
