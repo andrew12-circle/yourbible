@@ -1,0 +1,42 @@
+name: Prayer UI
+on:
+  pull_request:
+    paths:
+      - 'src/components/prayer/**'
+      - 'src/pages/prayer/**'
+      - 'src/lib/prayer/**'
+      - 'package*.json'
+      - 'vitest.config.ts'
+      - 'src/test/setup.ts'
+      - '.github/workflows/prayer-ui.yml'
+permissions:
+  contents: read
+concurrency:
+  group: prayer-ui-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  prayer-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Prayer navigation, landing page, cards and existing ledger utilities
+        run: npm test -- src/components/prayer src/pages/prayer src/lib/prayer
+      - name: Lint changed Prayer modules and regression tests
+        run: >-
+          npx eslint
+          src/components/prayer/PrayerShell.tsx
+          src/components/prayer/PrayerShell.test.tsx
+          src/components/prayer/PrayerRequestCard.tsx
+          src/components/prayer/PraiseReportCard.tsx
+          src/components/prayer/PrayerCards.test.tsx
+          src/pages/prayer/PrayerHubPage.tsx
+          src/pages/prayer/PrayerHubPage.test.tsx
+          src/lib/prayer/navigation.ts
+          src/lib/prayer/navigation.test.ts

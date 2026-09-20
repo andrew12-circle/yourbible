@@ -2,16 +2,10 @@ import { Link, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hubShellPageRoot } from "@/lib/shell/hubShellClasses";
+import { getPrayerSection, isPrayerLanding, PRAYER_TABS } from "@/lib/prayer/navigation";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-
-const TABS = [
-  { to: "/prayer", label: "Overview", end: true },
-  { to: "/prayer/requests", label: "Requests", end: false },
-  { to: "/prayer/praise", label: "Praise", end: false },
-  { to: "/prayer/timeline", label: "Timeline", end: false },
-] as const;
 
 type Props = {
   children: React.ReactNode;
@@ -29,10 +23,11 @@ export default function PrayerShell({
   hideTabs = false,
   wide = false,
 }: Props) {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { showHubShell } = useAppShellMode();
   const isMobile = useIsMobile();
-  const isRoot = pathname === "/prayer";
+  const activeSection = getPrayerSection(pathname, search);
+  const isRoot = isPrayerLanding(pathname, search);
   const contentWidth = wide ? "max-w-none" : "max-w-3xl";
   const contentPad = wide
     ? "pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))]"
@@ -88,16 +83,16 @@ export default function PrayerShell({
               aria-label="Prayer sections"
               className="grid grid-cols-4 rounded-xl bg-muted/70 p-1"
             >
-              {TABS.map((tab) => {
-                const active = tab.end
-                  ? pathname === tab.to
-                  : pathname === tab.to || pathname.startsWith(`${tab.to}/`);
+              {PRAYER_TABS.map((tab) => {
+                const active = activeSection === tab.id;
                 return (
                   <Link
-                    key={tab.to}
+                    key={tab.id}
                     to={tab.to}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
                       "inline-flex min-h-11 min-w-0 items-center justify-center rounded-lg px-1.5 py-2 text-xs font-semibold transition sm:px-3 sm:text-sm",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                       active
                         ? "bg-background text-foreground shadow-sm ring-1 ring-border/60"
                         : "text-muted-foreground hover:bg-background/70 hover:text-foreground",

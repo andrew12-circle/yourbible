@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { PartyPopper } from "lucide-react";
+import { ChevronRight, PartyPopper } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDisplayDate, computeWaitDays, humanizeWaitDays } from "@/lib/prayer/stats";
 import type { PrayerRequestRow } from "@/lib/prayer/types";
@@ -27,42 +27,49 @@ export default function PraiseReportCard({
       : null;
 
   return (
-    <Link to={`/journal/${entry.id}`} className={cn("group block transition active:scale-[0.995]", className)}>
-      <div className="prayer-scroll prayer-scroll--card">
-        <div className="prayer-scroll-roll prayer-scroll-roll-top" aria-hidden />
-        <div className="prayer-scroll-body prayer-scroll-parchment">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gold/30 bg-amber-100/80 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-              <PartyPopper className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="font-display text-lg leading-snug text-leather">
-                {entry.title?.trim() || "Praise report"}
-              </h3>
-              {linkedRequest ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Requested {formatDisplayDate(linkedRequest.requested_at)}
-                  {linkedRequest.answered_at
-                    ? ` · Answered ${formatDisplayDate(linkedRequest.answered_at)}`
-                    : ""}
-                  {wait ? ` · Waited ${wait}` : ""}
-                </p>
-              ) : (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {new Date(entry.entry_at_ts).toLocaleDateString(undefined, {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </p>
-              )}
-              {excerpt ? (
-                <p className="prayer-scroll-text mt-2 line-clamp-3 text-[15px]">{excerpt}</p>
-              ) : null}
-            </div>
+    <Link
+      to={`/journal/${entry.id}`}
+      className={cn(
+        "group block h-full min-w-0 rounded-xl border border-border bg-card p-4 text-card-foreground shadow-sm transition-colors sm:p-5",
+        "hover:border-primary/30 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        className,
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <PartyPopper className="h-4 w-4" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-3">
+          <h3 className="break-words font-sans text-base font-semibold leading-snug text-foreground">
+            {entry.title?.trim() || "Praise report"}
+          </h3>
+          {linkedRequest ? (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Requested {formatDisplayDate(linkedRequest.requested_at)}
+              {linkedRequest.answered_at
+                ? ` · Answered ${formatDisplayDate(linkedRequest.answered_at)}`
+                : ""}
+              {wait ? ` · Waited ${wait}` : ""}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {new Date(entry.entry_at_ts).toLocaleDateString(undefined, {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+          )}
+          {excerpt ? (
+            <p className="line-clamp-3 break-words text-sm leading-relaxed text-muted-foreground">
+              {excerpt}
+            </p>
+          ) : null}
+          <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3 text-xs font-medium text-primary">
+            <span>Read praise report</span>
+            <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
           </div>
         </div>
-        <div className="prayer-scroll-roll prayer-scroll-roll-bottom" aria-hidden />
       </div>
     </Link>
   );
