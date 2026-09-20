@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 
-const readerStyles = readFileSync(new URL("../../pages/reader/readerReliability.css", import.meta.url), "utf8");
+// Vite rewrites new URL("*.css", import.meta.url) into a browser asset URL.
+// The test needs the authored stylesheet on disk, not that transformed URL.
+const readerStyles = readFileSync(`${process.cwd()}/src/pages/reader/readerReliability.css`, "utf8");
 const mounted: HTMLElement[] = [];
 afterEach(() => { for (const node of mounted.splice(0)) node.remove(); });
 
