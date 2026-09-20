@@ -1,4 +1,5 @@
 import ArtifactAnalysisStatus, { readArtifactAnalysisState } from "@/components/framework/artifact-detail/ArtifactAnalysisStatus";
+import ArtifactFindingHistory from "@/components/framework/artifact-detail/ArtifactFindingHistory";
 import { FileText, RefreshCw } from "lucide-react";
 import ArtifactPipelineBanner from "@/components/framework/artifact-detail/ArtifactPipelineBanner";
 import ArtifactTranscriptFetchErrorCard from "@/components/framework/artifact-detail/ArtifactTranscriptFetchErrorCard";
@@ -24,6 +25,7 @@ export default function ArtifactDetailProcessingState({ artifact, inFlight, elap
   return (
     <>
       <ArtifactAnalysisStatus artifact={artifact} findingsCount={studyClaimsCount} onResume={onReanalyze} />
+      {versionedAnalysis ? <ArtifactFindingHistory artifactId={artifact.id} /> : null}
       {!versionedAnalysis && inFlight && !transcriptStalled ? (
         <ArtifactPipelineBanner status={artifact.status} kind={artifact.kind} elapsed={elapsed}
           label={stageLabel[artifact.status] ?? "Working…"} hint={stageHint[artifact.status] ?? ""}
