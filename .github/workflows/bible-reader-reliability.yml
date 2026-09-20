@@ -1,16 +1,17 @@
 name: Bible reader reliability
 on:
   push:
-    branches: ['fix/bible-reader-stability']
+    branches: [main, 'fix/bible-reader-stability']
 permissions:
-  contents: write
+  contents: read
 env:
   VITE_SUPABASE_URL: https://example.supabase.co
   VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
   VITE_SUPABASE_ANON_KEY: reader-test-placeholder
 jobs:
   regression:
-    if: github.ref == 'refs/heads/fix/bible-reader-stability'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -23,16 +24,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Apply exact-context source integration on the repair branch
+      - name: Finish exact-context regression integration on the repair branch
+        if: github.ref == 'refs/heads/fix/bible-reader-stability'
         run: |
-          python3 scripts/apply-bible-reader-repair.py
-          git diff --check
-          git config user.name 'Reader reliability repair'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- src supabase/functions/_shared/parsePassageHtml.ts docs/bible-reader-reliability.md scripts/apply-bible-reader-repair.py
-          git restore -- .github/workflows/bible-reader-reliability.yml
-          git commit -m 'fix(reader): integrate stable chapter identity, measured pages, and reading anchors'
-          git push origin HEAD:fix/bible-reader-stability
+          if test -f scripts/finalize-reader-regressions.py; then
+            python3 scripts/finalize-reader-regressions.py
+            git diff --check
+            git config user.name 'Reader reliability repair'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add -- src scripts/finalize-reader-regressions.py
+            git commit -m 'fix(reader): preserve repeated-reflow anchors and validate artwork-only pages'
+            git push origin HEAD:fix/bible-reader-stability
+          fi
           git rev-parse HEAD
       - run: npm ci
       - name: Full repository lint
@@ -51,11 +54,26 @@ jobs:
         id: types
         continue-on-error: true
         run: node scripts/check-journal-type-regressions.mjs 46391e6a3e940133e596bba2850eb34911a4370a 2>&1 | tee "$RUNNER_TEMP/reader-types.log"
+      - name: Browser dependencies
+        id: browser_dependencies
+        continue-on-error: true
+        run: |
+          npm install --prefix "$RUNNER_TEMP/reader-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/reader-playwright/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Real reader browser regressions with all provider requests mocked
+        id: browser
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
+        run: node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/reader-browser.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bible-reader-regression
-          path: ${{ runner.temp }}/reader-*.log
+          path: |
+            ${{ runner.temp }}/reader-*.log
+            ${{ runner.temp }}/bible-reader-*.png
+            ${{ runner.temp }}/bible-reader-results.json
       - name: Require all verification steps
         if: always()
-        run: test '${{ steps.lint.outcome }}' = success && test '${{ steps.tests.outcome }}' = success && test '${{ steps.build.outcome }}' = success && test '${{ steps.types.outcome }}' = success
+        run: test '${{ steps.lint.outcome }}' = success && test '${{ steps.tests.outcome }}' = success && test '${{ steps.build.outcome }}' = success && test '${{ steps.types.outcome }}' = success && test '${{ steps.browser.outcome }}' = success

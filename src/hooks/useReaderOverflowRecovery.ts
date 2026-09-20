@@ -1,20 +1,20 @@
 import { useEffect } from "react";
 
-/** An unusually tall verse must remain accessible even when it cannot fit a page. */
+/** A single oversized verse/footnote must stay accessible, never hidden under overflow. */
 export function useReaderOverflowRecovery(layoutKey: string) {
   useEffect(() => {
     let frame: number | null = null;
     let stopped = false;
     const root = document.querySelector<HTMLElement>("[data-bible-reader]");
     if (!root) return;
+    const clipped = (element: HTMLElement) => element.clientHeight > 0 && (element.scrollHeight > element.clientHeight + 2 || element.scrollWidth > element.clientWidth + 2);
     const check = () => {
       frame = null;
       if (stopped) return;
       for (const article of root.querySelectorAll<HTMLElement>("[data-reader-page-side] article[data-reading-area]")) {
         if (article.closest("[data-bible-scroll]") || article.hasAttribute("data-reader-overflow")) continue;
-        const columns = article.querySelector<HTMLElement>('[class*="scripture-columns"]');
-        const overflowing = columns ? columns.scrollWidth > columns.clientWidth + 2 || columns.scrollHeight > columns.clientHeight + 2 : article.scrollHeight > article.clientHeight + 2;
-        if (overflowing) article.setAttribute("data-reader-overflow", "");
+        const candidates = [article, ...article.querySelectorAll<HTMLElement>('[class*="scripture-columns"], .scripture-page-stack, .scripture-page-stack > div, .holman-study-stack, .holman-study-stack > div')];
+        if (candidates.some(clipped)) article.setAttribute("data-reader-overflow", "");
       }
     };
     const schedule = () => { if (frame == null && !stopped) frame = requestAnimationFrame(check); };
