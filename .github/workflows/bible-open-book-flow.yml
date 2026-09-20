@@ -5,6 +5,9 @@ on:
     paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', '.github/workflows/bible-open-book-flow.yml']
   pull_request:
     paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*flow.mjs', '.github/workflows/bible-open-book-flow.yml']
+concurrency:
+  group: reader-open-book-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 env:
