@@ -37,7 +37,7 @@ export function deduplicateVisuals(assets: readonly VisualAsset[]): VisualAsset[
   const grouped = new Map<string, VisualAsset>();
   for (const asset of assets) {
     let sourceKey = asset.source.url || asset.id;
-    try { sourceKey = decodeURIComponent(sourceKey).replaceAll("_", " "); } catch { /* Keep malformed legacy URL isolated. */ }
+    try { sourceKey = decodeURIComponent(sourceKey).replace(/_/g, " "); } catch { /* Preserve the original key when a legacy URL cannot be decoded. */ }
     const key = `${asset.kind}:${sourceKey}`;
     const previous = grouped.get(key);
     if (!previous) { grouped.set(key, { ...asset, passages: [...asset.passages] }); continue; }
