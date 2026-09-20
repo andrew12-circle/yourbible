@@ -10,9 +10,11 @@ describe("Scripture-based reading position", () => {
     rerender({ ...base, splits: [0, 2, 4, 6, 8, 10, 12], layoutKey: "smaller-page" });
     expect(result.current.page).toBe(2); expect(result.current.anchor?.verse).toBe(5);
   });
-  it("lands at the end after backward chapter navigation", () => {
-    const { result } = renderHook(() => useReaderPosition({ ...base, enterAtEnd: true }));
-    expect(result.current.page).toBe(2); expect(result.current.anchor?.verse).toBe(9);
+  it("lands at the end after backward chapter navigation and keeps that end through reflow", () => {
+    const { result, rerender } = renderHook((options) => useReaderPosition(options), { initialProps: { ...base, enterAtEnd: true } });
+    expect(result.current.page).toBe(2); expect(result.current.anchor?.verse).toBe(12);
+    rerender({ ...base, enterAtEnd: true, splits: [0, 3, 6, 9, 11, 12], layoutKey: "narrower" });
+    expect(result.current.page).toBe(4); expect(result.current.anchor?.verse).toBe(12);
   });
   it("does not reuse another chapter's page index while loading", () => {
     const { result, rerender } = renderHook((options) => useReaderPosition(options), { initialProps: base });
@@ -24,5 +26,12 @@ describe("Scripture-based reading position", () => {
     expect(result.current.page).toBe(1);
     act(() => { result.current.setPage((n) => n - 1); result.current.setPage((n) => n + 2); });
     expect(result.current.page).toBe(2);
+  });
+  it("preserves an explicitly selected verse, not just the first verse on its page", () => {
+    const { result, rerender } = renderHook((options) => useReaderPosition(options), { initialProps: base });
+    act(() => result.current.goToVerse(7));
+    expect(result.current.anchor?.verse).toBe(7);
+    rerender({ ...base, splits: [0, 2, 4, 6, 8, 10, 12], layoutKey: "narrower" });
+    expect(result.current.page).toBe(3); expect(result.current.anchor?.verse).toBe(7);
   });
 });
