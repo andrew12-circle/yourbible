@@ -1,3 +1,4 @@
+import { canResumeArtifactAnalysis } from "@/lib/framework/artifactAnalysisResume";
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -35,7 +36,8 @@ export function useArtifactDetailProcessingActions({
     const analysis = baseMeta.analysis_v2 && typeof baseMeta.analysis_v2 === "object" && !Array.isArray(baseMeta.analysis_v2)
       ? baseMeta.analysis_v2 : null;
     const normalized = normalizePastedTranscript(sourceText);
-    const resume = !replacedTranscript && normalized === a.raw_text && analysis && analysis.state !== "complete" && Boolean(a.processing_token);
+    const resume = !replacedTranscript && Boolean(a.processing_token) &&
+      await canResumeArtifactAnalysis(normalized, analysis).catch(() => false);
     const processingToken = resume ? a.processing_token! : createTranscriptProcessingToken();
     delete baseMeta.analyze_inflight_at;
     if (replacedTranscript) {
@@ -78,13 +80,15 @@ export function useArtifactDetailProcessingActions({
     if (!a?.raw_text.trim() || !transcriptNeedsFormatting) return;
     const normalized = normalizePastedTranscript(a.raw_text);
     setFormattingTranscript(true);
-    const { error } = await supabase.from("artifacts").update({ raw_text: normalized }).eq("id", a.id);
+    let update = supabase.from("artifacts").update({ raw_text: normalized }).eq("id", a.id);
+    if (a.updated_at) update = update.eq("updated_at", a.updated_at);
+    const { data: formatted, error } = await update.select("id").maybeSingle();
     setFormattingTranscript(false);
-    if (error) {
-      toast({ title: "Could not format transcript", description: error.message, variant: "destructive" });
+    if (error || !formatted) {
+      toast({ title: "Could not format transcript", description: error?.message ?? "This source changed in another session. Reload before formatting.", variant: "destructive" });
       return;
     }
-    setA({ ...a, raw_text: normalized });
+    setA(prev => prev?.id === a.id ? { ...prev, raw_text: normalized } : prev);
     toast({ title: "Transcript formatted", description: `${countTimedTranscriptLines(normalized)} timed lines in [M:SS] format.` });
   }, [a, setA, setFormattingTranscript, transcriptNeedsFormatting]);
 
