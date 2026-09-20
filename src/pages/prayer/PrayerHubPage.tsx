@@ -1,15 +1,27 @@
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 import { HandHeart, NotebookPen, Plus, LayoutGrid } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import PrayerShell from "@/components/prayer/PrayerShell";
 import PrayerStatsPanel from "@/components/prayer/PrayerStatsPanel";
 import PrayerRequestCard from "@/components/prayer/PrayerRequestCard";
+import PrayerRequestsListPage from "@/pages/prayer/PrayerRequestsListPage";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getPrayerSection } from "@/lib/prayer/navigation";
 import { usePrayerRequests } from "@/hooks/usePrayerRequests";
 import { usePrayerStats } from "@/hooks/usePrayerStats";
 
 export default function PrayerHubPage() {
+  const { pathname, search } = useLocation();
+  // Render the ledger directly, in both app routers. Do not mount/fetch Overview first.
+  return getPrayerSection(pathname, search) === "overview" ? (
+    <PrayerOverview />
+  ) : (
+    <PrayerRequestsListPage />
+  );
+}
+
+function PrayerOverview() {
   const { user, loading } = useAuth();
   const { rows, loading: listLoading } = usePrayerRequests(user?.id, { status: "all" });
   const stats = usePrayerStats(rows);
@@ -24,13 +36,10 @@ export default function PrayerHubPage() {
   const hasAnswered = recentAnswered.length > 0;
 
   return (
-    <PrayerShell title="Prayer" back="/home" wide>
+    <PrayerShell title="Prayer overview" wide>
       <p className="mb-4 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:mb-5 sm:text-[15px]">
-        <span className="sm:hidden">Record what you are asking God for, then remember how He provides.</span>
-        <span className="hidden sm:inline">
-          Write what you need — item, amount, deadline — and record how God provides. Your journal holds
-          conversation with God; this ledger builds evidence of answered prayer over years.
-        </span>
+        A summary of your prayer requests and answered prayers. Use Requests to add needs,
+        record answers, and keep your ledger up to date.
       </p>
 
       <div className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -41,9 +50,9 @@ export default function PrayerHubPage() {
           </Link>
         </Button>
         <Button asChild variant="outline">
-          <Link to="/prayer/requests">
+          <Link to="/prayer">
             <LayoutGrid className="mr-1.5 h-4 w-4" />
-            Open ledger
+            View requests
           </Link>
         </Button>
         <Button asChild variant="outline" className="hidden sm:inline-flex">
@@ -61,8 +70,8 @@ export default function PrayerHubPage() {
         <PrayerStatsPanel stats={stats} />
       </section>
 
-      <div className={hasAnswered ? "grid gap-8 xl:grid-cols-2" : ""}>
-        <section>
+      <div className={hasAnswered ? "grid min-w-0 gap-6 xl:grid-cols-2" : ""}>
+        <section className="min-w-0">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h2 className="font-sans text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
               Waiting on God
@@ -79,7 +88,7 @@ export default function PrayerHubPage() {
               <p className="mt-2 text-sm text-muted-foreground">No open requests. Add what you are asking God for.</p>
             </div>
           ) : (
-            <div className={cn("grid gap-2", !hasAnswered && "sm:grid-cols-2 xl:grid-cols-3")}>
+            <div className={cn("grid gap-3", !hasAnswered && "sm:grid-cols-2 xl:grid-cols-3")}>
               {waiting.map((r) => (
                 <PrayerRequestCard key={r.id} request={r} />
               ))}
@@ -88,7 +97,7 @@ export default function PrayerHubPage() {
         </section>
 
         {hasAnswered ? (
-          <section>
+          <section className="min-w-0">
             <div className="mb-3 flex items-center justify-between gap-2">
               <h2 className="font-sans text-[13px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Recently answered
@@ -97,7 +106,7 @@ export default function PrayerHubPage() {
                 Praise reports
               </Link>
             </div>
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               {recentAnswered.map((r) => (
                 <PrayerRequestCard key={r.id} request={r} />
               ))}
