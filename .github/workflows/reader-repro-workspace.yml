@@ -1,0 +1,28 @@
+name: Reader reproduction workspace
+on:
+  push:
+    branches: [fix/bible-continuous-chapter-flow]
+    paths: [.github/workflows/reader-repro-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive tracked source only
+        run: git archive HEAD | gzip > "$RUNNER_TEMP/current-reader-source.tar.gz"
+      - name: Browser test runtime
+        run: |
+          npm install --prefix "$RUNNER_TEMP/reader-tools" --no-package-lock playwright@1.55.0
+          tar -czf "$RUNNER_TEMP/reader-tools.tar.gz" -C "$RUNNER_TEMP/reader-tools" node_modules
+      - uses: actions/upload-artifact@v4
+        with:
+          name: current-reader-workspace
+          path: |
+            ${{ runner.temp }}/current-reader-source.tar.gz
+            ${{ runner.temp }}/reader-tools.tar.gz
+          retention-days: 1
