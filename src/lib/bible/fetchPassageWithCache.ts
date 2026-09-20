@@ -1,78 +1,45 @@
 import { fetchPassage, type Passage } from "@/lib/bible/api";
-import { adjacentChapterRefs } from "@/lib/bible/adjacentChapters";
-import { isCanonicalCsbBible } from "@/lib/bible/canonical";
+import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { getCachedPassage, setCachedPassage } from "@/lib/bible/passageCache";
-import { queryClient } from "@/lib/queryClient";
-import { passageQueryKey } from "@/hooks/usePassage";
+import { identifyReaderPassage } from "@/lib/bible/readerPassageIdentity";
 
-async function prefetchChapter(
-  bibleId: string,
-  book: string,
-  chapter: number,
-  bibleAbbr?: string,
-): Promise<void> {
-  const key = passageQueryKey(bibleId, book, chapter);
-  if (queryClient.getQueryData(key)) return;
-
-  const cached = await getCachedPassage(bibleId, book, chapter);
-  if (cached) {
-    queryClient.setQueryData(key, cached.passage);
-    return;
-  }
-
-  try {
-    const passage = await fetchPassage(bibleId, book, chapter, undefined, bibleAbbr);
-    await setCachedPassage(bibleId, book, chapter, passage);
-    queryClient.setQueryData(key, passage);
-  } catch {
-    /* best-effort prefetch */
-  }
+function checkAbort(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 }
 
 export async function fetchPassageWithCache(
-  bibleId: string,
-  book: string,
-  chapter: number,
-  signal?: AbortSignal,
-  bibleAbbr?: string,
+  bibleId: string, book: string, chapter: number, signal?: AbortSignal, bibleAbbr?: string,
 ): Promise<Passage> {
-  if (isCanonicalCsbBible(bibleId)) {
-    return fetchPassage(bibleId, book, chapter, signal, bibleAbbr);
-  }
-
-  const cached = await getCachedPassage(bibleId, book, chapter);
-
-  if (typeof navigator !== "undefined" && !navigator.onLine) {
-    if (cached) return cached.passage;
-    throw new Error("You are offline and this chapter is not saved yet.");
-  }
-
-  try {
+  checkAbort(signal);
+  // Delivery mode, not the CSB identifier, decides whether a shipped bundle wins.
+  // In production CSB is remote and must use its bounded, provenance-separated cache.
+  if (isBundledBibleId(bibleId)) {
     const passage = await fetchPassage(bibleId, book, chapter, signal, bibleAbbr);
-    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    await setCachedPassage(bibleId, book, chapter, passage);
-    for (const ref of adjacentChapterRefs(book, chapter)) {
-      void prefetchChapter(bibleId, ref.book, ref.chapter, bibleAbbr);
-    }
-
-    return passage;
-  } catch (err) {
-    if (cached) return cached.passage;
-    throw err;
+    checkAbort(signal);
+    return identifyReaderPassage(passage, bibleId, book, chapter);
   }
+  const cached = await getCachedPassage(bibleId, book, chapter);
+  checkAbort(signal);
+  if (cached) {
+    try { return identifyReaderPassage(cached.passage, bibleId, book, chapter); }
+    catch { /* An invalid record is a cache miss, never Scripture for another chapter. */ }
+  }
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    throw new Error("This chapter is not available in a valid offline cache. Reconnect to open it.");
+  }
+  const passage = await fetchPassage(bibleId, book, chapter, signal, bibleAbbr);
+  checkAbort(signal);
+  const verified = identifyReaderPassage(passage, bibleId, book, chapter);
+  await setCachedPassage(bibleId, book, chapter, verified);
+  checkAbort(signal);
+  return verified;
 }
 
-export async function hydratePassageFromCache(
-  bibleId: string,
-  book: string,
-  chapter: number,
-): Promise<Passage | undefined> {
-  // A legacy IndexedDB entry may have come from API.Bible. The bundled CSB is
-  // authoritative for this reader session, so never let stale cache data win
-  // the query race over the shipped chapter bundle.
-  if (isCanonicalCsbBible(bibleId)) return undefined;
+/** Compatibility read. Query functions, not competing hydration effects, own publication. */
+export async function hydratePassageFromCache(bibleId: string, book: string, chapter: number): Promise<Passage | undefined> {
+  if (isBundledBibleId(bibleId)) return undefined;
   const cached = await getCachedPassage(bibleId, book, chapter);
   if (!cached) return undefined;
-  queryClient.setQueryData(passageQueryKey(bibleId, book, chapter), cached.passage);
-  return cached.passage;
+  try { return identifyReaderPassage(cached.passage, bibleId, book, chapter); }
+  catch { return undefined; }
 }

@@ -1,0 +1,4 @@
+/* Last-resort recovery for a verse/footnote group taller than a page. Never hide Scripture. */
+article[data-reader-overflow] { overflow: auto !important; overscroll-behavior: contain; }
+article[data-reader-overflow] [class*="scripture-columns"] { columns: 1 !important; column-count: 1 !important; height: auto !important; max-height: none !important; overflow: visible !important; }
+article[data-reader-overflow] .reader-holman-stack { height: auto !important; max-height: none !important; overflow: visible !important; }

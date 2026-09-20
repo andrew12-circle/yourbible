@@ -1,82 +1,27 @@
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 interface Props {
   pageKey: string;
   direction: "forward" | "back";
   side?: "left" | "right";
-  /** Subtle horizontal slide — single-page mobile only; spread stays fade-only. */
   enableSlide?: boolean;
-  /** Instant swap — no crossfade (avoids empty-page flash while paginating). */
   instant?: boolean;
+  ready?: boolean;
+  scopeKey?: string;
   children: ReactNode;
 }
-
-const DURATION = 0.36;
-const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
-const SLIDE_PX = 14;
-
-function slideForTurn(
-  direction: "forward" | "back",
-  side: "left" | "right",
-  phase: "enter" | "exit",
-): number {
-  const forward = direction === "forward";
-  const outward = side === "left" ? -1 : 1;
-  if (phase === "enter") {
-    return forward ? -outward * SLIDE_PX : outward * SLIDE_PX;
-  }
-  return forward ? outward * SLIDE_PX : -outward * SLIDE_PX;
-}
-
-/** Crossfade between pages; optional gentle slide on single-page turns. */
-export function PageFlip({
-  pageKey,
-  direction,
-  side = "left",
-  enableSlide = false,
-  instant = false,
-  children,
-}: Props) {
+/** Hold a complete page only within its own edition/chapter, with interactions suspended. */
+export function PageFlip({ pageKey, direction, side = "left", enableSlide = false, instant = true, ready = true, scopeKey = pageKey, children }: Props) {
   const reduceMotion = useReducedMotion();
-  if (instant || reduceMotion) {
-    return (
-      <div
-        key={pageKey}
-        className="relative h-full w-full min-h-0 min-w-0 overflow-hidden bg-paper"
-      >
-        {children}
-      </div>
-    );
-  }
-  const slide = enableSlide;
-  const turn = !slide;
-  const enterX = slide ? slideForTurn(direction, side, "enter") : 0;
-  const exitX = slide ? slideForTurn(direction, side, "exit") : 0;
-  const outward = side === "left" ? -1 : 1;
-  const turnDirection = direction === "forward" ? 1 : -1;
-  const exitRotateY = turn ? outward * turnDirection * 8 : 0;
-  const enterRotateY = turn ? -exitRotateY : 0;
-  const transition = { duration: DURATION, ease: EASE };
-
-  return (
-    <motion.div
-      className="relative h-full w-full min-h-0 min-w-0 overflow-hidden bg-paper"
-      style={turn ? { perspective: 1600 } : undefined}
-    >
-      <AnimatePresence mode="sync" initial={false}>
-        <motion.div
-          key={pageKey}
-          initial={{ opacity: 0, x: enterX, rotateY: enterRotateY }}
-          animate={{ opacity: 1, x: 0, rotateY: 0 }}
-          exit={{ opacity: 0, x: exitX, rotateY: exitRotateY, pointerEvents: "none" }}
-          transition={transition}
-          className="absolute inset-0 h-full w-full overflow-hidden bg-paper will-change-[opacity,transform] [backface-visibility:hidden]"
-          style={turn ? { transformOrigin: side === "left" ? "right center" : "left center" } : undefined}
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
-    </motion.div>
-  );
+  const previous = useRef<{ scopeKey: string; pageKey: string; children: ReactNode } | null>(null);
+  useLayoutEffect(() => { if (ready) previous.current = { scopeKey, pageKey, children }; }, [ready, scopeKey, pageKey, children]);
+  const held = !ready && previous.current?.scopeKey === scopeKey ? previous.current : null;
+  const displayedKey = held?.pageKey ?? pageKey;
+  const displayedChildren = held?.children ?? children;
+  const x = enableSlide ? (direction === "forward" ? 14 : -14) * (side === "left" ? 1 : -1) : 0;
+  return <div className="relative h-full w-full min-h-0 min-w-0 overflow-hidden bg-paper" aria-busy={!ready} {...(!ready ? { inert: "" } : {})}>
+    {instant || reduceMotion || !ready ? <div key={displayedKey} className="h-full w-full min-h-0">{displayedChildren}</div> :
+      <AnimatePresence initial={false} mode="sync"><motion.div key={displayedKey} className="absolute inset-0 h-full w-full overflow-hidden bg-paper" initial={{ opacity: 0, x }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -x, pointerEvents: "none" }} transition={{ duration: 0.18 }}>{displayedChildren}</motion.div></AnimatePresence>}
+  </div>;
 }
