@@ -35,38 +35,42 @@ function LibraryBrowser({ book, chapter, onNavigate, assets = VISUAL_CATALOGUE }
   const reset = () => { setQuery(""); setKind("all"); setBookFilter(""); setCreator(""); setSource(""); setPage(1); };
   const changePage = (next: number) => { setPage(next); resultsHeading.current?.focus(); resultsHeading.current?.scrollIntoView?.({ block: "nearest" }); };
 
-  return <section aria-label="Visual Bible library" className="space-y-5" data-testid="visual-bible-library">
+  return <section aria-label="Visual Bible library" className="min-w-0 space-y-5" data-testid="visual-bible-library">
     <header className="space-y-2">
       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">Explore the world of Scripture</p>
       <h2 className="font-serif text-2xl">Visual Bible library</h2>
-      <p className="max-w-2xl text-sm text-muted-foreground">Paintings, maps, objects and places. Every visual includes its source and an explanation of its connection to Scripture.</p>
+      <p className="max-w-2xl text-sm text-muted-foreground">Explore art, maps, objects and places linked to Scripture.</p>
       {book ? <div className="flex flex-wrap gap-2" aria-label="Library scope">
         <button type="button" aria-pressed={chapterOnly} className="min-h-11 rounded-full border px-4 text-sm aria-pressed:bg-primary aria-pressed:text-primary-foreground" onClick={() => { setChapterOnly(true); reset(); }}>This chapter · {contextName} {chapter}</button>
         <button type="button" aria-pressed={!chapterOnly} className="min-h-11 rounded-full border px-4 text-sm aria-pressed:bg-primary aria-pressed:text-primary-foreground" onClick={() => { setChapterOnly(false); reset(); }}>Entire library</button>
       </div> : null}
     </header>
-    <div className="space-y-3 rounded-xl border bg-muted/20 p-3 sm:p-4">
+    <div className="min-w-0 space-y-3 rounded-xl border bg-muted/20 p-3 sm:p-4">
       <label htmlFor={`${id}-search`} className="block text-sm font-medium">Search the collection</label>
-      <input id={`${id}-search`} type="search" value={query} placeholder="Artist, place, object, period or Scripture…" className={inputClass} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
-      <div className="grid gap-3 sm:grid-cols-3">
-        <label className="space-y-1 text-xs">Book<select aria-label="Filter by Bible book" className={inputClass} value={chapterOnly ? book : bookFilter} disabled={chapterOnly} onChange={(event) => { setBookFilter(event.target.value); setPage(1); }}>
-          <option value="">All books</option>{books.map((item) => <option key={item.abbr} value={item.abbr}>{item.name}</option>)}
-        </select></label>
-        <label className="space-y-1 text-xs">Artist / maker<select aria-label="Filter by artist or maker" className={inputClass} value={creator} onChange={(event) => { setCreator(event.target.value); setPage(1); }}>
-          <option value="">All artists and makers</option>{creators.map((name) => <option key={name}>{name}</option>)}
-        </select></label>
-        <label className="space-y-1 text-xs">Collection<select aria-label="Filter by source collection" className={inputClass} value={source} onChange={(event) => { setSource(event.target.value); setPage(1); }}>
-          <option value="">All collections</option>{sources.map((name) => <option key={name}>{name}</option>)}
-        </select></label>
+      <input id={`${id}-search`} type="search" value={query} placeholder="Artist, place, object or Scripture…" className={inputClass} onChange={(event) => { setQuery(event.target.value); setPage(1); }} />
+      <details>
+        <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">More filters{bookFilter || creator || source ? " · Active" : ""}</summary>
+        <div className="grid gap-3 pb-2 sm:grid-cols-3">
+          <label className="space-y-1 text-xs">Book<select aria-label="Filter by Bible book" className={inputClass} value={chapterOnly ? book : bookFilter} disabled={chapterOnly} onChange={(event) => { setBookFilter(event.target.value); setPage(1); }}>
+            <option value="">All books</option>{books.map((item) => <option key={item.abbr} value={item.abbr}>{item.name}</option>)}
+          </select></label>
+          <label className="space-y-1 text-xs">Artist / maker<select aria-label="Filter by artist or maker" className={inputClass} value={creator} onChange={(event) => { setCreator(event.target.value); setPage(1); }}>
+            <option value="">All artists and makers</option>{creators.map((name) => <option key={name}>{name}</option>)}
+          </select></label>
+          <label className="space-y-1 text-xs">Collection<select aria-label="Filter by source collection" className={inputClass} value={source} onChange={(event) => { setSource(event.target.value); setPage(1); }}>
+            <option value="">All collections</option>{sources.map((name) => <option key={name}>{name}</option>)}
+          </select></label>
+        </div>
+      </details>
+      <div className="flex min-w-0 gap-2 overflow-x-auto pb-1 sm:flex-wrap" role="group" aria-label="Visual categories">
+        <button type="button" aria-pressed={kind === "all"} className="min-h-11 shrink-0 whitespace-nowrap rounded-full border px-3 text-xs aria-pressed:bg-primary aria-pressed:text-primary-foreground" onClick={() => { setKind("all"); setPage(1); }}>All ({categoryBase.length})</button>
+        {VISUAL_KINDS.map((key) => <button key={key} type="button" aria-pressed={kind === key} className="min-h-11 shrink-0 whitespace-nowrap rounded-full border px-3 text-xs aria-pressed:bg-primary aria-pressed:text-primary-foreground" onClick={() => { setKind(key); setPage(1); }}>{KIND_LABELS[key]} ({counts[key]})</button>)}
       </div>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Visual categories">
-        <button type="button" aria-pressed={kind === "all"} className="min-h-11 rounded-full border px-3 text-xs aria-pressed:bg-primary aria-pressed:text-primary-foreground" onClick={() => { setKind("all"); setPage(1); }}>All ({categoryBase.length})</button>
-        {VISUAL_KINDS.map((key) => <button key={key} type="button" aria-pressed={kind === key} className="min-h-11 rounded-full border px-3 text-xs aria-pressed:bg-primary aria-pressed:text-primary-foreground" onClick={() => { setKind(key); setPage(1); }}>{KIND_LABELS[key]} ({counts[key]})</button>)}
-      </div>
+      <p className="text-[11px] text-muted-foreground sm:hidden">Swipe categories to see maps, places and more.</p>
     </div>
     <div className="flex items-center justify-between gap-3">
       <p ref={resultsHeading} tabIndex={-1} aria-live="polite" aria-atomic="true" className="text-sm text-muted-foreground">{filtered.length} visuals · Page {current.page} of {current.pageCount}</p>
-      <button type="button" onClick={reset} className="min-h-11 px-2 text-sm underline underline-offset-2">Clear filters</button>
+      <button type="button" onClick={reset} className="min-h-11 shrink-0 px-2 text-sm underline underline-offset-2">Clear filters</button>
     </div>
     {!filtered.length ? <div className="rounded-xl border p-8 text-center text-sm">
       <h3 className="mb-2 font-medium">No visuals match this selection</h3>

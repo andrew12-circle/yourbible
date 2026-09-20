@@ -103,14 +103,16 @@ export default function StudyBackMatterPage() {
         )}
         data-bible-scroll
       >
-        <h1 className="study-back-matter-title">{studySection.title}</h1>
-        {studySection.subtitle ? (
-          <p className="study-back-matter-subtitle">{studySection.subtitle}</p>
-        ) : null}
-        <div
-          className="study-back-matter-body"
-          dangerouslySetInnerHTML={{ __html: studySection.bodyHtml }}
-        />
+        {studySection.id !== "artwork" ? <>
+          <h1 className="study-back-matter-title">{studySection.title}</h1>
+          {studySection.subtitle ? (
+            <p className="study-back-matter-subtitle">{studySection.subtitle}</p>
+          ) : null}
+          <div
+            className="study-back-matter-body"
+            dangerouslySetInnerHTML={{ __html: studySection.bodyHtml }}
+          />
+        </> : <h1 className="sr-only">Visual Bible library</h1>}
         {studySection.id === "concordance" && bibleId ? (
           <StudyConcordanceSearch bibleId={bibleId} />
         ) : null}
@@ -154,7 +156,7 @@ export default function StudyBackMatterPage() {
       className={cn("relative transition-all duration-700 overflow-hidden flex min-h-0 flex-col h-[100dvh]")}
     >
       <TopBar
-        reference={studySection.title}
+        reference={studySection.id === "artwork" ? "Visual Bible library" : studySection.title}
         collapsed={false}
         focusMode={false}
         onToggleFocus={() => {}}
