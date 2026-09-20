@@ -12,7 +12,11 @@
 /* These classes already use vertical-align: super. Tailwind's default relative
    top:-0.5em for <sup> would raise the glyph a second time, outside the first
    column line. Let the line box account for the superscript in both trees. */
-[data-reading-area] .scripture-footnote-mark,
+[data-reading-area] .scripture-footnote-mark {
+  position: static;
+  top: auto;
+}
+
 [data-reading-area] .scripture-page-footnotes-marker {
   position: static;
   top: auto;
