@@ -2,3 +2,9 @@
 [data-bible-reader] .scripture-plate--compact { height: auto; min-height: 0; margin-bottom: 1em; }
 /* Page mode is paginated. Overflow is remeasured, never changed to a scrolling column. */
 [data-bible-reader] [data-reader-fit-notice] { pointer-events: auto; }
+
+/* Raised note markers at a column boundary need real headroom, not a looser
+   clipping test. The hidden measure and live columns share this inset. */
+[data-bible-reader] [data-reading-area] .scripture-columns-2 {
+  padding-block-start: max(8px, 0.45em);
+}
