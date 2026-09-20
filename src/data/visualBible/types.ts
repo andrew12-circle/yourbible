@@ -24,6 +24,8 @@ export interface VisualPassage {
 export interface VisualSource {
   name: string;
   objectId?: string;
+  /** Stable side/page/view identifier when one source record contains multiple images. */
+  viewId?: string;
   url: string;
   license: string;
   licenseUrl?: string;

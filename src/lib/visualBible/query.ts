@@ -1,5 +1,7 @@
 import { BOOKS } from "@/data/books";
 import type { VisualAsset, VisualKind, VisualPassage } from "@/data/visualBible/types";
+import { extractVisualReference, visualReferenceOverlaps } from "./referenceSearch";
+import { visualSourceIdentity } from "./sourceIdentity";
 
 export const VISUAL_PAGE_SIZE = 24;
 export function normalizeVisualText(text: string): string {
@@ -16,12 +18,15 @@ export function passageMatches(passage: VisualPassage, book: string, chapter?: n
 }
 export interface VisualFilters { query?: string; kind?: VisualKind | "all"; book?: string; chapter?: number; creator?: string; source?: string; }
 export function filterVisuals(assets: readonly VisualAsset[], filters: VisualFilters = {}): VisualAsset[] {
-  const words = normalizeVisualText(filters.query ?? "").split(" ").filter(Boolean);
+  const { text: remainingText, reference } = extractVisualReference(filters.query ?? "");
+  if (reference && !reference.valid) return [];
+  const words = normalizeVisualText(remainingText).split(" ").filter(Boolean);
   return assets.filter((asset) => {
     if (filters.kind && filters.kind !== "all" && asset.kind !== filters.kind) return false;
     if (filters.book && !asset.passages.some((p) => passageMatches(p, filters.book!, filters.chapter))) return false;
     if (filters.creator && asset.creator !== filters.creator) return false;
     if (filters.source && asset.source.name !== filters.source) return false;
+    if (reference && !asset.passages.some((p) => visualReferenceOverlaps(p, reference))) return false;
     if (!words.length) return true;
     const text = normalizeVisualText([asset.title, asset.creator, asset.date, asset.culture, asset.medium, asset.source.name, ...asset.tags, ...asset.passages.flatMap((p) => [passageLabel(p), `${p.book} ${p.chapter}`])].join(" "));
     return words.every((word) => text.includes(word));
@@ -32,13 +37,11 @@ export function visualPage(assets: readonly VisualAsset[], requestedPage: number
   const page = Math.max(1, Math.min(pageCount, Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 1));
   return { page, pageCount, items: assets.slice((page - 1) * VISUAL_PAGE_SIZE, page * VISUAL_PAGE_SIZE) };
 }
-/** Dedupe source identities, not titles: two artists can paint the same subject. */
+/** Dedupe the same source view, not titles or distinct sides of a museum object. */
 export function deduplicateVisuals(assets: readonly VisualAsset[]): VisualAsset[] {
   const grouped = new Map<string, VisualAsset>();
   for (const asset of assets) {
-    let sourceKey = asset.source.url || asset.id;
-    try { sourceKey = decodeURIComponent(sourceKey).replace(/_/g, " "); } catch { /* Preserve the original key when a legacy URL cannot be decoded. */ }
-    const key = `${asset.kind}:${sourceKey}`;
+    const key = visualSourceIdentity(asset);
     const previous = grouped.get(key);
     if (!previous) { grouped.set(key, { ...asset, passages: [...asset.passages] }); continue; }
     for (const passage of asset.passages) {
