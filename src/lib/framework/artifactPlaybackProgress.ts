@@ -22,7 +22,7 @@ export async function upsertArtifactPlaybackProgress(userId: string, artifactId:
   }, { onConflict: "user_id,artifact_id" });
   if (error) throw new Error("Playback progress could not be saved");
 }
-export function readPlaybackSecondsLocal(artifactId: string, userId?: string): number | null> {
+export function readPlaybackSecondsLocal(artifactId: string, userId?: string): number | null {
   return readPlaybackSnapshot(artifactId, userId)?.seconds ?? (userId ? null : readPlaybackSecondsFromSession(artifactId));
 }
 export function writePlaybackSecondsLocal(artifactId: string, seconds: number, userId?: string) {
