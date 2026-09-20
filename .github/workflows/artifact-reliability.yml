@@ -56,7 +56,9 @@ jobs:
       - name: Database preservation, leases and rollback tests
         env:
           PGPASSWORD: artifact-ci-only
-        run: psql -h localhost -U postgres -d artifact_test -f scripts/test-artifact-migration.sql 2>&1 | tee "$RUNNER_TEMP/artifact-database.log"
+        run: |
+          psql -h localhost -U postgres -d artifact_test -f scripts/test-artifact-migration.sql 2>&1 | tee "$RUNNER_TEMP/artifact-database.log"
+          psql -h localhost -U postgres -d artifact_test -f scripts/test-artifact-research-guard.sql 2>&1 | tee -a "$RUNNER_TEMP/artifact-database.log"
       - name: Edge function type checks
         run: deno check supabase/functions/framework-analyze/index.ts supabase/functions/artifact-analysis-worker/index.ts 2>&1 | tee "$RUNNER_TEMP/artifact-edge-types.log"
       - run: npm run lint 2>&1 | tee "$RUNNER_TEMP/artifact-lint.log"
