@@ -1,7 +1,8 @@
 name: Bible open-book flow
 on:
   push:
-    branches: ['fix/bible-open-book-flow']
+    branches: [main, 'fix/bible-open-book-flow']
+    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/test-bible-book-flow.mjs', '.github/workflows/bible-open-book-flow.yml']
   pull_request:
     paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/test-bible-book-flow.mjs', '.github/workflows/bible-open-book-flow.yml']
 permissions:
@@ -21,40 +22,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Source workspace for isolated regression development
-        run: git archive HEAD src scripts docs .cursor supabase/functions .github AGENTS.md package.json package-lock.json vite.config.ts vitest.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json tailwind.config.ts postcss.config.js eslint.config.js index.html public/bible-plates | gzip > "$RUNNER_TEMP/reader-source.tar.gz"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: reader-source
-          path: ${{ runner.temp }}/reader-source.tar.gz
-          retention-days: 1
       - run: npm ci
-      - name: Isolated dependencies
-        run: tar -czf "$RUNNER_TEMP/reader-dependencies.tar.gz" node_modules
-      - uses: actions/upload-artifact@v4
-        with:
-          name: reader-dependencies
-          path: ${{ runner.temp }}/reader-dependencies.tar.gz
-          retention-days: 1
       - name: Browser dependencies
         run: |
           npm install --prefix "$RUNNER_TEMP/reader-playwright" --no-package-lock playwright@1.55.0
           "$RUNNER_TEMP/reader-playwright/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Reader browser tests without live Scripture requests
+      - name: Real-reader visible fit and open-book flow
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
-        run: |
-          if test -f scripts/test-bible-book-flow.mjs; then
-            node scripts/test-bible-book-flow.mjs
-          else
-            node scripts/test-bible-reader.mjs
-          fi
+        run: node scripts/test-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: reader-book-flow-evidence
           path: |
-            ${{ runner.temp }}/bible-reader-*.png
-            ${{ runner.temp }}/bible-reader-results.json
+            ${{ runner.temp }}/book-flow.log
             ${{ runner.temp }}/book-flow-*.png
             ${{ runner.temp }}/book-flow-*.json
