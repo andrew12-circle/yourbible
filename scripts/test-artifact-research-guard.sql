@@ -26,4 +26,19 @@ begin
   perform public.assert_artifact((select count(*) = 0 from public.artifact_claim_research_runs), 'intentional artifact deletion removes owned research');
 end $$;
 rollback;
+
+-- Match production account cascades, deliberately creating the finding FK first.
+-- Everything here is rolled back and is only run in the disposable fixture database.
+begin;
+alter table public.artifact_claims drop constraint artifact_claims_user_id_fkey;
+alter table public.artifacts drop constraint artifacts_user_id_fkey;
+alter table public.artifact_claims add constraint artifact_claims_user_id_fkey
+  foreign key(user_id) references auth.users(id) on delete cascade;
+alter table public.artifacts add constraint artifacts_user_id_fkey
+  foreign key(user_id) references auth.users(id) on delete cascade;
+delete from auth.users where id = '00000000-0000-0000-0000-000000000001';
+select public.assert_artifact(not exists(select 1 from public.artifacts where user_id = '00000000-0000-0000-0000-000000000001'), 'intentional account deletion removes artifacts');
+select public.assert_artifact(not exists(select 1 from public.artifact_claims where user_id = '00000000-0000-0000-0000-000000000001'), 'intentional account deletion removes findings regardless of cascade order');
+select public.assert_artifact((select count(*) = 0 from public.artifact_claim_research_runs), 'intentional account deletion removes owned research');
+rollback;
 select 'Artifact research deletion guard passed.' as result;
