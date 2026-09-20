@@ -14,6 +14,20 @@ writeFileSync(join(scratch,'index.html'),'<html><body><div id="root"></div><scri
 writeFileSync(join(scratch,'user-data.ts'),`const none=[];const noop=async()=>{};const data={highlights:none,notes:none,setMark:noop,setMarks:noop,setMarkRanges:noop,upsertNote:noop,deleteNote:noop};export function useChapterData(){return data}export function useBookmarks(){return {bookmarks:none,setBookmark:noop}}`);
 writeFileSync(join(scratch,'shell.ts'),'export function useAppShellMode(){return {showHubShell:false}}');
 writeFileSync(join(scratch,'onboarding.ts'),'export function needsOnboarding(){return false}');
+writeFileSync(join(scratch,'position.ts'), `
+import {useReaderPosition as original} from ${JSON.stringify(join(root,'src/hooks/useReaderPosition.ts'))};
+export function useReaderPosition(options) {
+  const result=original(options);
+  const key=options.layoutKey;
+  let hash=0;for(let i=0;i<key.length;i++)hash=(hash*31+key.charCodeAt(i))|0;
+  const item={page:result.page,anchor:result.anchor?.id,ready:options.ready,layout:hash,splits:options.splits};
+  const history=window.__readerPositionHistory??=[];
+  if(JSON.stringify(history.at(-1))!==JSON.stringify(item))history.push(item);
+  if(history.length>100)history.shift();
+  window.__readerPositionHistory=history;
+  return result;
+}
+`);
 writeFileSync(join(scratch,'fixture.tsx'),`
 import React from 'react';import{createRoot}from'react-dom/client';import{MemoryRouter,Routes,Route,useNavigate,useLocation}from'react-router-dom';
 import{QueryClient,QueryClientProvider}from'@tanstack/react-query';import{AuthContext}from'@/contexts/AuthContext';import{TooltipProvider}from'@/components/ui/tooltip';
@@ -26,11 +40,12 @@ const client=new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWind
 function Test(){window.__navigate=useNavigate();window.__path=useLocation().pathname;return <ReaderPage/>}
 createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={[sessionStorage.getItem('reader-fixture-path')||'/read/Jhn/3']}><QueryClientProvider client={client}><AuthContext.Provider value={auth as never}><TooltipProvider><Routes><Route path="/read/:book/:chapter" element={<Test/>}/><Route path="*" element={<p>Unexpected route</p>}/></Routes></TooltipProvider></AuthContext.Provider></QueryClientProvider></MemoryRouter>);
 `);
-const server=await createServer({configFile:false,root,plugins:[react()],define:{'import.meta.env.PROD':'true'},optimizeDeps:{entries:[join(scratch,'index.html')]},resolve:{alias:[{find:'@/hooks/useUserData',replacement:join(scratch,'user-data.ts')},{find:'@/hooks/useAppShellMode',replacement:join(scratch,'shell.ts')},{find:'@/lib/auth/onboardingGate',replacement:join(scratch,'onboarding.ts')},{find:'@',replacement:join(root,'src')}]},server:{host:'127.0.0.1',port:0}});
+const server=await createServer({configFile:false,root,plugins:[react()],define:{'import.meta.env.PROD':'true'},optimizeDeps:{entries:[join(scratch,'index.html')]},resolve:{alias:[{find:'@/hooks/useReaderPosition',replacement:join(scratch,'position.ts')},{find:'@/hooks/useUserData',replacement:join(scratch,'user-data.ts')},{find:'@/hooks/useAppShellMode',replacement:join(scratch,'shell.ts')},{find:'@/lib/auth/onboardingGate',replacement:join(scratch,'onboarding.ts')},{find:'@',replacement:join(root,'src')}]},server:{host:'127.0.0.1',port:0}});
 
 let browser, page;
 let scenario;
 const reports = [], requests = [], browserErrors = [];
+let steps=[];
 const record = (message) => { reports.push(message); console.log('PASS: ' + message); };
 function syntheticPassage(book, chapter) {
   const verses = Array.from({length: scenario.oversized ? 1 : 42}, (_, i) => {
@@ -48,11 +63,11 @@ async function settled() {
   await page.waitForFunction(() => {
     const root = document.querySelector('[data-bible-reader]');
     return root && root.getAttribute('aria-busy') === 'false' &&
-      !root.querySelector('[data-reader-page-side] article[aria-busy="true"]') &&
+      !root.querySelector('[aria-busy="true"]') &&
       root.querySelector('[data-reader-page-side] [data-verse-id], [data-reader-page-side] [data-reader-plate]');
-  }, {timeout:30000});
+  }, undefined, {timeout:30000});
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(160);
+  await page.waitForTimeout(500);
 }
 async function inspect() {
   // This deliberately does not import the production fit helper: independent
@@ -128,10 +143,11 @@ try {
       return route.abort();
     });
     await page.goto(origin+'/'+basename(scratch)+'/index.html'); await settled();
-    const collected=[], geometries=[];
+    const collected=[], geometries=[];steps=[];
     let reachedNext=false;
     for(let step=0;step<80;step++) {
       const current=await inspect(); geometries.push(current.pages);
+      steps.push({step,...current,position:await page.evaluate(()=>window.__readerPositionHistory.at(-1))});
       assert.deepEqual(current.issues,[],scenario.name+': '+current.issues.slice(0,5).join('\n'));
       for(const p of current.pages) assert.equal(p.columns,scenario.columns==='double'?'2':'1','Selected columns changed');
       for(const id of current.ids) {const[,book,ch,v]=id.split(':');if(book==='Jhn'&&ch==='3')collected.push(Number(v));}
@@ -158,7 +174,7 @@ try {
   if(page) {
     await page.screenshot({path:join(output,'book-flow-failure.png')}).catch(()=>{});
     const diagnostic=await inspect().catch(()=>({}));
-    writeFileSync(join(output,'book-flow-failure.json'),JSON.stringify({scenario,diagnostic,browserErrors,requests,error:String(error)},null,2));
+    writeFileSync(join(output,'book-flow-failure.json'),JSON.stringify({scenario,diagnostic,steps,history:await page.evaluate(()=>window.__readerPositionHistory),browserErrors,requests,error:String(error)},null,2));
     console.error(JSON.stringify({scenario,diagnostic,browserErrors},null,2));
   }
   throw error;
