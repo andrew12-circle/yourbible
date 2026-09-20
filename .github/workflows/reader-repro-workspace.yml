@@ -14,7 +14,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Archive tracked source only
-        run: git archive HEAD | gzip > "$RUNNER_TEMP/current-reader-source.tar.gz"
+        run: git archive HEAD src scripts docs .cursor supabase .github AGENTS.md package.json package-lock.json vite.config.ts vitest.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json tailwind.config.ts postcss.config.js eslint.config.js index.html public/bible-plates public/bibles | gzip > "$RUNNER_TEMP/current-reader-source.tar.gz"
       - name: Browser test runtime
         run: |
           npm install --prefix "$RUNNER_TEMP/reader-tools" --no-package-lock playwright@1.55.0
