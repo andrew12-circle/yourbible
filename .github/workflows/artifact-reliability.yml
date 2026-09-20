@@ -1,0 +1,107 @@
+name: Artifact reliability
+on:
+  push:
+    branches: [fix/artifact-reliability-evidence]
+  pull_request:
+    paths:
+      - 'src/hooks/useArtifact*'
+      - 'src/lib/framework/**'
+      - 'src/components/framework/artifact-detail/**'
+      - 'supabase/functions/framework-analy*/**'
+      - 'supabase/functions/_shared/artifact*.ts'
+      - 'supabase/migrations/2026092017*.sql'
+      - 'scripts/artifact-contract.test.mjs'
+      - 'scripts/tests/artifact-analysis*.sql'
+      - '.github/workflows/artifact-reliability.yml'
+permissions:
+  contents: read
+concurrency:
+  group: artifact-reliability-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: artifact-test-placeholder
+      VITE_SUPABASE_ANON_KEY: artifact-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Source, coverage and playback contract tests
+        run: node --experimental-strip-types --test scripts/artifact-contract.test.mjs 2>&1 | tee "$RUNNER_TEMP/artifact-contract.log"
+      - name: Full unit tests
+        if: always()
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/artifact-tests.log"
+      - name: Lint
+        if: always()
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/artifact-lint.log"
+      - name: Type regression check against starting main
+        if: always()
+        run: node scripts/check-journal-type-regressions.mjs a071419454cc9a7a68608afb75668dfe642fd799 2>&1 | tee "$RUNNER_TEMP/artifact-types.log"
+      - name: Production build
+        if: always()
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/artifact-build.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artifact-application-${{ github.run_id }}
+          path: ${{ runner.temp }}/artifact-*.log
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: artifact_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: disposable-ci-password
+      PGDATABASE: artifact_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations and test publication, recovery and tenant isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f scripts/tests/artifact-analysis-bootstrap.sql
+          for migration in supabase/migrations/2026092017*.sql; do
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -f scripts/tests/artifact-analysis.sql | tee "$RUNNER_TEMP/artifact-database.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artifact-database-${{ github.run_id }}
+          path: ${{ runner.temp }}/artifact-database.log
+  edge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check bounded worker and authenticated enqueue function
+        run: deno check --no-config supabase/functions/framework-analyze/index.ts supabase/functions/framework-analysis-worker/index.ts
