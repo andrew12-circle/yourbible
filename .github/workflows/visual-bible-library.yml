@@ -1,0 +1,80 @@
+name: Visual Bible library
+on:
+  push:
+    branches: [main, 'feat/visual-bible-library']
+    paths: ['src/**', 'scripts/*visual-bible*', 'public/visual-bible/**', 'vite.config.ts', 'package*.json', '.github/workflows/visual-bible-library.yml']
+  pull_request:
+    paths: ['src/data/visualBible/**', 'src/lib/visualBible/**', 'src/components/bible/visual/**', 'src/components/bible/ArtworkGallery.tsx', 'src/components/bible/ChapterContextSheet.tsx', 'scripts/*visual-bible*', 'public/visual-bible/**', 'vite.config.ts', '.github/workflows/visual-bible-library.yml']
+permissions:
+  contents: read
+concurrency:
+  group: visual-bible-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: visual-test-placeholder
+  VITE_SUPABASE_ANON_KEY: visual-test-placeholder
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Full lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/visual-lint.log"
+      - name: Full tests including catalog and UI regressions
+        id: tests
+        continue-on-error: true
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/visual-tests.log"
+      - name: Production build including image acquisition
+        id: build
+        continue-on-error: true
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/visual-build.log"
+      - name: Offline image integrity verification
+        id: images
+        continue-on-error: true
+        run: node scripts/acquire-visual-bible.mjs --verify 2>&1 | tee "$RUNNER_TEMP/visual-images.log"
+      - name: No new TypeScript diagnostics
+        id: types
+        continue-on-error: true
+        run: node scripts/check-journal-type-regressions.mjs a071419454cc9a7a68608afb75668dfe642fd799 2>&1 | tee "$RUNNER_TEMP/visual-types.log"
+      - name: Browser dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/visual-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/visual-playwright/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Real reader and visual library browser checks
+        id: browser
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/visual-playwright/node_modules/playwright/index.mjs
+        run: |
+          node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/visual-reader-browser.log"
+          node scripts/test-visual-bible-browser.mjs 2>&1 | tee "$RUNNER_TEMP/visual-browser.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-bible-verification
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/visual-*.log
+            ${{ runner.temp }}/visual-*.png
+            ${{ runner.temp }}/visual-*.json
+            ${{ runner.temp }}/bible-reader-*.png
+            ${{ runner.temp }}/bible-reader-results.json
+            public/visual-bible/v1/manifest.json
+      - name: Require verification
+        if: always()
+        run: test '${{ steps.lint.outcome }}' = success && test '${{ steps.tests.outcome }}' = success && test '${{ steps.build.outcome }}' = success && test '${{ steps.images.outcome }}' = success && test '${{ steps.types.outcome }}' = success && test '${{ steps.browser.outcome }}' = success
