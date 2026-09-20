@@ -10,6 +10,7 @@ export type ArtifactRow = {
   url?: string | null;
   metadata?: Json | null;
   created_at?: string | null;
+  updated_at?: string | null;
   processing_token?: string | null;
 };
 
@@ -20,6 +21,7 @@ export function artifactRowStableEqual(prev: ArtifactRow | null, next: ArtifactR
   return (
     prev.processing_token === next.processing_token &&
     prev.status === next.status &&
+    prev.updated_at === next.updated_at &&
     prev.error === next.error &&
     prev.raw_text === next.raw_text &&
     prev.title === next.title &&

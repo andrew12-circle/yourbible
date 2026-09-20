@@ -137,3 +137,6 @@ verify_jwt = true
 
 [functions.children-book-illustrate]
 verify_jwt = true
+
+[functions.artifact-analysis-worker]
+verify_jwt = true
