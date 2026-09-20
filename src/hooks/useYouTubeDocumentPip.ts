@@ -97,7 +97,7 @@ export function useYouTubeDocumentPip(options: {
     if (!sessionRef.current) return;
 
     const popoutPlayback = useArtifactGlobalDocumentPipStore.getState().popoutPlayback;
-    const hasPopoutTelemetry = popoutPlayback.seconds > 0 || documentPipActive;
+    const hasPopoutTelemetry = popoutPlayback.seconds > 0 || useArtifactGlobalDocumentPipStore.getState().active;
     const seconds = hasPopoutTelemetry
       ? popoutPlayback.seconds
       : Math.max(0, Math.floor(getCurrentTimeRef.current?.() ?? 0));
@@ -107,7 +107,7 @@ export function useYouTubeDocumentPip(options: {
     closeYouTubeDocumentPip(sessionRef.current);
     sessionRef.current = null;
     useArtifactGlobalDocumentPipStore.getState().clear();
-  }, [documentPipActive]);
+  }, []);
 
   const exitDocumentPip = useCallback(() => {
     finishDocumentPip(getIsPlayingRef.current?.() ?? useArtifactGlobalDocumentPipStore.getState().popoutPlayback.playing);
