@@ -1,11 +1,10 @@
 /* Inline artwork must not inherit the full-page illustration height. */
 [data-bible-reader] .scripture-plate--compact { height: auto; min-height: 0; margin-bottom: 1em; }
 /* Page mode is paginated. Overflow is remeasured, never changed to a scrolling column. */
-[data-bible-reader] [data-reader-fit-notice] { pointer-events: auto; }
 
 /* Raised note markers at a column boundary need real headroom, not a looser
    clipping test. The hidden measure and live columns share this inset. */
-[data-bible-reader] [data-reading-area] .scripture-columns-2 {
+[data-reading-area] .scripture-columns-2 {
   padding-block-start: max(8px, 0.45em);
 }
 
@@ -34,3 +33,11 @@
   break-after: avoid;
   -webkit-column-break-after: avoid;
 }
+
+/* A chapter numeral must have a real line box for its glyph ascenders. The old
+   .82 line-height put the digit above the page and rejected EVERY candidate. */
+[data-reading-area] .chapter-drop-cap { line-height: 1.25; margin-top: 0; }
+
+/* The first verse is inline text beside a drop cap, not an isolated block that
+   prevents the following verse from using the same remaining lines. */
+[data-reading-area] .scripture-verse-chapter-open .verse-body-wrap { display: inline; }

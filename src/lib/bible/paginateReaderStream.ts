@@ -38,8 +38,8 @@ export function paginateReaderStream(
       if (textFits(start, mid, pageIndex)) { lastFit = mid; lo = mid + 1; }
       else hi = mid - 1;
     }
-    // A title never owns an empty text page. An irreducible unit is preserved;
-    // the reader offers explicit continuous reading, never silently scrolls a page.
+    // A title never owns an empty text page. In page mode, Scripture units
+    // are measured word fragments; long verses continue onto later pages.
     // A chapter header carries no separate text height (its numeral is in
     // verse 1), so a candidate ending at that header can appear to fit even
     // when verse 1 does not. Keep the header with its opening verse instead

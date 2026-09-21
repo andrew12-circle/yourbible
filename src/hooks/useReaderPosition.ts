@@ -1,11 +1,11 @@
+import { readerStreamUnitId } from "@/lib/bible/readerWindowFlow";
 import { useCallback, useLayoutEffect, useMemo, useState, type SetStateAction } from "react";
 import type { PassageVerse } from "@/lib/bible/api";
 import type { ReaderStreamUnit } from "@/lib/bible/readerStream";
 
 export interface ReaderAnchor { id: string; bookAbbr: string; chapter: number; verse?: number }
 export function readerUnitAnchor(unit: ReaderStreamUnit): ReaderAnchor {
-  const prefix = `${unit.bookAbbr}|${unit.chapter}`;
-  return { id: unit.kind === "verse" ? `${prefix}|v${unit.verse.number}` : unit.kind === "plate" ? `${prefix}|art:${unit.plate.id}` : `${prefix}|heading`, bookAbbr: unit.bookAbbr, chapter: unit.chapter, verse: unit.kind === "verse" ? unit.verse.number : undefined };
+  return { id: readerStreamUnitId(unit), bookAbbr: unit.bookAbbr, chapter: unit.chapter, verse: unit.kind === "verse" ? unit.verse.number : undefined };
 }
 export function readerPageForUnit(splits: number[], index: number, spread: boolean): number {
   let page = 0;

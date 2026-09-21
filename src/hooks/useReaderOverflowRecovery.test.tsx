@@ -28,13 +28,13 @@ describe("book-page overflow recovery", () => {
     expect(document.querySelector("article")!.hasAttribute("data-reader-overflow")).toBe(false);
     expect(document.querySelector("article")!.getAttribute("style")).toBeNull();
   });
-  it("requires an explicit choice for an oversized unit and clears it when the unit fits", () => {
+  it("repaginates even one long verse instead of requiring a different reading mode", () => {
     document.querySelector('[data-verse-id="2"]')!.remove();
     const correction = vi.fn();
     const { result } = renderHook(() => useReaderOverflowRecovery("layout", correction, true));
     check();
-    expect(result.current).toEqual({left: "oversized"});
-    expect(correction).not.toHaveBeenCalled();
+    expect(result.current).toEqual({});
+    expect(correction).toHaveBeenCalledWith(3);
     fit.mockReturnValue({fits:true, overflowPx:0}); check();
     expect(result.current).toEqual({});
   });

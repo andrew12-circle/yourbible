@@ -9,7 +9,7 @@ export function readReaderColumnLayout(): ReaderColumnLayout {
   } catch {
     /* ignore */
   }
-  return "single";
+  return "double";
 }
 
 /**
@@ -21,7 +21,7 @@ export function effectiveReaderColumnLayout(options: {
   scrollMode?: boolean;
 }): ReaderColumnLayout {
   if (options.scrollMode) return "single";
-  return options.stored ?? "single";
+  return options.stored ?? "double";
 }
 
 export function writeReaderColumnLayout(layout: ReaderColumnLayout): void {

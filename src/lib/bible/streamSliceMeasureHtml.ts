@@ -1,3 +1,4 @@
+import { appendReaderStreamVerse } from "./readerVerseFragments";
 import { Fragment, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { PassageVerse } from "@/lib/bible/api";
@@ -33,7 +34,7 @@ export function verseGroupsFromStreamSlice(
       current = { chapter: unit.chapter, verses: [] };
       groups.push(current);
     }
-    current.verses.push(unit.verse);
+    appendReaderStreamVerse(current.verses, unit);
   }
   return groups;
 }
@@ -100,7 +101,7 @@ export function buildStreamSliceMeasureHtml(
           verses: [],
         };
       }
-      batch.verses.push(unit.verse);
+      appendReaderStreamVerse(batch.verses, unit);
     }
   }
   flushBatch();

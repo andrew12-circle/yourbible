@@ -1,3 +1,4 @@
+import { readerVerseFragment } from "./readerVerseFragments";
 import type { ReactNode } from "react";
 import { NotebookPen } from "lucide-react";
 import type { PassageVerse } from "@/lib/bible/api";
@@ -168,15 +169,18 @@ export function createReaderVerseRenderer({
       showChapterDropCap?: boolean;
     },
   ): ReactNode {
+    const fragment = readerVerseFragment(v);
+    const original = fragment?.original ?? v;
+    const startOffset = fragment?.start ?? 0;
     const verseBook = ctx?.bookAbbr ?? bookAbbr;
     const verseChapter = ctx?.chapter ?? chapter;
     const paragraphIsContinuation = ctx?.paragraphIsContinuation ?? false;
     const chapterDropCap =
-      ctx?.showChapterDropCap !== false &&
+      startOffset === 0 && ctx?.showChapterDropCap !== false &&
       shouldShowChapterDropCap(v.number, paragraphIsContinuation);
     const ul = ulFor(v.number, verseBook, verseChapter);
     const note = noteFor(v.number, verseBook, verseChapter);
-    const plain = versePlainText(v);
+    const plain = versePlainText(original);
     const segments = redLetterSegmentsForVerse(
       (useBookSpread
         ? redSegmentsByChapter.get(`${verseBook}|${verseChapter}`)
@@ -191,7 +195,7 @@ export function createReaderVerseRenderer({
     const parts = studyLayout === "holman" ? holmanPartsForVerse(v) : verseParts(v);
 
     const bodyNodes: ReactNode[] = [];
-    let charOffset = 0;
+    let charOffset = startOffset;
 
     for (let pi = 0; pi < parts.length; pi++) {
       const part = parts[pi]!;
@@ -238,6 +242,8 @@ export function createReaderVerseRenderer({
     const wrappedBody = (
       <span
         data-verse-body={v.number}
+        data-verse-start={startOffset}
+        data-verse-end={fragment?.end ?? plain.length}
         className={ul ? "pen-underline" : undefined}
         style={bodyStyle}
       >
@@ -249,9 +255,11 @@ export function createReaderVerseRenderer({
 
     return (
       <span
-        key={`${verseBook}-${verseChapter}-${v.number}`}
+        key={`${verseBook}-${verseChapter}-${v.number}-${startOffset}`}
         data-verse={v.number}
         data-verse-id={verseId}
+        data-verse-start={startOffset}
+        data-verse-end={fragment?.end ?? plain.length}
         className={
           chapterDropCap ? "scripture-verse scripture-verse-chapter-open" : "scripture-verse"
         }
@@ -260,10 +268,10 @@ export function createReaderVerseRenderer({
           <span className="chapter-drop-cap" aria-label={`Chapter ${verseChapter}`}>
             {verseChapter}
           </span>
-        ) : (
+        ) : startOffset > 0 ? null : (
           <button
             type="button"
-            onClick={(e) => onVerseNumberClick(e, v, verseBook, verseChapter)}
+            onClick={(e) => onVerseNumberClick(e, original, verseBook, verseChapter)}
             className="verse-num verse-num-gutter bg-transparent border-0 p-0 cursor-pointer hover:text-leather transition-colors"
             aria-label={`Verse ${v.number}`}
             style={{ userSelect: "none" }}
@@ -273,7 +281,7 @@ export function createReaderVerseRenderer({
         )}
         <span className="verse-body-wrap">
           {wrappedBody}
-          {note ? (
+          {note && startOffset === 0 ? (
             <button
               type="button"
               onClick={(e) => {

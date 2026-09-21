@@ -1,3 +1,4 @@
+import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords } from "./reader-browser-text.mjs";
 /** Real reader: visible page geometry and consecutive facing-page flow. No provider calls. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -6,8 +7,9 @@ import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createServer } from 'vite';
 import react from '@vitejs/plugin-react-swc';
-const { chromium } = await import(process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright');
+const { chromium, webkit } = await import(process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright');
 execFileSync(process.execPath,['scripts/verify-bible-plate-bundle.mjs'],{stdio:'inherit'});
+const testBook=process.env.READER_TEST_BOOK||'Act', testChapter=Number(process.env.READER_TEST_CHAPTER||6), endChapter=Number(process.env.READER_TEST_END_CHAPTER||9);
 const root=process.cwd(), scratch=mkdtempSync(join(root,'.reader-browser-')), output=process.env.RUNNER_TEMP||scratch;
 mkdirSync(output,{recursive:true});
 writeFileSync(join(scratch,'index.html'),'<html><body><div id="root"></div><script type="module" src="./fixture.tsx"></script></body></html>');
@@ -38,7 +40,7 @@ window.__midPlate=inlinePlatesForChapter('Gen',4).find(p=>p.beforeVerse===8)?.id
 const auth={user:{id:'00000000-0000-4000-8000-000000000001'},profile:{font_choice:localStorage.getItem('reader-test-font')||'sans',highlight_palette:'classic'},loading:false,updateProfile:async()=>({error:null})};
 const client=new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false}}});
 function Test(){window.__navigate=useNavigate();window.__path=useLocation().pathname;return <ReaderPage/>}
-createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={[sessionStorage.getItem('reader-fixture-path')||'/read/Act/6']}><QueryClientProvider client={client}><AuthContext.Provider value={auth as never}><TooltipProvider><Routes><Route path="/read/:book/:chapter" element={<Test/>}/><Route path="*" element={<p>Unexpected route</p>}/></Routes></TooltipProvider></AuthContext.Provider></QueryClientProvider></MemoryRouter>);
+createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={[sessionStorage.getItem('reader-fixture-path')||${JSON.stringify('/read/'+testBook+'/'+testChapter)}]}><QueryClientProvider client={client}><AuthContext.Provider value={auth as never}><TooltipProvider><Routes><Route path="/read/:book/:chapter" element={<Test/>}/><Route path="*" element={<p>Unexpected route</p>}/></Routes></TooltipProvider></AuthContext.Provider></QueryClientProvider></MemoryRouter>);
 `);
 const server=await createServer({configFile:false,root,plugins:[react()],define:{'import.meta.env.PROD':'true'},optimizeDeps:{entries:[join(scratch,'index.html')]},resolve:{alias:[{find:'@/hooks/useReaderPosition',replacement:join(scratch,'position.ts')},{find:'@/hooks/useUserData',replacement:join(scratch,'user-data.ts')},{find:'@/hooks/useAppShellMode',replacement:join(scratch,'shell.ts')},{find:'@/lib/auth/onboardingGate',replacement:join(scratch,'onboarding.ts')},{find:'@',replacement:join(root,'src')}]},server:{host:'127.0.0.1',port:0}});
 
@@ -53,21 +55,9 @@ function syntheticPassage(book, chapter) {
   return { reference: `${book} ${chapter}`, ...data.layout,
     verses: data.verses.map(v => ({number:v.verse, text:v.text, ...study.get(v.verseId)})) };
 }
-async function inspectWords() {
-  return page.locator('[data-reader-page-side] [data-verse-id]').evaluateAll(nodes => nodes.map(node => {
-    const body = node.querySelector('[data-verse-body]').cloneNode(true);
-    for (const mark of body.querySelectorAll('sup, figure')) mark.remove();
-    return {id:node.dataset.verseId, text:body.textContent};
-  }));
-}
-function verifyWords(words) {
-  for (const word of words) {
-    const [,book,chapter,number] = word.id.split(':');
-    const verse = syntheticPassage(book, Number(chapter)).verses.find(v => v.number === Number(number));
-    const expected = verse.parts?.length ? verse.parts.filter(p => p.kind === 'text').map(p => p.text).join('') : verse.text;
-    assert.equal(word.text, expected, 'Truncated or changed Scripture at ' + word.id);
-  }
-}
+const inspectWords = () => renderedVerseFragments(page);
+const lookupVerse = (book,ch,verse) => syntheticPassage(book,ch).verses.find(v=>v.number===verse);
+const verifyWords = words => verifyFragmentWords(words,lookupVerse);
 async function settled() {
   await page.waitForFunction(() => {
     const root = document.querySelector('[data-bible-reader]');
@@ -122,7 +112,7 @@ async function turn(direction) {
 try {
   await server.listen();
   const origin = 'http://127.0.0.1:' + server.httpServer.address().port;
-  browser = await chromium.launch({headless:true, ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH} : {})});
+  browser = await (process.env.READER_BROWSER==='webkit'?webkit:chromium).launch({headless:true, ...(process.env.PLAYWRIGHT_EXECUTABLE_PATH ? {executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH} : {})});
   const scenarios = [
     {name:'acts-sans-single',font:'sans',columns:'single',study:'inline',scale:1,width:1491,height:936},
     {name:'acts-sans-double',font:'sans',columns:'double',study:'inline',scale:1,width:1491,height:936},
@@ -161,32 +151,37 @@ try {
       assert.deepEqual(current.issues, [], scenario.name + ': ' + current.issues.slice(0,3).join('\n'));
       verifyWords(words);
       const faces = await page.locator('[data-reader-page-side] article').evaluateAll(nodes => nodes.map(node => ({
-        ids:[...node.querySelectorAll('[data-verse-id]')].map(v=>v.dataset.verseId),
+        ids:[...node.querySelectorAll('[data-verse-id]')].map(v=>v.dataset.verseId+'@'+(v.dataset.verseStart||'0')+'-'+(v.dataset.verseEnd||'')),
         plates:[...node.querySelectorAll('[data-reader-plate]')].map(v=>v.dataset.readerPlate),
       })));
       for(const face of faces) {
-        if(!face.ids.some(id=>id.endsWith(':Act:7:1'))) continue;
+        if(!face.ids.some(id=>id.includes(':Act:7:1@'))) continue;
         // The screenshot-sized layouts have room for verse 2. At 150% text,
         // chapter 7 can legitimately start after 6:15 near the end of a page;
         // that is continuation, not a page containing only the short opener.
         assert(face.ids.length>1, 'Acts 7:1 isolated on an otherwise empty page');
         if(scenario.scale===1)
-          assert(face.ids.some(id=>id.endsWith(':Act:7:2')), 'Screenshot-sized page did not continue after Acts 7:1');
+          assert(face.ids.some(id=>id.includes(':Act:7:2@')), 'Screenshot-sized page did not continue after Acts 7:1');
       }
-      if(step<3) await page.screenshot({path:join(output,`chapter-flow-${scenario.name}-${step}.png`)});
+      if(testBook==='Mrk' && step===0) {
+        assert(faces.some(face=>face.plates.length),'Opening artwork missing');
+        assert(current.ids.some(id=>id.includes(':Mrk:3:2')),'Mark 3 text must fill the facing page, not show a fit notice');
+        assert.equal(await page.locator('[data-reader-fit-notice], [data-bible-scroll]').count(),0);
+      }
+      if(step<3) await page.screenshot({path:join(output,`chapter-flow-${testBook}-${scenario.name}-${step}.png`)});
       const footprint=JSON.stringify(faces);
       visited.push(footprint);
-      collected.push(...current.ids);
-      if(current.ids.some(id=>id.includes(':Act:9:'))) { reachedTarget=true; break; }
+      collected.push(...words);
+      if(current.ids.some(id=>id.includes(':'+testBook+':'+endChapter+':'))) { reachedTarget=true; break; }
       await turn(1);
     }
     assert(reachedTarget,'Could not continue from Acts 6 into Acts 9');
-    const actual=collected.map(id=>id.split(':').slice(1).join(':'));
+    const actual=verifyConsecutiveFragments(collected,lookupVerse).map(id=>id.split(':').slice(1).join(':'));
     const first=actual[0].split(':'), last=actual.at(-1).split(':');
     const expected=[];
     for(let ch=Number(first[1]);ch<=Number(last[1]);ch++)
-      for(const v of syntheticPassage('Act',ch).verses)
-        if((ch>Number(first[1])||v.number>=Number(first[2]))&&(ch<Number(last[1])||v.number<=Number(last[2]))) expected.push(`Act:${ch}:${v.number}`);
+      for(const v of syntheticPassage(testBook,ch).verses)
+        if((ch>Number(first[1])||v.number>=Number(first[2]))&&(ch<Number(last[1])||v.number<=Number(last[2]))) expected.push(`${testBook}:${ch}:${v.number}`);
     assert.deepEqual(actual,expected,'Chapter-window boundary repeated, skipped, or reordered verses');
     // Go back over an actual window boundary, not just within one chapter.
     for(let back=visited.length-2;back>=Math.max(0,visited.length-6);back--) {
@@ -194,7 +189,7 @@ try {
       const current=await inspect(); assert.deepEqual(current.issues,[]);
       verifyWords(await inspectWords());
       const footprint=await page.locator('[data-reader-page-side] article').evaluateAll(nodes => nodes.map(node => ({
-        ids:[...node.querySelectorAll('[data-verse-id]')].map(v=>v.dataset.verseId),
+        ids:[...node.querySelectorAll('[data-verse-id]')].map(v=>v.dataset.verseId+'@'+(v.dataset.verseStart||'0')+'-'+(v.dataset.verseEnd||'')),
         plates:[...node.querySelectorAll('[data-reader-plate]')].map(v=>v.dataset.readerPlate),
       })));
       assert.equal(JSON.stringify(footprint),visited[back],'Reverse navigation changed the preceding spread');
@@ -204,11 +199,11 @@ try {
     assert.deepEqual((await inspect()).issues,[],'Resize clipped Scripture');
     verifyWords(await inspectWords());
     assert.equal(requests.length,cached,'Resize fetched Scripture');
-    record(scenario.name+': Acts 6–9 text, drop caps, forward/backward window continuity and cached resize');
+    record(testBook+' '+testChapter+'–'+endChapter+' '+scenario.name+': exact character continuity across columns, pages and windows; reverse turns and cached resize');
     await page.close();page=null;
   }
   assert.deepEqual(browserErrors,[]);
-  writeFileSync(join(output,'chapter-flow-results.json'),JSON.stringify({passed:reports.length,reports,mockedScriptureRequests:requests.length,actualBibleProviderRequests:0,steps},null,2));
+  writeFileSync(join(output,'chapter-flow-'+testBook+'-results.json'),JSON.stringify({passed:reports.length,reports,mockedScriptureRequests:requests.length,actualBibleProviderRequests:0,steps},null,2));
 } catch(error) {
   if(page) {
     await page.screenshot({path:join(output,'chapter-flow-failure.png')}).catch(()=>{});

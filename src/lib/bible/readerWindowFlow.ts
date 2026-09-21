@@ -15,7 +15,7 @@ export interface ReaderWindowFlow {
 }
 export function readerStreamUnitId(unit: ReaderStreamUnit): string {
   const prefix = `${unit.bookAbbr}|${unit.chapter}`;
-  return unit.kind === "verse" ? `${prefix}|v${unit.verse.number}`
+  return unit.kind === "verse" ? `${prefix}|v${unit.verse.number}${unit.verseRange?.start ? `@${unit.verseRange.start}` : ""}`
     : unit.kind === "plate" ? `${prefix}|art:${unit.plate.id}` : `${prefix}|heading`;
 }
 export function readReaderWindowFlow(state: unknown, bibleId: string, bookAbbr: string, chapter: number): ReaderWindowFlow | undefined {

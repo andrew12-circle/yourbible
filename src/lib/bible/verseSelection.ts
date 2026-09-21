@@ -133,23 +133,26 @@ export function getVerseBodyElement(
   ) as HTMLElement | null;
 }
 
-/** Character offset within `body` for a range boundary. */
-export function offsetInVerseBody(
-  body: HTMLElement,
-  container: Node,
-  offset: number,
-): number {
-  const r = document.createRange();
-  r.selectNodeContents(body);
-  try {
-    r.setEnd(container, offset);
-  } catch {
-    return container.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_CONTAINS
-      ? 0
-      : (body.textContent?.length ?? 0);
-  }
-  const len = body.textContent?.length ?? 0;
-  return Math.max(0, Math.min(r.toString().length, len));
+function verseBodyStart(body: HTMLElement): number {
+  const value = Number(body.dataset.verseStart ?? 0);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+function scriptureRangeLength(range: Range): number {
+  const content = range.cloneContents();
+  content.querySelectorAll("sup, figure").forEach((node) => node.remove());
+  return content.textContent?.length ?? 0;
+}
+function verseBodyLength(body: HTMLElement): number {
+  const range = document.createRange(); range.selectNodeContents(body);
+  return scriptureRangeLength(range);
+}
+/** Character offset in the original verse, even when this page starts mid-verse. */
+export function offsetInVerseBody(body: HTMLElement, container: Node, offset: number): number {
+  const r = document.createRange(); r.selectNodeContents(body);
+  const start = verseBodyStart(body), length = verseBodyLength(body);
+  try { r.setEnd(container, offset); }
+  catch { return start + (container.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_CONTAINS ? 0 : length); }
+  return start + Math.max(0, Math.min(scriptureRangeLength(r), length));
 }
 
 function constrainRangeToBody(range: Range, body: HTMLElement): Range {
@@ -178,16 +181,16 @@ function offsetAtRangeBoundaryInBody(
   } else {
     measure.setEnd(sub.endContainer, sub.endOffset);
   }
-  const len = body.textContent?.length ?? 0;
-  return Math.max(0, Math.min(measure.toString().length, len));
+  const len = verseBodyLength(body);
+  return verseBodyStart(body) + Math.max(0, Math.min(scriptureRangeLength(measure), len));
 }
 
 function rangeTouchesVerse(range: Range, body: HTMLElement): boolean {
   const bodyRange = document.createRange();
   bodyRange.selectNodeContents(body);
   return (
-    range.compareBoundaryPoints(Range.END_TO_START, bodyRange) > 0 &&
-    range.compareBoundaryPoints(Range.START_TO_END, bodyRange) < 0
+    range.compareBoundaryPoints(Range.START_TO_END, bodyRange) > 0 &&
+    range.compareBoundaryPoints(Range.END_TO_START, bodyRange) < 0
   );
 }
 
@@ -298,8 +301,8 @@ export function selectionToVerseRanges(
     const body = getVerseBodyElement(v, readingArea);
     if (!body || !rangeTouchesVerse(range, body)) continue;
 
-    let start = 0;
-    let end = len;
+    let start = verseBodyStart(body);
+    let end = Math.min(len, start + verseBodyLength(body));
 
     if (v === startVerse) {
       start = offsetAtRangeBoundaryInBody(body, range, "start");

@@ -3,7 +3,7 @@ import { readerVisibleFit } from "@/lib/bible/readerVisibleFit";
 
 type PageProblems = Partial<Record<"left" | "right", "oversized" | "unresolved">>;
 
-/** Re-paginate ordinary overflow. A truly oversized passage needs explicit reader choice. */
+/** Re-paginate ordinary overflow. Word-level page cuts also allow a long verse to span physical pages. */
 export function useReaderOverflowRecovery(
   layoutKey: string,
   requestCorrection?: (overflowPx: number) => void,
@@ -34,7 +34,7 @@ export function useReaderOverflowRecovery(
         const side = article.closest<HTMLElement>("[data-reader-page-side]")?.dataset.readerPageSide;
         if (side !== "left" && side !== "right") continue;
         const verseCount = article.querySelectorAll("[data-verse-id]").length;
-        if (verseCount > 1 && canCorrect && requestCorrection) maximumOverflow = Math.max(maximumOverflow, result.overflowPx);
+        if (canCorrect && requestCorrection) maximumOverflow = Math.max(maximumOverflow, result.overflowPx);
         else problems[side] = verseCount <= 1 ? "oversized" : "unresolved";
       }
       for (const article of observed) {
