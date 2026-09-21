@@ -21,16 +21,17 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Apply verified source patch on the repair branch only
+      - name: Apply source files on the repair branch only
         id: commit
         run: |
           test "$GITHUB_REF" = refs/heads/fix/bible-continuous-chapter-flow
           cat scripts/.reader-continuation-0*.b64 | base64 --decode | gzip --decompress > "$RUNNER_TEMP/reader-continuation.patch"
           echo "a9bce4294727fa12fe06e8d2957b90b01cf6ef08f67bf6ca063d8f6fbc87cf11  $RUNNER_TEMP/reader-continuation.patch" | sha256sum -c -
-          git apply --check "$RUNNER_TEMP/reader-continuation.patch"
-          git apply "$RUNNER_TEMP/reader-continuation.patch"
-          git rm scripts/.reader-continuation-0*.b64 .github/workflows/apply-reader-continuation.yml
-          git add -A -- src scripts .github/workflows
+          # This token writes source only; workflow maintenance uses the authorized connector separately.
+          git apply --check --exclude='.github/workflows/*' "$RUNNER_TEMP/reader-continuation.patch"
+          git apply --exclude='.github/workflows/*' "$RUNNER_TEMP/reader-continuation.patch"
+          git rm scripts/.reader-continuation-0*.b64
+          git add -A -- src scripts
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
