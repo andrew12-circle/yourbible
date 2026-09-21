@@ -1,3 +1,4 @@
+import { MorningThanksgivingVoice } from "./MorningThanksgivingVoice";
 import { Input } from "@/components/ui/input";
 import {
   THANKSGIVING_ITEM_COUNT,
@@ -31,6 +32,7 @@ function ThanksgivingListSection({ title, description, prompts, values, onChange
     <section className={cn(lh.cardFlat, "p-4")}>
       <h2 className={cn(lh.heading, "text-[15px] mb-1")}>{title}</h2>
       <p className={cn(lh.bodySm, "mb-3")}>{description}</p>
+      <MorningThanksgivingVoice group={title.includes("not yet") ? "not-yet" : "now"} values={values} onChange={onChange} />
       <PromptList items={prompts} />
       <ol className="space-y-2 list-none p-0 m-0">
         {Array.from({ length: THANKSGIVING_ITEM_COUNT }, (_, i) => (

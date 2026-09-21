@@ -15,6 +15,16 @@ export function useMorningRitualDraftPersistence(
   opts?: { enabled?: boolean; onRestore?: (draft: ReturnType<typeof loadMorningRitualDraft>) => void },
 ) {
   const restored = useRef(false);
+  const latest = useRef({ userId, input, enabled: opts?.enabled !== false });
+  latest.current = { userId, input, enabled: opts?.enabled !== false };
+  useEffect(() => {
+    const flush = () => {
+      if (!userId || latest.current.userId !== userId || !latest.current.input || !latest.current.enabled) return;
+      try { saveMorningRitualDraft(userId, latest.current.input); } catch { /* Keep in-memory state. */ }
+    };
+    window.addEventListener("pagehide", flush);
+    return () => { window.removeEventListener("pagehide", flush); flush(); };
+  }, [userId]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {

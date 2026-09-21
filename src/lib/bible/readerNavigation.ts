@@ -21,16 +21,15 @@ export function morningFormulaReaderState(opts?: {
     dailyPrompt: opts?.prompt,
     dailyReason: opts?.reason,
     returnTo: MORNING_FORMULA_SCRIPTURE_RETURN,
-    returnLabel: "Morning formula",
+    returnLabel: "Return to Morning Formula",
   };
 }
 
 export function persistReaderReturn(state: ReaderNavigationState): void {
   if (typeof window === "undefined" || !state.returnTo) return;
-  sessionStorage.setItem(
-    SESSION_KEY,
-    JSON.stringify({ to: state.returnTo, label: state.returnLabel ?? "Back" }),
-  );
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ to: state.returnTo, label: state.returnLabel ?? "Back" }));
+  } catch { /* The URL still carries the return destination. */ }
 }
 
 export function readReaderReturn(): { to: string; label: string } | null {
@@ -52,9 +51,24 @@ export function clearReaderReturn(): void {
 }
 
 export function readerReturnFromState(state: unknown): { to: string; label: string } | null {
+  if (typeof window !== "undefined") {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("returnTo") === MORNING_FORMULA_SCRIPTURE_RETURN) {
+      return { to: MORNING_FORMULA_SCRIPTURE_RETURN, label: "Return to Morning Formula" };
+    }
+  }
   const s = state as ReaderNavigationState | null;
   if (s?.returnTo) {
     return { to: s.returnTo, label: s.returnLabel ?? "Back" };
   }
   return readReaderReturn();
+}
+
+/** Portable reader link; never depends on opener storage or a React history entry. */
+export function morningFormulaReaderHref(readerHref: string, popout = false): string {
+  const href = readerHref.startsWith("/") && !readerHref.startsWith("//") && !readerHref.includes("\\") ? readerHref : "/reader";
+  const url = new URL(href, "https://yourbible.invalid");
+  url.searchParams.set("returnTo", MORNING_FORMULA_SCRIPTURE_RETURN);
+  if (popout) url.searchParams.set("formulaPopout", "1");
+  return `${url.pathname}${url.search}${url.hash}`;
 }

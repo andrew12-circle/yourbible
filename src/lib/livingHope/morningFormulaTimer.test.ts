@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { buildRitualSteps } from "@/lib/livingHope/morningRitual";
 import { emptyWorkbook } from "@/lib/livingHope/workbookTypes";
 import {
+  beginFormulaStepTimer,
+  extendFormulaStepTimer,
+  loadFormulaStepTimer,
+  clearMorningFormulaTimer,
   buildStepDurationMap,
   computeFormulaTimerSnapshot,
   formatFormulaCountdown,
@@ -49,5 +53,29 @@ describe("formatFormulaCountdown", () => {
   it("formats mm:ss", () => {
     expect(formatFormulaCountdown(125_000)).toBe("2:05");
     expect(formatFormulaCountdown(0)).toBe("0:00");
+  });
+});
+
+describe("flexible thanksgiving pacing", () => {
+  it("persists five extra minutes on the current step", () => {
+    clearMorningFormulaTimer();
+    const key = stepKey({ kind: "thanksgiving" });
+    beginFormulaStepTimer(key);
+    expect(extendFormulaStepTimer(key, 300_000)).toBe(300_000);
+    expect(loadFormulaStepTimer().stepExtraMs).toBe(300_000);
+    const steps = buildRitualSteps(null, []);
+    const index = steps.findIndex((step) => step.kind === "thanksgiving");
+    const base = computeFormulaTimerSnapshot(steps, index, 30, null, key, 0);
+    const extra = computeFormulaTimerSnapshot(steps, index, 30, null, key, 300_000);
+    expect(extra.stepRemainingMs - base.stepRemainingMs).toBe(300_000);
+    expect(extra.sessionRemainingMs - base.sessionRemainingMs).toBe(300_000);
+    clearMorningFormulaTimer();
+  });
+  it("never leaks the previous step's extension into a newly selected step", () => {
+    const steps = buildRitualSteps(null, []);
+    const index = steps.findIndex((step) => step.kind === "scripture");
+    const a = computeFormulaTimerSnapshot(steps, index, 30, null, "thanksgiving", 300_000);
+    const b = computeFormulaTimerSnapshot(steps, index, 30, null, "thanksgiving", 0);
+    expect(a.stepBudgetMs).toBe(b.stepBudgetMs);
   });
 });

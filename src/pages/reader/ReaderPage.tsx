@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { readReaderWindowFlow, readerWindowStream, readerWindowTurn } from "@/lib/bible/readerWindowFlow";
 import {
   useCallback,
@@ -209,7 +210,7 @@ export default function ReaderPage() {
       return;
     }
     setReaderReturn(readReaderReturn());
-  }, [location.state]);
+  }, [location.state, location.search]);
 
   useEffect(() => {
     const to = readerReturn?.to ?? "";
@@ -1489,6 +1490,13 @@ export default function ReaderPage() {
 
       <OfflineBanner showCachedHint={showCachedHint && !!passage} />
 
+      {readerReturn?.to === MORNING_FORMULA_SCRIPTURE_RETURN && (
+        <div className="relative z-40 flex flex-wrap items-center justify-between gap-2 border-b bg-background px-4 py-2" role="navigation" aria-label="Morning Formula return">
+          <Button variant="outline" size="sm" onClick={() => navigate(MORNING_FORMULA_SCRIPTURE_RETURN)}>Return to Morning Formula · Scripture</Button>
+          <span className="text-xs text-muted-foreground">Your morning is still on the Scripture step.</span>
+          {searchParams.get("formulaPopout") === "1" && <Button variant="ghost" size="sm" onClick={() => window.close()}>Close Bible window</Button>}
+        </div>
+      )}
       <TopBar
         reference={reference}
         collapsed={false}

@@ -66,7 +66,7 @@ export function MorningFormulaSessionTimer({
           className={cn(
             "flex flex-col items-end rounded-lg px-2 py-1 text-right transition-colors",
             "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50",
-            stepExpired && "animate-pulse",
+
           )}
           aria-label={`Step timer ${formatFormulaCountdown(stepRemainingMs)}, ${formatFormulaCountdown(sessionRemainingMs)} left in session`}
         >
@@ -89,7 +89,7 @@ export function MorningFormulaSessionTimer({
           <p className="text-[13px] font-semibold">Session pace</p>
         </div>
         <p className={cn(lh.footnote, "mb-3")}>
-          Finish the whole formula in your chosen time. Each step gets a countdown to keep you moving.
+          This is a suggested pace, not a deadline. Continue when ready, or add more time during thanksgiving.
         </p>
         <div className="flex gap-1.5">
           {SESSION_DURATION_OPTIONS.map((option) => {

@@ -13,6 +13,9 @@ const DECOR_RIBBONS = [
 type Props = {
   text: string;
   className?: string;
+  title?: string;
+  label?: string;
+  footer?: string;
 };
 
 function PrayerScriptureBody({ body }: { body: string }) {
@@ -29,6 +32,7 @@ function PrayerScriptureBody({ body }: { body: string }) {
         <span className="chapter-drop-cap" aria-hidden>
           {dropCap}
         </span>
+        <span className="sr-only">{dropCap}</span>
         <span className="verse-body-wrap">{firstRest}</span>
       </span>
       {rest.map((sentence, index) => (
@@ -44,8 +48,11 @@ function PrayerScriptureBody({ body }: { body: string }) {
 }
 
 /** Lumen chat prayer — open Bible page with drop cap and verse numbers. */
-export default function ChatPrayerBiblePage({ text, className }: Props) {
-  const { label, title, body } = parseChatPrayer(text);
+export default function ChatPrayerBiblePage({ text, className, title: titleOverride, label: labelOverride, footer }: Props) {
+  const parsed = parseChatPrayer(text);
+  const { body } = parsed;
+  const title = titleOverride ?? parsed.title;
+  const label = labelOverride ?? parsed.label;
   if (!body) return null;
 
   return (
@@ -74,7 +81,7 @@ export default function ChatPrayerBiblePage({ text, className }: Props) {
               <h3 className="chat-prayer-bible__title">{title}</h3>
               <PrayerScriptureBody body={body} />
               <p className="chat-prayer-bible__footer">
-                {LUMEN_NAME.replace(" AI", "")} • {label}
+                {footer ?? `${LUMEN_NAME.replace(" AI", "")} • ${label}`}
               </p>
             </div>
           </div>
