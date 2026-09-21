@@ -1,3 +1,4 @@
+import { formatSupabaseError } from "@/lib/supabase/errors";
 import { useCallback, useEffect, useState } from "react";
 import {
   extractWorshipNote,
@@ -32,7 +33,7 @@ export function useMorningConversationEntry(userId: string | undefined) {
       await refreshPreview(id);
       return id;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't start today's journal");
+      setError(formatSupabaseError(e));
       return null;
     } finally {
       setBusy(false);
@@ -54,7 +55,7 @@ export function useMorningConversationEntry(userId: string | undefined) {
         await refreshPreview(id);
         return id;
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Couldn't save thanksgiving");
+        setError(formatSupabaseError(e));
         return null;
       }
     },
@@ -63,11 +64,15 @@ export function useMorningConversationEntry(userId: string | undefined) {
 
   useEffect(() => {
     if (!userId) return;
-    void findMorningConversationEntry(userId, reviewDate).then((id) => {
-      if (!id) return;
+    let active = true;
+    setEntryId(null);
+    setPreview(null);
+    void findMorningConversationEntry(userId, reviewDate).then(async (id) => {
+      if (!active || !id) return;
       setEntryId(id);
-      void refreshPreview(id);
-    });
+      await refreshPreview(id);
+    }).catch((e) => { if (active) setError(formatSupabaseError(e)); });
+    return () => { active = false; };
   }, [userId, reviewDate, refreshPreview]);
 
   return {

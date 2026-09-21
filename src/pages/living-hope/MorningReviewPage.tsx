@@ -344,6 +344,11 @@ export default function MorningReviewPage() {
     if (!user?.id) return;
     setSaving(true);
     try {
+      const sharedEntryId = await ensureConversationEntry();
+      if (!sharedEntryId) throw new Error("Today's journal is unavailable. Your morning draft has been kept.");
+      await syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet }).then((id) => {
+        if (!id) throw new Error("Thanksgiving could not be saved. Your morning draft has been kept.");
+      });
       const goal_touches = activeGoals.map((g) => touches[g.id] ?? {
         goal_id: g.id,
         vivid_recall: g.vivid_detail ?? "",
@@ -363,6 +368,7 @@ export default function MorningReviewPage() {
 
       const finalConnectionNotes: MorningConnectionNotes = {
         ...connectionNotes,
+        conversation_entry_id: sharedEntryId,
         worship_note: worshipNote,
       };
 
@@ -377,28 +383,25 @@ export default function MorningReviewPage() {
         ),
         connection_notes: finalConnectionNotes,
       });
+      const synced = await syncMorningReviewToJournal(user.id, {
+        reviewDate: defaultMorningReviewDate(),
+        surrenderNote: surrender,
+        visionRecall,
+        goalTouches: goal_touches,
+        manifestoIndex,
+        storyIndex,
+        metricValues,
+        connectionNotes: finalConnectionNotes,
+        workbook: workbook ?? null,
+        goals: activeGoals,
+        reviewId: review.id,
+      });
+      if (!synced?.entryId) throw new Error("Your morning summary was not saved. Your draft has been kept.");
+      setJournalEntryId(synced.entryId);
       setTodayReview(review);
       clearMorningRitualDraftForUser(user.id);
       clearMorningScriptureTimer();
       clearMorningFormulaTimer();
-      try {
-        const synced = await syncMorningReviewToJournal(user.id, {
-          reviewDate: defaultMorningReviewDate(),
-          surrenderNote: surrender,
-          visionRecall,
-          goalTouches: goal_touches,
-          manifestoIndex,
-          storyIndex,
-          metricValues,
-          connectionNotes: finalConnectionNotes,
-          workbook: workbook ?? null,
-          goals: activeGoals,
-          reviewId: review.id,
-        });
-        if (synced?.entryId) setJournalEntryId(synced.entryId);
-      } catch {
-        // Review saved; journal sync is best-effort (offline / local-only).
-      }
       toast({
         title: "Morning review complete",
         description: isLocalModeNotified()
@@ -429,6 +432,10 @@ export default function MorningReviewPage() {
     setTodayReview,
     steps.length,
     workbook,
+    ensureConversationEntry,
+    syncThanksgivingToJournal,
+    thanksgivingNow,
+    thanksgivingNotYet,
   ]);
 
   const goToNextStep = useCallback(() => {
@@ -500,6 +507,7 @@ export default function MorningReviewPage() {
             />
           ) : null}
 
+          {step.kind === "thanksgiving" && <div className="flex flex-wrap items-center justify-between gap-2 py-3"><p className={lh.footnote}>Take the time you need. The timer is a guide, not a deadline.</p><Button type="button" variant="outline" size="sm" onClick={formulaTimer.addFiveMinutes}>Add 5 minutes for thanks</Button></div>}
           <AnimatePresence mode="wait">
             <motion.div
               key={`${expressMode}-${stepIndex}`}
@@ -650,7 +658,7 @@ export default function MorningReviewPage() {
                     {stepIndex === steps.length - 2
                       ? "Complete review"
                       : formulaTimer.stepExpired
-                        ? "Continue — time's up"
+                        ? "Continue when ready"
                         : formulaTimer.showTimer
                           ? `Continue (${formatFormulaCountdown(formulaTimer.stepRemainingMs)} left)`
                           : "Continue"}

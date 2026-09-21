@@ -1,3 +1,6 @@
+import { DictateButton } from "@/components/journal/DictateButton";
+import { JournalAiPrivacy } from "@/components/journal/JournalAiPrivacy";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +37,7 @@ export function MorningStoryPanel({
   storyRecall,
   onStoryRecallChange,
 }: Props) {
+  const { user, profile } = useAuth();
   const [adding, setAdding] = useState(false);
   const [newStoryText, setNewStoryText] = useState("");
   const [playStepIndex, setPlayStepIndex] = useState(0);
@@ -156,6 +160,7 @@ export function MorningStoryPanel({
       {adding ? (
         <section className={cn(lh.cardFlat, "p-4 space-y-3")}>
           <h2 className={cn(lh.heading, "text-[15px]")}>New scene</h2>
+          <JournalAiPrivacy.Provider value={Boolean(user && profile && profile.user_id === user.id) && !profile?.journal_e2e_enabled}><div className="flex items-center gap-2"><DictateButton userId={user?.id} webSpeechOnly onAppend={(chunk) => setNewStoryText((text) => `${text} ${chunk}`.trim())} /><span className="text-sm">Speak a new scene</span></div></JournalAiPrivacy.Provider>
           <p className={cn(lh.footnote)}>
             Present tense. One vivid moment — tithing, family, business, home. Real, not fantasy.
           </p>

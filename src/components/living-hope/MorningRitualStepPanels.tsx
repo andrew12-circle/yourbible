@@ -1,5 +1,8 @@
+import { MorningWorshipMusic } from "./MorningWorshipMusic";
+import { MorningScriptureActions } from "./MorningScriptureActions";
+import { MorningPrayerReader } from "./MorningPrayerReader";
 import { Link } from "react-router-dom";
-import { BookOpen, Check, Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,11 +27,10 @@ import {
 } from "@/lib/livingHope/morningRitual";
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
 import type { LivingHopeWorkbookContent, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
-import { morningFormulaReaderState, persistReaderReturn } from "@/lib/bible/readerNavigation";
 import { ThanksgivingListsInput } from "@/components/living-hope/ThanksgivingListsInput";
 import { MorningConversationPanel } from "@/components/living-hope/MorningConversationPanel";
 import { MorningFormulaInlineJournal } from "@/components/living-hope/MorningFormulaInlineJournal";
-import { MORNING_FORMULA_WORSHIP_RETURN } from "@/lib/bible/readerNavigation";
+import { morningFormulaReaderState, MORNING_FORMULA_WORSHIP_RETURN } from "@/lib/bible/readerNavigation";
 import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
 import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
 import { MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
@@ -135,6 +137,9 @@ export function MorningRitualStepPanels({
   scriptureError,
   onGenerateScripture,
   journalEntryId,
+  worshipPlaylistUrl,
+  worshipPlaylistHistory,
+  onWorshipMusicChange,
   expressMode,
   onExpressModeChange,
   guidedMode = false,
@@ -215,6 +220,7 @@ export function MorningRitualStepPanels({
           Put on praise music and pray. Get your eyes off business, money, systems, and pressure — talk to Him.
           You don&apos;t need to write anything down.
         </p>
+        <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} />
         <p className={cn(lh.labelUpper, "mb-2 mt-1")}>Focus on</p>
         <PromptList items={WORSHIP_PROMPTS} />
         <MorningFormulaInlineJournal
@@ -305,16 +311,7 @@ export function MorningRitualStepPanels({
                 {scripture.prompt}
               </p>
             ) : null}
-            <Button variant="outline" size="sm" className="mt-1" asChild>
-              <Link
-                to={scripture.readerHref}
-                state={readerState}
-                onClick={() => persistReaderReturn(readerState)}
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                Read in Bible
-              </Link>
-            </Button>
+            <MorningScriptureActions readerHref={scripture.readerHref} />
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-stone-300 p-4 text-center mb-4">
@@ -479,13 +476,7 @@ export function MorningRitualStepPanels({
         <p className={cn(lh.bodySm, "mb-3 leading-relaxed")}>{SURRENDER_STEP_INTRO}</p>
         <PromptList items={SURRENDER_PRAYER_PROMPTS} />
         <label className={cn(lh.label, "mb-1 block")}>Prayer of release</label>
-        <Textarea
-          value={surrender}
-          onChange={(e) => setSurrender(e.target.value)}
-          rows={18}
-          className={lh.textarea}
-          aria-label="Surrender prayer"
-        />
+        <MorningPrayerReader title="Surrender" value={surrender} onChange={setSurrender} />
         <p className={cn(lh.footnote, "mt-3 italic")}>
           Speak it slowly. When you finish, let your shoulders drop. Then continue.
         </p>
@@ -501,13 +492,7 @@ export function MorningRitualStepPanels({
         <p className={cn(lh.labelUpper, lh.accent, "mb-3")}>Pray aloud</p>
         <PromptList items={COVERING_PRAYER_PROMPTS} />
         <label className={cn(lh.label, "mb-1 block")}>Blood, warfare &amp; angels</label>
-        <Textarea
-          value={covering}
-          onChange={(e) => setCovering(e.target.value)}
-          rows={20}
-          className={lh.textarea}
-          aria-label="Covering prayer"
-        />
+        <MorningPrayerReader title="Covering" value={covering} onChange={setCovering} />
         <p className={cn(lh.footnote, "mt-3 italic")}>
           Declare it with your voice. Command angels. Seal the day. Then continue.
         </p>

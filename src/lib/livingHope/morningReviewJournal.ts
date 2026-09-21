@@ -1,6 +1,8 @@
+import { getOrCreateMorningConversationEntry } from "./morningConversationJournal";
+import { mergeMorningReviewBody, updateMorningFormulaEntry } from "./morningFormulaJournalBody";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { setEntryLinks, type EntryLinkInput } from "@/lib/journal/links";
+import { type EntryLinkInput } from "@/lib/journal/links";
 import { localDateISO } from "@/lib/lifePriorities";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import type { MorningConnectionNotes } from "@/lib/livingHope/morningRitual";
@@ -229,9 +231,9 @@ async function findExistingMorningReviewEntry(userId: string, reviewDate: string
     .from("journal_entries")
     .select("id")
     .eq("user_id", userId)
-    .eq("entry_kind", MORNING_REVIEW_ENTRY_KIND)
+    .in("entry_kind", ["morning_conversation", MORNING_REVIEW_ENTRY_KIND])
     .contains("tags", [tag])
-    .order("updated_at", { ascending: false })
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   return data?.id ?? null;
@@ -263,64 +265,30 @@ export async function syncMorningReviewToJournal(
   userId: string,
   ctx: MorningReviewJournalContext,
 ): Promise<{ entryId: string } | null> {
-  const { title, body, summary, verseRefs } = buildMorningReviewJournalContent(ctx);
-  const tag = morningReviewTag(ctx.reviewDate);
-  const nowIso = new Date().toISOString();
-
-  const manifesto =
-    ctx.workbook?.manifesto.length && ctx.manifestoIndex != null
-      ? ctx.workbook.manifesto[ctx.manifestoIndex % ctx.workbook.manifesto.length]?.text
-      : null;
-
-  const existingId = await findExistingMorningReviewEntry(userId, ctx.reviewDate);
-  let entryId = existingId;
-
-  if (entryId) {
-    const { error } = await supabase
-      .from("journal_entries")
-      .update({
-        title,
-        body,
-        summary,
-        entry_at: ctx.reviewDate,
-        entry_at_ts: nowIso,
-        tags: [tag, "living-hope", "morning-formula"],
-        analyze_for_mirror: true,
-      })
-      .eq("id", entryId)
-      .eq("user_id", userId);
-    if (error) throw error;
-  } else {
-    const { data, error } = await supabase
-      .from("journal_entries")
-      .insert({
-        user_id: userId,
-        title,
-        body,
-        summary,
-        entry_kind: MORNING_REVIEW_ENTRY_KIND,
-        entry_at: ctx.reviewDate,
-        entry_at_ts: nowIso,
-        tags: [tag, "living-hope", "morning-formula"],
-        analyze_for_mirror: true,
-      })
-      .select("id")
-      .single();
-    if (error) throw error;
-    entryId = data.id;
-  }
-
-  if (!entryId) return null;
+  const { body, summary, verseRefs } = buildMorningReviewJournalContent(ctx);
+  const { entryId } = await getOrCreateMorningConversationEntry(userId, ctx.reviewDate);
+  await updateMorningFormulaEntry(userId, entryId, (existing) => mergeMorningReviewBody(existing, body), {
+    summary, extraTags: [morningReviewTag(ctx.reviewDate), "living-hope", "morning-formula"],
+  });
+  const manifesto = ctx.workbook?.manifesto.length && ctx.manifestoIndex != null
+    ? ctx.workbook.manifesto[ctx.manifestoIndex % ctx.workbook.manifesto.length]?.text : null;
 
   const beliefIds = await findRelatedBeliefIds(userId, manifesto);
   const linkedEntryIds = [
     ctx.connectionNotes?.conversation_entry_id?.trim(),
   ].filter((id): id is string => Boolean(id && id !== entryId));
-  await setEntryLinks(userId, entryId, [
-    ...verseLinks(verseRefs),
-    ...beliefLinks(beliefIds),
-    ...entryLinks(linkedEntryIds),
-  ]);
+  const links = [...verseLinks(verseRefs), ...beliefLinks(beliefIds), ...entryLinks(linkedEntryIds)];
+  const { data: existingLinks, error: linksError } = await supabase.from("journal_entry_links")
+    .select("target_kind,target_ref").eq("entry_id", entryId).eq("user_id", userId);
+  if (linksError) throw linksError;
+  const missing = links.filter((link) => !(existingLinks ?? []).some((existing) =>
+    existing.target_kind === link.kind && JSON.stringify(existing.target_ref) === JSON.stringify(link.ref)));
+  if (missing.length) {
+    const { error } = await supabase.from("journal_entry_links").insert(missing.map((link) => ({
+      user_id: userId, entry_id: entryId, target_kind: link.kind, target_ref: link.ref,
+    })));
+    if (error) throw error;
+  }
 
   if (linkedEntryIds.length) {
     for (const otherId of linkedEntryIds) {
@@ -343,11 +311,12 @@ export async function syncMorningReviewToJournal(
   }
 
   if (ctx.reviewId) {
-    await supabase
+    const { error } = await supabase
       .from("living_hope_reviews")
       .update({ journal_entry_id: entryId })
       .eq("id", ctx.reviewId)
       .eq("user_id", userId);
+    if (error) throw error;
   }
 
   return { entryId };

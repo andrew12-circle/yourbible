@@ -1,6 +1,9 @@
+import { MorningWorshipMusic } from "./MorningWorshipMusic";
+import { MorningScriptureActions } from "./MorningScriptureActions";
+import { MorningPrayerReader } from "./MorningPrayerReader";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, ChevronLeft, ChevronRight, LayoutList, Loader2, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutList, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,9 +20,7 @@ import type { MorningScripture } from "@/hooks/useMorningScripture";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
 import {
-  morningFormulaReaderState,
   MORNING_FORMULA_WORSHIP_RETURN,
-  persistReaderReturn,
 } from "@/lib/bible/readerNavigation";
 import {
   COVERING_PRAYER_PROMPTS,
@@ -145,6 +146,9 @@ export function MorningGuidedExperience({
   scriptureError,
   onGenerateScripture,
   journalEntryId,
+  worshipPlaylistUrl,
+  worshipPlaylistHistory,
+  onWorshipMusicChange,
   onSwitchToStructured,
   canGoBack,
   onGoBack,
@@ -223,7 +227,7 @@ export function MorningGuidedExperience({
 
   const continueLabel = (() => {
     if (isLastStep) return "Complete review";
-    if (stepExpired) return "Continue — time's up";
+    if (stepExpired) return "Continue when ready";
     if (step.kind === "worship" && !worshipPhaseComplete(worshipElapsedMs, worshipTargetMs)) {
       return `Continue (${formatGuidedCountdown(worshipTargetMs - worshipElapsedMs)} left)`;
     }
@@ -236,14 +240,7 @@ export function MorningGuidedExperience({
     return "Continue";
   })();
 
-  const continueDisabled =
-    saving ||
-    (step.kind === "scripture" &&
-      !scriptureTimer.complete &&
-      !stepExpired) ||
-    (step.kind === "worship" &&
-      !worshipPhaseComplete(worshipElapsedMs, worshipTargetMs) &&
-      !stepExpired);
+  const continueDisabled = saving;
 
   return (
     <div className="flex flex-1 flex-col gap-4">
@@ -288,6 +285,8 @@ export function MorningGuidedExperience({
         <blockquote className={lh.quote}>{(letter.full_letter ?? letter.outlook ?? "").slice(0, 280)}…</blockquote>
       ) : null}
 
+      {step.kind === "worship" ? <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} /> : null}
+
       {step.kind === "thanksgiving" ? (
         <div className="space-y-4">
           <MorningFormulaJournalLink
@@ -323,20 +322,7 @@ export function MorningGuidedExperience({
                   {scripture.passage}
                 </blockquote>
               ) : null}
-              <Button variant="outline" size="sm" asChild>
-                <Link
-                  to={scripture.readerHref}
-                  state={morningFormulaReaderState({ prompt: scripture.prompt, reason: scripture.reason })}
-                  onClick={() =>
-                    persistReaderReturn(
-                      morningFormulaReaderState({ prompt: scripture.prompt, reason: scripture.reason }),
-                    )
-                  }
-                >
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  Read in Bible
-                </Link>
-              </Button>
+              <MorningScriptureActions readerHref={scripture.readerHref} />
             </>
           ) : (
             <Button variant="outline" size="sm" onClick={onGenerateScripture} disabled={scriptureBusy}>
@@ -439,13 +425,7 @@ export function MorningGuidedExperience({
       {step.kind === "surrender" ? (
         <div className="space-y-3">
           <p className={cn(lh.bodySm, "leading-relaxed")}>{SURRENDER_STEP_INTRO}</p>
-          <Textarea
-            value={surrender}
-            onChange={(e) => setSurrender(e.target.value)}
-            rows={14}
-            className={lh.textarea}
-            aria-label="Surrender prayer"
-          />
+          <MorningPrayerReader title="Surrender" value={surrender} onChange={setSurrender} />
         </div>
       ) : null}
 
@@ -457,13 +437,7 @@ export function MorningGuidedExperience({
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <Textarea
-            value={covering}
-            onChange={(e) => setCovering(e.target.value)}
-            rows={14}
-            className={lh.textarea}
-            aria-label="Covering prayer"
-          />
+          <MorningPrayerReader title="Covering" value={covering} onChange={setCovering} />
         </div>
       ) : null}
 

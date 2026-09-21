@@ -14,7 +14,7 @@ export const STEP_TIME_WEIGHTS: Partial<Record<RitualStep["kind"], number>> = {
   intro: 0,
   done: 0,
   worship: 5,
-  thanksgiving: 3,
+  thanksgiving: 6,
   scripture: 5,
   prayer: 3,
   manifesto: 2,
@@ -32,6 +32,7 @@ export interface FormulaTimerPersistedState {
   durationMin: SessionDurationMin;
   stepKey: string | null;
   stepStartedAt: string | null;
+  stepExtraMs?: number;
 }
 
 function defaultPersistedState(): FormulaTimerPersistedState {
@@ -58,6 +59,7 @@ function readPersistedState(): FormulaTimerPersistedState {
       durationMin,
       stepKey: parsed.stepKey ?? null,
       stepStartedAt: parsed.stepStartedAt ?? null,
+      stepExtraMs: typeof parsed.stepExtraMs === "number" && Number.isFinite(parsed.stepExtraMs) ? Math.max(0, parsed.stepExtraMs) : 0,
     };
   } catch {
     return defaultPersistedState();
@@ -66,7 +68,7 @@ function readPersistedState(): FormulaTimerPersistedState {
 
 function writePersistedState(state: FormulaTimerPersistedState): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* Pacing still works in memory. */ }
 }
 
 export function getSessionDurationMin(): SessionDurationMin {
@@ -75,7 +77,7 @@ export function getSessionDurationMin(): SessionDurationMin {
 
 export function setSessionDurationMin(durationMin: SessionDurationMin): void {
   const state = readPersistedState();
-  writePersistedState({ ...state, durationMin, stepKey: null, stepStartedAt: null });
+  writePersistedState({ ...state, durationMin, stepKey: null, stepStartedAt: null, stepExtraMs: 0 });
 }
 
 export function clearMorningFormulaTimer(): void {
@@ -145,11 +147,12 @@ export function computeFormulaTimerSnapshot(
   durationMin: SessionDurationMin,
   stepStartedAt: string | null,
   activeStepKey: string | null,
+  stepExtraMs = 0,
 ): FormulaTimerSnapshot {
   const budgets = buildStepDurationMap(steps, durationMin);
   const step = steps[stepIndex];
   const stepKey = step ? ritualStepKey(step) : null;
-  const stepBudgetMs = stepKey ? (budgets[stepKey] ?? 0) : 0;
+  const stepBudgetMs = stepKey ? (budgets[stepKey] ?? 0) + (stepKey === activeStepKey ? Math.max(0, stepExtraMs) : 0) : 0;
   const elapsedMs = stepKey && stepKey === activeStepKey ? elapsedSince(stepStartedAt) : 0;
   const stepRemainingMs = Math.max(0, stepBudgetMs - elapsedMs);
 
@@ -173,15 +176,24 @@ export function computeFormulaTimerSnapshot(
 export function beginFormulaStepTimer(stepKey: string): string {
   const now = new Date().toISOString();
   const state = readPersistedState();
-  writePersistedState({ ...state, stepKey, stepStartedAt: now });
+  writePersistedState({ ...state, stepKey, stepStartedAt: now, stepExtraMs: 0 });
   return now;
 }
 
-export function loadFormulaStepTimer(): Pick<FormulaTimerPersistedState, "stepKey" | "stepStartedAt"> {
-  const { stepKey, stepStartedAt } = readPersistedState();
-  return { stepKey, stepStartedAt };
+export function loadFormulaStepTimer(): Pick<FormulaTimerPersistedState, "stepKey" | "stepStartedAt" | "stepExtraMs"> {
+  const { stepKey, stepStartedAt, stepExtraMs } = readPersistedState();
+  return { stepKey, stepStartedAt, stepExtraMs };
 }
 
 export function isTimedRitualStep(step: RitualStep): boolean {
   return step.kind !== "intro" && step.kind !== "done";
+}
+
+export function extendFormulaStepTimer(stepKey: string, additionalMs: number): number {
+  const state = readPersistedState();
+  const current = state.stepKey === stepKey ? state.stepExtraMs ?? 0 : 0;
+  if (state.stepKey !== stepKey) return 0;
+  const extra = current + (Number.isFinite(additionalMs) ? Math.max(0, additionalMs) : 0);
+  writePersistedState({ ...state, stepExtraMs: extra });
+  return extra;
 }

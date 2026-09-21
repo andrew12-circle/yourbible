@@ -3683,6 +3683,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_morning_formula_entry: {
+        Args: { p_review_date: string; p_journal_id: string | null; p_title: string; p_body: string; p_context?: Json }
+        Returns: { entry_id: string; created: boolean }[]
+      }
+
       journal_entry_list_page: {
         Args: {
           p_journal_id?: string | null

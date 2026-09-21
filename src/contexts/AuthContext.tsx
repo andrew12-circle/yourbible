@@ -20,6 +20,8 @@ export interface Profile {
   page_tone: string;
   layout: string;
   onboarded: boolean;
+  /** Privacy setting returned with the authenticated profile. */
+  journal_e2e_enabled?: boolean;
   identity_summary: IdentitySummaryPayload | null;
   identity_generated_at: string | null;
   all_entries_cover_kind?: "none" | "photo";
