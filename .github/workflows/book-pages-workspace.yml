@@ -1,0 +1,21 @@
+name: Book pages source snapshot
+on:
+  push:
+    branches: [fix/true-book-pages]
+    paths: [.github/workflows/book-pages-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: git archive HEAD src scripts .cursor AGENTS.md package.json package-lock.json .github/workflows | gzip > "$RUNNER_TEMP/book-pages-source.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: book-pages-source
+          path: ${{ runner.temp }}/book-pages-source.tar.gz
+          retention-days: 1
