@@ -18,7 +18,7 @@ export interface ScriptureColumnMeasureOptions {
  */
 
 /** Extra slack on live column wrappers so the last line is never clipped vs paginator. */
-export const READER_LIVE_COLUMN_SAFETY_PX = 32;
+export const READER_LIVE_COLUMN_SAFETY_PX = 4;
 
 /** Horizontal inset applied to column boxes (must match CSS padding-inline on columns). */
 export const READER_COLUMN_EDGE_INSET_EM = 0.55;
@@ -28,8 +28,8 @@ export function paginatorMeasureLimitPx(contentHeightPx: number): number {
   return Math.max(1, Math.round(contentHeightPx - READER_LIVE_COLUMN_SAFETY_PX));
 }
 
-/** Extra slack reserved per spread pane during paginator measurement. */
-export const READER_SPREAD_PANE_EXTRA_GUARD_PX = 72;
+/** Faces are measured at their real available height; do not subtract a second page margin. */
+export const READER_SPREAD_PANE_EXTRA_GUARD_PX = 0;
 
 /** Paginator stack height for one spread pane — tighter than live to avoid clip gaps. */
 export function paginatorSpreadPaneLimitPx(stackLimitPx: number): number {
@@ -48,10 +48,10 @@ export function readerScriptureColumnsHeightPx(
 }
 
 /** Clip slack for the last line / descenders inside a column box. */
-export const READER_COLUMN_CLIP_GUARD_PX = 36;
+export const READER_COLUMN_CLIP_GUARD_PX = 2;
 
 /** Breathing room between the last scripture line and the page nav bar. */
-export const READER_PAGE_NAV_CLEARANCE_PX = 40;
+export const READER_PAGE_NAV_CLEARANCE_PX = 10;
 
 /** ReaderPageFooter height (h-10) + top border — reserved when layout may measure before footer mounts. */
 export const READER_PAGE_NAV_FOOTER_PX = 48;

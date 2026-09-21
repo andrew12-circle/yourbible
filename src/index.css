@@ -1349,11 +1349,11 @@
   }
 
   /* Single-column page mode (no CSS columns) — same fore-edge inset as column boxes. */
-  [data-bible-reader] [data-reading-area] .holman-study-stack > div:first-child:not(:has([class*="scripture-columns"])) {
+  [data-reading-area] .holman-study-stack > div:first-child:not(:has([class*="scripture-columns"])) {
     padding-inline-end: max(10px, 0.55em);
     box-sizing: border-box;
   }
-  [data-bible-reader] [data-reading-area]:not(:has([data-bible-scroll])) .scripture-paragraph {
+  [data-reading-area]:not(:has([data-bible-scroll])) .scripture-paragraph {
     padding-inline-end: max(0.5em, 8px);
   }
 

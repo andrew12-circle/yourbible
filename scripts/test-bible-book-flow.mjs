@@ -1,3 +1,4 @@
+import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords } from "./reader-browser-text.mjs";
 /** Real reader: visible page geometry and consecutive facing-page flow. No provider calls. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -144,60 +145,33 @@ try {
       return route.abort();
     });
     await page.goto(origin+'/'+basename(scratch)+'/index.html'); await settled();
-    if (scenario.oversized) {
-      const notice = page.getByRole('button', {name:'Open full passage', exact:true}).first();
-      await notice.waitFor({state:'visible',timeout:30000});
-      assert.equal(await page.evaluate(() => localStorage.getItem('yb.reader.displayMode')), 'pages', 'Overflow silently changed reading mode');
-      assert.equal(await page.locator('[data-bible-scroll], [data-reader-overflow]').count(), 0, 'Overflow silently enabled scrolling');
-      const bookPages = await page.locator('[data-reader-page-side] article[data-reading-area]').evaluateAll(nodes => nodes.map(node => ({
-        overflowY: getComputedStyle(node).overflowY,
-        columns: node.querySelector('[class*="scripture-columns"]') ? getComputedStyle(node.querySelector('[class*="scripture-columns"]')).columnCount : null,
-      })));
-      for (const bookPage of bookPages) {
-        assert(!/auto|scroll/.test(bookPage.overflowY), 'Oversized book page acquired an internal scrollbar');
-        if (bookPage.columns) assert.equal(bookPage.columns, '2', 'Overflow collapsed the selected columns');
-      }
-      const savedFont = await page.evaluate(() => localStorage.getItem('yb.fontScale'));
-      const cached = requests.length;
-      await page.screenshot({path:join(output,'book-flow-oversized-notice.png')});
-      await notice.click();
-      await page.locator('[data-bible-scroll]').first().waitFor({state:'visible'});
-      await settled();
-      assert.equal(await page.evaluate(() => localStorage.getItem('yb.reader.displayMode')), 'scroll', 'Explicit full-passage action did not open continuous reading');
-      assert.equal(await page.evaluate(() => localStorage.getItem('yb.fontScale')), savedFont, 'Full-passage recovery changed the font size');
-      assert.equal(await page.locator('[data-reader-fit-notice]').count(), 0, 'Fit notice remained over continuous reading');
-      const expected = syntheticPassage('Jhn',3).verses[0].text.trim();
-      const actual = await page.locator('[data-bible-scroll] [data-verse-id]').first().textContent();
-      assert(actual?.includes(expected), 'Full-passage recovery lost or changed words');
-      assert.equal(requests.length, cached, 'Opening an already loaded full passage fetched Scripture');
-      await page.screenshot({path:join(output,'book-flow-oversized-continuous.png')});
-      record('oversized-unit: fixed book pages retain columns; explicit full-passage choice preserves every word and font size without a provider request');
-      await page.close();page=null;
-      continue;
-    }
     const collected=[], geometries=[];steps=[];
+    const lookup=(book,ch,v)=>syntheticPassage(book,ch).verses.find(verse=>verse.number===v);
     let reachedNext=false;
     for(let step=0;step<80;step++) {
       const current=await inspect(); geometries.push(current.pages);
       steps.push({step,...current,position:await page.evaluate(()=>window.__readerPositionHistory.at(-1))});
       assert.deepEqual(current.issues,[],scenario.name+': '+current.issues.slice(0,5).join('\n'));
       for(const p of current.pages) assert.equal(p.columns,scenario.columns==='double'?'2':'1','Selected columns changed');
-      for(const id of current.ids) {const[,book,ch,v]=id.split(':');if(book==='Jhn'&&ch==='3')collected.push(Number(v));}
+      const words=await renderedVerseFragments(page); verifyFragmentWords(words,lookup);
+      collected.push(...words.filter(row=>row.id.includes(':Jhn:3:')));
       if(current.ids.some(id=>id.includes(':Jhn:4:'))) {reachedNext=true;break;}
       await turn(1);
     }
     assert(reachedNext,'Could not advance into the next chapter');
-    assert.deepEqual(collected,Array.from({length:42},(_,i)=>i+1),'Skipped, repeated, or reordered text between facing pages');
+    const ids=verifyConsecutiveFragments(collected,lookup,{complete:true});
+    assert.deepEqual(ids.map(id=>Number(id.split(':').at(-1))),Array.from({length:scenario.oversized?1:42},(_,i)=>i+1),'Skipped or reordered verses');
+    assert.equal(await page.locator('[data-reader-fit-notice], [data-bible-scroll]').count(),0,'Page mode must not offer a mode-switch fallback');
     await page.screenshot({path:join(output,`book-flow-${scenario.name}.png`)});
     writeFileSync(join(output,`book-flow-${scenario.name}.json`),JSON.stringify(geometries,null,2));
-    const before=(await inspect()).ids;
+    const before=await renderedVerseFragments(page);
     await turn(-1); assert.deepEqual((await inspect()).issues,[]);
-    await turn(1); assert.deepEqual((await inspect()).ids,before,'Backward/forward changed the reading allocation');
+    await turn(1); assert.deepEqual(await renderedVerseFragments(page),before,'Backward/forward changed the reading allocation');
     const cached=requests.length;
     await page.setViewportSize({width:scenario.width-53,height:scenario.height-37});await settled();
     assert.deepEqual((await inspect()).issues,[],'Resize introduced clipped/scrollable text');
     assert.equal(requests.length,cached,'Reflow fetched Scripture');
-    record(scenario.name+': all 42 verses visibly fit in order; facing-page flow, reverse turn, resize and zero reflow provider calls');
+    record(scenario.name+': every verse character visibly fits in order across page turns, including long-verse continuations; reverse turn and cached resize');
     await page.close();page=null;
   }
   assert.deepEqual(browserErrors,[]);

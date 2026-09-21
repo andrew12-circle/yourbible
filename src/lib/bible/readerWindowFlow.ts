@@ -15,7 +15,7 @@ export interface ReaderWindowFlow {
 }
 export function readerStreamUnitId(unit: ReaderStreamUnit): string {
   const prefix = `${unit.bookAbbr}|${unit.chapter}`;
-  return unit.kind === "verse" ? `${prefix}|v${unit.verse.number}`
+  return unit.kind === "verse" ? `${prefix}|v${unit.verse.number}${unit.verseRange?.start ? `@${unit.verseRange.start}` : ""}`
     : unit.kind === "plate" ? `${prefix}|art:${unit.plate.id}` : `${prefix}|heading`;
 }
 export function readReaderWindowFlow(state: unknown, bibleId: string, bookAbbr: string, chapter: number): ReaderWindowFlow | undefined {
@@ -51,6 +51,9 @@ export function readerWindowTurn(options: ReaderWindowTurnOptions): ReaderWindow
   const pageCount = splits.length - 1;
   const currentStart = stream[splits[page] ?? 0];
   const frame: ReaderWindowFlow = { ...flow, bibleId, bookAbbr, chapter, firstPageNumber,
+    // Preserve the actual first unit, even when this is the initial route window.
+    // Otherwise returning to it can prepend the previous chapter and move every page.
+    startId: flow?.startId ?? readerStreamUnitId(stream[0]),
     restoreId: readerStreamUnitId(currentStart) };
   if (delta < 0 && nextPage < 0) {
     if (flow?.back) return { bookAbbr: flow.back.bookAbbr, chapter: flow.back.chapter, flow: flow.back };

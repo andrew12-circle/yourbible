@@ -1,3 +1,4 @@
+import { readerVerseFragment } from "./readerVerseFragments";
 import type { CSSProperties, ReactNode } from "react";
 import type { PassageVerse, PoetryBlock } from "@/lib/bible/api";
 import {
@@ -268,7 +269,8 @@ export function renderScriptureParagraphNodes(
     return groupVersesIntoParagraphs(verseGroup.verses, paragraphStartSet).flatMap((group) => {
       const nodes: ReactNode[] = [];
       const first = group.verses[0]?.number;
-      const heading = first != null ? headingMap.get(first) : undefined;
+      const continuesVerse = (readerVerseFragment(group.verses[0])?.start ?? 0) > 0;
+      const heading = first != null && !continuesVerse ? headingMap.get(first) : undefined;
       const unitKey = `${verseGroup.bookAbbr}-${verseGroup.chapter}-${first}`;
       const poetryLevel = first != null ? poetryLevelForVerse(poetryBlocks, first) : 0;
 
@@ -286,13 +288,13 @@ export function renderScriptureParagraphNodes(
         <ScriptureParagraph
           key={`p-${unitKey}`}
           poetryLevel={poetryLevel}
-          isContinuation={group.isContinuation}
+          isContinuation={group.isContinuation || continuesVerse}
         >
           {group.verses.map((v) =>
             renderVerse(v, {
               bookAbbr: verseGroup.bookAbbr,
               chapter: verseGroup.chapter,
-              paragraphIsContinuation: group.isContinuation,
+              paragraphIsContinuation: group.isContinuation || continuesVerse,
             }),
           )}
         </ScriptureParagraph>,

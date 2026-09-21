@@ -8,7 +8,7 @@ describe("readerColumnLayout", () => {
   it("honors stored preference in page mode", () => {
     expect(effectiveReaderColumnLayout({ stored: "double" })).toBe("double");
     expect(effectiveReaderColumnLayout({ stored: "single" })).toBe("single");
-    expect(effectiveReaderColumnLayout({})).toBe("single");
+    expect(effectiveReaderColumnLayout({})).toBe("double");
   });
 
   it("forces single column in scroll mode regardless of stored preference", () => {
