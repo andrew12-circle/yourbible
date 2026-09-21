@@ -51,6 +51,9 @@ export function readerWindowTurn(options: ReaderWindowTurnOptions): ReaderWindow
   const pageCount = splits.length - 1;
   const currentStart = stream[splits[page] ?? 0];
   const frame: ReaderWindowFlow = { ...flow, bibleId, bookAbbr, chapter, firstPageNumber,
+    // Preserve the actual first unit, even when this is the initial route window.
+    // Otherwise returning to it can prepend the previous chapter and move every page.
+    startId: flow?.startId ?? readerStreamUnitId(stream[0]),
     restoreId: readerStreamUnitId(currentStart) };
   if (delta < 0 && nextPage < 0) {
     if (flow?.back) return { bookAbbr: flow.back.bookAbbr, chapter: flow.back.chapter, flow: flow.back };
