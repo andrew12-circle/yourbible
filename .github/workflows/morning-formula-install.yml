@@ -1,0 +1,79 @@
+name: Morning Formula repair validation
+on:
+  push:
+    branches: [fix/journal-morning-formula-flow]
+    paths:
+      - '.github/workflows/morning-formula-install.yml'
+      - 'scripts/mf-plan-*.json'
+      - 'scripts/apply-morning-formula-repair.py'
+permissions:
+  contents: write
+concurrency:
+  group: morning-formula-repair
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: morning-formula-test-placeholder
+  VITE_SUPABASE_ANON_KEY: morning-formula-test-placeholder
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: fix/journal-morning-formula-flow
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply hash-verified source changes
+        run: python scripts/apply-morning-formula-repair.py
+      - run: git diff --check
+      - run: npm ci
+      - name: Full repository lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/morning-lint.log"
+      - name: Full repository tests
+        id: tests
+        continue-on-error: true
+        run: npm run test 2>&1 | tee "$RUNNER_TEMP/morning-tests.log"
+      - name: No new TypeScript diagnostics
+        id: types
+        continue-on-error: true
+        run: node scripts/check-journal-type-regressions.mjs 9ec47d8305da3cb5811fa81f24d1a615039ea315 2>&1 | tee "$RUNNER_TEMP/morning-types.log"
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/morning-build.log"
+      - name: Require successful verification
+        run: |
+          test '${{ steps.lint.outcome }}' = success
+          test '${{ steps.tests.outcome }}' = success
+          test '${{ steps.types.outcome }}' = success
+          test '${{ steps.build.outcome }}' = success
+      - name: Commit only verified application files to repair branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src supabase/migrations/20260921154857_morning_formula_single_journal.sql
+          git commit -m 'feat(morning-formula): one video-first journal, worship music, Bible popout and spoken thanks'
+          git push origin HEAD:fix/journal-morning-formula-flow
+          git rev-parse HEAD > "$RUNNER_TEMP/morning-verified-commit.log"
+      - name: Preserve actual outcomes and reviewed diff
+        if: always()
+        run: |
+          git diff 9ec47d8305da3cb5811fa81f24d1a615039ea315 -- src supabase > "$RUNNER_TEMP/morning-reviewed.patch"
+          printf 'lint=%s\ntests=%s\ntypes=%s\nbuild=%s\n' '${{ steps.lint.outcome }}' '${{ steps.tests.outcome }}' '${{ steps.types.outcome }}' '${{ steps.build.outcome }}' > "$RUNNER_TEMP/morning-outcomes.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: morning-formula-validation
+          path: |
+            ${{ runner.temp }}/morning-*.log
+            ${{ runner.temp }}/morning-reviewed.patch
+          retention-days: 7
