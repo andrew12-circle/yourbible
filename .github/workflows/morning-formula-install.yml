@@ -6,6 +6,7 @@ on:
       - '.github/workflows/morning-formula-install.yml'
       - 'scripts/mf-plan-*.json'
       - 'scripts/apply-morning-formula-repair.py'
+      - 'scripts/mf-followup.py'
 permissions:
   contents: write
 concurrency:
@@ -30,8 +31,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Apply hash-verified source changes
-        run: python scripts/apply-morning-formula-repair.py
+      - name: Apply reviewed source changes
+        run: |
+          python scripts/apply-morning-formula-repair.py
+          python scripts/mf-followup.py
       - run: git diff --check
       - run: npm ci
       - name: Full repository lint
