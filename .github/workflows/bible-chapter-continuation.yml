@@ -1,7 +1,8 @@
 name: Bible chapter continuation
 on:
   push:
-    branches: [fix/bible-continuous-chapter-flow]
+    branches: [main, fix/bible-continuous-chapter-flow]
+    paths: ['src/hooks/useReader*', 'src/components/bible/**', 'src/pages/reader/**', 'src/lib/bible/**', 'scripts/*bible*', '.github/workflows/bible-chapter-continuation.yml']
   pull_request:
     paths: ['src/**', 'scripts/*bible*', '.github/workflows/bible-chapter-continuation.yml']
 permissions:
@@ -13,6 +14,9 @@ env:
   VITE_SUPABASE_URL: https://example.supabase.co
   VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
   VITE_SUPABASE_ANON_KEY: reader-test-placeholder
+defaults:
+  run:
+    shell: bash
 jobs:
   chapter-flow:
     runs-on: ubuntu-latest
@@ -32,13 +36,12 @@ jobs:
       - name: Chapter continuation
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
-        run: node scripts/diagnose-bible-chapter-continuation.mjs
+        run: node scripts/test-bible-chapter-continuation.mjs 2>&1 | tee "$RUNNER_TEMP/chapter-flow.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: chapter-continuation-evidence
           path: |
-            ${{ runner.temp }}/acts-*.png
-            ${{ runner.temp }}/acts-*.json
+            ${{ runner.temp }}/chapter-flow*.png
             ${{ runner.temp }}/chapter-flow*.json
-            ${{ runner.temp }}/book-flow-failure.*
+            ${{ runner.temp }}/chapter-flow.log
