@@ -1,0 +1,225 @@
+diff --git a/src/lib/bible/readerVerseFragments.test.tsx b/src/lib/bible/readerVerseFragments.test.tsx
+new file mode 100644
+index 0000000..3b856fd
+--- /dev/null
++++ b/src/lib/bible/readerVerseFragments.test.tsx
+@@ -0,0 +1,77 @@
++import { describe, expect, it } from "vitest";
++import { renderToStaticMarkup } from "react-dom/server";
++import { appendReaderStreamVerse, fragmentReaderStream, readerVerseFragment, readerWordRanges, sliceReaderVerse } from "./readerVerseFragments";
++import { versePlainText } from "./verseParts";
++import { buildReaderStream, sliceReaderPage, type ReaderStreamUnit } from "./readerStream";
++import { paginateReaderStream } from "./paginateReaderStream";
++import { readerStreamUnitId, readerWindowStream } from "./readerWindowFlow";
++import { createReaderVerseRenderer } from "./readerVerseNode";
++import { selectionToVerseRanges } from "./verseSelection";
++import type { PassageVerse } from "./api";
++
++const verse: PassageVerse = { number: 1, text: "Do not normalize this field", parts: [
++  {kind:"text",text:"Jesus  "}, {kind:"footnote",marker:1,text:"A note"},
++  {kind:"text",text:"said, “The "}, {kind:"text",text:"LORD",style:"divine"},
++  {kind:"text",text:" is good.”  "},
++] };
++const unit = (v=verse): ReaderStreamUnit => ({kind:"verse",bookAbbr:"Mrk",bookName:"Mark",chapter:3,verse:v});
++const renderer = (text: string) => createReaderVerseRenderer({
++  bibleId:"test",bookAbbr:"Mrk",chapter:3,useBookSpread:false,studyLayout:"inline",
++  redSegments:new Map([[1,[{text,isJesus:true}]]]),redSegmentsByChapter:new Map(),
++  ulFor:()=>undefined,hlsFor:()=>[],noteFor:()=>undefined,onVerseNumberClick:()=>{},navigate:()=>{},setNoteOpen:()=>{},
++});
++
++describe("printed Bible word-boundary pages",()=>{
++  it("preserves every character, style and note exactly once across word cuts",()=>{
++    const text=versePlainText(verse), ranges=readerWordRanges(text);
++    const fragments=ranges.map(range=>sliceReaderVerse(verse,range.start,range.end));
++    expect(fragments.map(versePlainText).join("")).toBe(text);
++    expect(fragments.flatMap(v=>v.parts??[]).filter(p=>p.kind==="footnote")).toHaveLength(1);
++    expect(fragments.flatMap(v=>v.parts??[]).find(p=>p.kind==="text"&&p.style==="divine")).toMatchObject({text:"LORD"});
++  });
++  it("keeps emoji, accents and joined Unicode intact in long words",()=>{
++    const text=("e\u0301👨‍👩‍👧‍👦").repeat(45);
++    const pieces=readerWordRanges(text).map(range=>text.slice(range.start,range.end));
++    expect(pieces.join("")).toBe(text);
++    expect(pieces.every(piece=>!piece.startsWith("\u0301")&&!piece.startsWith("\u200d")&&!piece.endsWith("\u200d"))).toBe(true);
++  });
++  it("coalesces words into a semantic verse again before rendering",()=>{
++    const out:PassageVerse[]=[];
++    fragmentReaderStream([unit()]).forEach(u=>{if(u.kind==="verse")appendReaderStreamVerse(out,u)});
++    expect(out).toHaveLength(1);expect(out[0]).toBe(verse);
++  });
++  it("splits even one extremely long verse into readable pages without losing its suffix",()=>{
++    const long:PassageVerse={number:1,text:("Every word remains in Scripture. ").repeat(160)};
++    const stream=fragmentReaderStream(buildReaderStream([{bookAbbr:"Mrk",bookName:"Mark",chapter:3,verses:[long],paragraphStarts:[1],headings:[],poetryBlocks:[]}],{plateFocus:{bookAbbr:"NONE",chapter:1}}));
++    const splits=paginateReaderStream(stream,(start,end)=>stream.slice(start,end).reduce((n,u)=>n+(u.kind==="verse"?(u.verseRange!.end-u.verseRange!.start):0),0)<=240);
++    const pages=splits.slice(0,-1).map((_,i)=>sliceReaderPage(stream,splits,i)!.verseGroups.flatMap(g=>g.verses));
++    expect(pages.length).toBeGreaterThan(10);
++    expect(pages.flat().map(versePlainText).join("")).toBe(long.text);
++    expect(pages.every(vs=>vs.map(versePlainText).join("").length<=240)).toBe(true);
++  });
++  it("carries the exact first unread word into the next chapter window",()=>{
++    const stream=fragmentReaderStream([unit()]);
++    const unread=stream[3], id=readerStreamUnitId(unread);
++    expect(id).toContain("@" );
++    const next=readerWindowStream(fragmentReaderStream([unit()]),{bibleId:"test",bookAbbr:"Mrk",chapter:3,firstPageNumber:1,startId:id});
++    expect(readerStreamUnitId(next[0])).toBe(id);
++    expect(next.length).toBe(stream.length-3);
++  });
++  it("uses original red-letter offsets on a continuation and does not repeat its chapter number",()=>{
++    const full=versePlainText(verse), start=full.indexOf("said");
++    const fragment=sliceReaderVerse(verse,start,full.length);
++    const root=document.createElement("div");root.innerHTML=renderToStaticMarkup(renderer(full)(fragment));
++    const body=root.querySelector("[data-verse-body]")!;
++    expect(body.textContent).toBe(full.slice(start));
++    expect(body.querySelector(".red-letter")).not.toBeNull();
++    expect(root.querySelector(".chapter-drop-cap,.verse-num")).toBeNull();
++    expect(readerVerseFragment(fragment)?.original).toBe(verse);
++  });
++  it("maps a selection on the continued page to original verse offsets, excluding note markers",()=>{
++    document.body.innerHTML='<article data-reading-area><span data-verse="1"><span data-verse-body="1" data-verse-start="20" data-verse-end="31">hello<sup>9</sup> world</span></span></article>';
++    const body=document.querySelector("[data-verse-body]")!;
++    const range=document.createRange();range.setStart(body.firstChild!,1);range.setEnd(body.lastChild!,4);
++    expect(selectionToVerseRanges(range,new Map([[1,80]]))).toEqual([{verse:1,start:21,end:29}]);
++    document.body.innerHTML="";
++  });
++});
+diff --git a/src/lib/bible/readerVerseFragments.ts b/src/lib/bible/readerVerseFragments.ts
+new file mode 100644
+index 0000000..93540a2
+--- /dev/null
++++ b/src/lib/bible/readerVerseFragments.ts
+@@ -0,0 +1,80 @@
++import type { PassageVerse } from "./api";
++import type { ReaderStreamUnit } from "./readerStream";
++import { collectCrossRefs, collectFootnotes, verseParts, versePlainText, type VersePart } from "./verseParts";
++
++/** Page boundaries are UTF-16 offsets in the ORIGINAL verse, like saved highlights. */
++export interface ReaderTextRange { start: number; end: number }
++export interface ReaderVerseFragment extends ReaderTextRange { original: PassageVerse }
++type FragmentVerse = PassageVerse & { readerFragment?: ReaderVerseFragment };
++export function readerVerseFragment(verse: PassageVerse | undefined): ReaderVerseFragment | undefined {
++  return (verse as FragmentVerse | undefined)?.readerFragment;
++}
++
++/** Never normalize, trim, or insert characters while dividing Scripture into pages. */
++export function sliceReaderVerse(original: PassageVerse, start: number, end: number): PassageVerse {
++  const plain = versePlainText(original);
++  if (start === 0 && end === plain.length) return original;
++  const parts: VersePart[] = [];
++  let offset = 0;
++  for (const part of verseParts(original)) {
++    if (part.kind !== "text") {
++      // A marker at a cut belongs to the preceding text, not both pages.
++      if ((offset > start && offset <= end) || (start === 0 && offset === 0)) parts.push(part);
++      continue;
++    }
++    const next = offset + part.text.length;
++    const a = Math.max(start, offset), b = Math.min(end, next);
++    if (b > a) parts.push({ ...part, text: part.text.slice(a - offset, b - offset) });
++    offset = next;
++  }
++  const fragment: FragmentVerse = {
++    ...original, text: plain.slice(start, end), parts,
++    footnotes: collectFootnotes(parts), crossRefs: collectCrossRefs(parts),
++    readerFragment: { original, start, end },
++  };
++  return fragment;
++}
++
++/** Coalesce neighboring word units into one semantic verse fragment per page. */
++export function appendReaderStreamVerse(verses: PassageVerse[], unit: Extract<ReaderStreamUnit, { kind: "verse" }>) {
++  if (!unit.verseRange) { verses.push(unit.verse); return; }
++  const last = verses.at(-1);
++  const previous = last && readerVerseFragment(last);
++  if (previous?.original === unit.verse && previous.end === unit.verseRange.start) {
++    verses[verses.length - 1] = sliceReaderVerse(unit.verse, previous.start, unit.verseRange.end);
++  } else {
++    verses.push(sliceReaderVerse(unit.verse, unit.verseRange.start, unit.verseRange.end));
++  }
++}
++
++/** Stable word cuts. Very long unbroken words also get grapheme-safe escape cuts. */
++export function readerWordRanges(text: string): ReaderTextRange[] {
++  const ranges: ReaderTextRange[] = [];
++  for (const match of text.matchAll(/\S+\s*|\s+/gu)) {
++    const start = match.index!;
++    if (match[0].length <= 32) { ranges.push({ start, end: start + match[0].length }); continue; }
++    // Intl.Segmenter keeps accents, surrogate pairs and joined characters intact.
++    type Segments = Iterable<{ index: number }>;
++    type SegmenterCtor = new (locale: undefined, options: { granularity: "grapheme" }) => { segment: (text: string) => Segments };
++    const Segmenter = (Intl as typeof Intl & { Segmenter?: SegmenterCtor }).Segmenter;
++    let fallbackIndex = 0;
++    const segments: Segments = Segmenter ? new Segmenter(undefined, { granularity: "grapheme" }).segment(match[0])
++      : Array.from(match[0], (character) => { const index = fallbackIndex; fallbackIndex += character.length; return { index }; });
++    let cut = start, count = 0;
++    for (const item of segments) {
++      if (count === 16) { ranges.push({ start: cut, end: start + item.index }); cut = start + item.index; count = 0; }
++      count += 1;
++    }
++    ranges.push({ start: cut, end: start + match[0].length });
++  }
++  return ranges;
++}
++
++/** Text remains a continuous stream; an illustration still owns one physical page. */
++export function fragmentReaderStream(stream: ReaderStreamUnit[]): ReaderStreamUnit[] {
++  return stream.flatMap((unit): ReaderStreamUnit[] => {
++    if (unit.kind !== "verse") return [unit];
++    const ranges = readerWordRanges(versePlainText(unit.verse));
++    return ranges.length ? ranges.map((verseRange) => ({ ...unit, verseRange })) : [unit];
++  });
++}
+diff --git a/src/lib/bible/readerVerseNode.tsx b/src/lib/bible/readerVerseNode.tsx
+index 5ca5762..d0d0627 100644
+--- a/src/lib/bible/readerVerseNode.tsx
++++ b/src/lib/bible/readerVerseNode.tsx
+@@ -0,0 +1 @@
++import { readerVerseFragment } from "./readerVerseFragments";
+@@ -170,0 +172,3 @@ export function createReaderVerseRenderer({
++    const fragment = readerVerseFragment(v);
++    const original = fragment?.original ?? v;
++    const startOffset = fragment?.start ?? 0;
+@@ -175 +179 @@ export function createReaderVerseRenderer({
+-      ctx?.showChapterDropCap !== false &&
++      startOffset === 0 && ctx?.showChapterDropCap !== false &&
+@@ -179 +183 @@ export function createReaderVerseRenderer({
+-    const plain = versePlainText(v);
++    const plain = versePlainText(original);
+@@ -194 +198 @@ export function createReaderVerseRenderer({
+-    let charOffset = 0;
++    let charOffset = startOffset;
+@@ -240,0 +245,2 @@ export function createReaderVerseRenderer({
++        data-verse-start={startOffset}
++        data-verse-end={fragment?.end ?? plain.length}
+@@ -252 +258 @@ export function createReaderVerseRenderer({
+-        key={`${verseBook}-${verseChapter}-${v.number}`}
++        key={`${verseBook}-${verseChapter}-${v.number}-${startOffset}`}
+@@ -254,0 +261,2 @@ export function createReaderVerseRenderer({
++        data-verse-start={startOffset}
++        data-verse-end={fragment?.end ?? plain.length}
+@@ -263 +271 @@ export function createReaderVerseRenderer({
+-        ) : (
++        ) : startOffset > 0 ? null : (
+@@ -266 +274 @@ export function createReaderVerseRenderer({
+-            onClick={(e) => onVerseNumberClick(e, v, verseBook, verseChapter)}
++            onClick={(e) => onVerseNumberClick(e, original, verseBook, verseChapter)}
+@@ -276 +284 @@ export function createReaderVerseRenderer({
+-          {note ? (
++          {note && startOffset === 0 ? (
+diff --git a/src/lib/bible/readerWindowFlow.ts b/src/lib/bible/readerWindowFlow.ts
+index 63f03d6..b24fd7d 100644
+--- a/src/lib/bible/readerWindowFlow.ts
++++ b/src/lib/bible/readerWindowFlow.ts
+@@ -18 +18 @@ export function readerStreamUnitId(unit: ReaderStreamUnit): string {
+-  return unit.kind === "verse" ? `${prefix}|v${unit.verse.number}`
++  return unit.kind === "verse" ? `${prefix}|v${unit.verse.number}${unit.verseRange?.start ? `@${unit.verseRange.start}` : ""}`
+diff --git a/src/lib/bible/streamSliceMeasureHtml.ts b/src/lib/bible/streamSliceMeasureHtml.ts
+index 97295fb..594aefb 100644
+--- a/src/lib/bible/streamSliceMeasureHtml.ts
++++ b/src/lib/bible/streamSliceMeasureHtml.ts
+@@ -0,0 +1 @@
++import { appendReaderStreamVerse } from "./readerVerseFragments";
+@@ -36 +37 @@ export function verseGroupsFromStreamSlice(
+-    current.verses.push(unit.verse);
++    appendReaderStreamVerse(current.verses, unit);
+@@ -103 +104 @@ export function buildStreamSliceMeasureHtml(
+-      batch.verses.push(unit.verse);
++      appendReaderStreamVerse(batch.verses, unit);
