@@ -1,0 +1,44 @@
+name: Bible chapter continuation
+on:
+  push:
+    branches: [fix/bible-continuous-chapter-flow]
+  pull_request:
+    paths: ['src/**', 'scripts/*bible*', '.github/workflows/bible-chapter-continuation.yml']
+permissions:
+  contents: read
+concurrency:
+  group: bible-chapter-continuation-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
+  VITE_SUPABASE_ANON_KEY: reader-test-placeholder
+jobs:
+  chapter-flow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Browser dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/reader-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/reader-playwright/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Chapter continuation
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
+        run: node scripts/diagnose-bible-chapter-continuation.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chapter-continuation-evidence
+          path: |
+            ${{ runner.temp }}/acts-*.png
+            ${{ runner.temp }}/acts-*.json
+            ${{ runner.temp }}/chapter-flow*.json
+            ${{ runner.temp }}/book-flow-failure.*
