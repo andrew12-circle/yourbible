@@ -33,8 +33,7 @@ import React from 'react';import{createRoot}from'react-dom/client';import{Memory
 import{QueryClient,QueryClientProvider}from'@tanstack/react-query';import{AuthContext}from'@/contexts/AuthContext';import{TooltipProvider}from'@/components/ui/tooltip';
 import ReaderPage from '@/pages/reader/ReaderPage';import{API_BIBLE_CSB_ID}from'@/lib/bible/bibleEditions';import{inlinePlatesForChapter}from'@/lib/bible/chapterContext';import '@/index.css';
 localStorage.setItem('yb.bibleId',API_BIBLE_CSB_ID);localStorage.setItem('yb.bibleAbbr','CSB');
-if(!localStorage.getItem('yb.reader.displayMode'))localStorage.setItem('reader-test-font',s.font);
-      localStorage.setItem('yb.reader.displayMode','pages');
+if(!localStorage.getItem('yb.reader.displayMode'))localStorage.setItem('yb.reader.displayMode','pages');
 window.__midPlate=inlinePlatesForChapter('Gen',4).find(p=>p.beforeVerse===8)?.id;
 const auth={user:{id:'00000000-0000-4000-8000-000000000001'},profile:{font_choice:localStorage.getItem('reader-test-font')||'sans',highlight_palette:'classic'},loading:false,updateProfile:async()=>({error:null})};
 const client=new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWindowFocus:false}}});
@@ -166,8 +165,13 @@ try {
         plates:[...node.querySelectorAll('[data-reader-plate]')].map(v=>v.dataset.readerPlate),
       })));
       for(const face of faces) {
-        if(face.ids.some(id=>id.endsWith(':Act:7:1')))
-          assert(face.ids.some(id=>id.endsWith(':Act:7:2')), 'Acts 7:1 stranded on a mostly empty page');
+        if(!face.ids.some(id=>id.endsWith(':Act:7:1'))) continue;
+        // The screenshot-sized layouts have room for verse 2. At 150% text,
+        // chapter 7 can legitimately start after 6:15 near the end of a page;
+        // that is continuation, not a page containing only the short opener.
+        assert(face.ids.length>1, 'Acts 7:1 isolated on an otherwise empty page');
+        if(scenario.scale===1)
+          assert(face.ids.some(id=>id.endsWith(':Act:7:2')), 'Screenshot-sized page did not continue after Acts 7:1');
       }
       if(step<3) await page.screenshot({path:join(output,`chapter-flow-${scenario.name}-${step}.png`)});
       const footprint=JSON.stringify(faces);
