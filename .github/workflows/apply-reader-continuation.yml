@@ -1,0 +1,110 @@
+name: Apply and verify chapter-flow repair
+on:
+  push:
+    branches: [fix/bible-continuous-chapter-flow]
+    paths: ['scripts/.reader-continuation-*.b64', '.github/workflows/apply-reader-continuation.yml']
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    outputs:
+      source: ${{ steps.commit.outputs.source }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - name: Apply verified source patch on the repair branch only
+        id: commit
+        run: |
+          test "$GITHUB_REF" = refs/heads/fix/bible-continuous-chapter-flow
+          cat scripts/.reader-continuation-0*.b64 | base64 --decode | gzip --decompress > "$RUNNER_TEMP/reader-continuation.patch"
+          echo "a9bce4294727fa12fe06e8d2957b90b01cf6ef08f67bf6ca063d8f6fbc87cf11  $RUNNER_TEMP/reader-continuation.patch" | sha256sum -c -
+          git apply --check "$RUNNER_TEMP/reader-continuation.patch"
+          git apply "$RUNNER_TEMP/reader-continuation.patch"
+          git rm scripts/.reader-continuation-0*.b64 .github/workflows/apply-reader-continuation.yml
+          git add -A -- src scripts .github/workflows
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix Acts chapter flow, page capacity, and exact Scripture text preservation'
+          test "$(git ls-remote origin refs/heads/fix/bible-continuous-chapter-flow | cut -f1)" = "$GITHUB_SHA"
+          git push origin HEAD:refs/heads/fix/bible-continuous-chapter-flow
+          echo "source=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  regression:
+    needs: apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
+      VITE_SUPABASE_ANON_KEY: reader-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.apply.outputs.source }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run lint 2>&1 | tee "$RUNNER_TEMP/chapter-lint.log"
+      - run: npm test 2>&1 | tee "$RUNNER_TEMP/chapter-tests.log"
+      - run: npm run build 2>&1 | tee "$RUNNER_TEMP/chapter-build.log"
+      - run: node scripts/check-journal-type-regressions.mjs bf64f130324a324db4f842ae9ea5ac8481137c4c 2>&1 | tee "$RUNNER_TEMP/chapter-types.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chapter-repair-regression
+          path: ${{ runner.temp }}/chapter-*.log
+  browser:
+    needs: apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
+      VITE_SUPABASE_ANON_KEY: reader-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.apply.outputs.source }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Browser dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/reader-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/reader-playwright/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Actual chapter continuation, visible fit, and exact words
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
+        run: node scripts/test-bible-chapter-continuation.mjs 2>&1 | tee "$RUNNER_TEMP/chapter-flow.log"
+      - name: Existing book-flow and reader regression checks
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
+        run: |
+          node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/reader-browser.log"
+          node scripts/diagnose-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
+          node scripts/test-bible-marker-styles.mjs 2>&1 | tee "$RUNNER_TEMP/marker-styles.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: chapter-repair-browser
+          path: |
+            ${{ runner.temp }}/chapter-flow*
+            ${{ runner.temp }}/book-flow*
+            ${{ runner.temp }}/bible-reader-*.png
+            ${{ runner.temp }}/bible-reader-results.json
+            ${{ runner.temp }}/reader-browser.log
+            ${{ runner.temp }}/marker-styles.log
