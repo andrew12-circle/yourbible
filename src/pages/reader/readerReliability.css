@@ -21,3 +21,16 @@
   position: static;
   top: auto;
 }
+
+/* Chapters continue in the available column, like the surrounding prose.
+   A chapter numeral is not a command to discard the rest of a column. */
+[data-reading-area] .scripture-columns-2 .scripture-paragraph:has(.scripture-verse-chapter-open),
+[data-reading-area] .scripture-columns-spread .scripture-paragraph:has(.scripture-verse-chapter-open) {
+  break-before: auto;
+  -webkit-column-break-before: auto;
+  column-break-before: auto;
+}
+[data-reading-area] .scripture-heading {
+  break-after: avoid;
+  -webkit-column-break-after: avoid;
+}

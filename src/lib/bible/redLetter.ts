@@ -1,3 +1,5 @@
+import { versePlainText, type VersePart } from "./verseParts";
+
 /**
  * Red-letter Bible support — segment a verse into Jesus/non-Jesus text.
  *
@@ -23,7 +25,7 @@ export function redLetterSegmentsForVerse(
 ): Segment[] {
   const text = typeof verseText === "string" ? verseText : "";
   const segs = map.get(verseNumber);
-  if (!segs || segs.length === 0) {
+  if (!segs || segs.length === 0 || segs.map((segment) => segment.text).join("") !== text) {
     return [{ text, isJesus: false }];
   }
   return segs;
@@ -511,13 +513,16 @@ function splitByQuotesStateful(
 export function splitJesusSpeechForChapter(
   bookAbbr: string,
   chapter: number,
-  verses: { number: number; text: string }[],
+  verses: { number: number; text: string; parts?: VersePart[] }[],
 ): Map<number, Segment[]> {
   const result = new Map<number, Segment[]>();
   let quoteDepth = 0;
 
   for (const v of verses) {
-    const text = typeof v.text === "string" ? v.text : "";
+    // Red-letter and highlight offsets must use the exact same character
+    // stream as the renderer. v.text may have collapsed whitespace while its
+    // styled parts retain spaces surrounding removed reference markers.
+    const text = versePlainText(v);
     if (isJesusSpeechVerse(bookAbbr, chapter, v.number)) {
       const startDepth = quoteDepth;
       const { segments, depth } = splitByQuotesStateful(text, quoteDepth);

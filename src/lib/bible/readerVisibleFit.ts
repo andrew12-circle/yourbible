@@ -8,7 +8,14 @@ export function readerVisibleFit(root: HTMLElement, heightLimit?: number): Reade
   // jsdom / a detached measurement node has no geometry. Dimension checks in
   // the paginator still apply, but there are no visible fragments to inspect.
   if (box.width <= 0 || box.height <= 0) return { fits: true, overflowPx: 0 };
-  const rootBottom = Math.min(box.bottom, heightLimit == null ? box.bottom : box.top + heightLimit);
+  // A hidden candidate's natural height is NOT the page's available height.
+  // In particular, a floating chapter numeral may extend below a one-line
+  // verse while still fitting comfortably in the page. Keep real clipping
+  // ancestors authoritative, but measure an unconstrained candidate against
+  // the supplied page limit rather than against its own short content box.
+  const rootClips = clips(getComputedStyle(root).overflowY);
+  const availableBottom = heightLimit == null ? box.bottom : box.top + heightLimit;
+  const rootBottom = rootClips ? Math.min(box.bottom, availableBottom) : availableBottom;
   const bounds = new Map<HTMLElement, { left: number; right: number; top: number; bottom: number }>();
   bounds.set(root, { left: box.left, right: box.right, top: box.top, bottom: rootBottom });
   const boundFor = (element: HTMLElement): { left: number; right: number; top: number; bottom: number } => {

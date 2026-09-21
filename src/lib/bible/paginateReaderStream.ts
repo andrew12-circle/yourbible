@@ -40,6 +40,11 @@ export function paginateReaderStream(
     }
     // A title never owns an empty text page. An irreducible unit is preserved;
     // the reader offers explicit continuous reading, never silently scrolls a page.
+    // A chapter header carries no separate text height (its numeral is in
+    // verse 1), so a candidate ending at that header can appear to fit even
+    // when verse 1 does not. Keep the header with its opening verse instead
+    // of reserving a blank chapter title on the preceding page.
+    if (lastFit > start && stream[lastFit - 1].kind === "chapter-header") lastFit -= 1;
     const minimum = stream[start].kind === "chapter-header" && start + 1 < cap ? start + 2 : start + 1;
     start = Math.min(cap, Math.max(minimum, lastFit));
     splits.push(start);
