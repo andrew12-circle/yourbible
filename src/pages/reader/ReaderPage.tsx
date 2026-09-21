@@ -1,3 +1,4 @@
+import { readReaderWindowFlow, readerWindowStream, readerWindowTurn } from "@/lib/bible/readerWindowFlow";
 import {
   useCallback,
   useEffect,
@@ -179,7 +180,8 @@ import "./readerReliability.css";
 
 const LS_HIGHLIGHT_COLOR_KEY = "yb.highlightColor";
 /** Approximate chapter title block above the first page article (px). */
-const CHAPTER_HEADER_RESERVE_PX = 96;
+// Chapter numerals and headings are measured inside the text, not above it.
+const CHAPTER_HEADER_RESERVE_PX = 0;
 export default function ReaderPage() {
   const { user, profile, loading, updateProfile } = useAuth();
   const navigate = useNavigate();
@@ -656,16 +658,17 @@ export default function ReaderPage() {
       passage,
     ],
   );
+  const windowFlow = readReaderWindowFlow(location.state, bibleId, book.abbr, chapter);
   const readerStream = useMemo(
     () =>
       streamChapters.length > 0
-        ? buildReaderStream(streamChapters)
+        ? readerWindowStream(buildReaderStream(streamChapters), scrollMode ? undefined : windowFlow)
         : [],
-    [streamChapters],
+    [streamChapters, scrollMode, windowFlow],
   );
   const streamCompositionKey = useMemo(
-    () => streamChapterCompositionKey(streamChapters),
-    [streamChapters],
+    () => `${streamChapterCompositionKey(streamChapters)}|${windowFlow?.startId ?? ""}|${windowFlow?.endId ?? ""}`,
+    [streamChapters, windowFlow?.startId, windowFlow?.endId],
   );
   const paginatorParagraphStarts = useMemo(
     () => passage?.paragraphStarts ?? (verses[0] ? [verses[0].number] : []),
@@ -788,6 +791,7 @@ export default function ReaderPage() {
     spread: effectiveSpread,
     layoutKey: `${useStreamReader ? streamPaginationKey : singlePaginationKey}|${(useStreamReader ? navStreamSplits : splits).join(",")}`,
     requestedVerse: Number(searchParams.get("v")) || undefined,
+    requestedAnchorId: windowFlow?.restoreId ?? windowFlow?.startId,
     enterAtEnd: Boolean((location.state as { readerEnterAtEnd?: boolean } | null)?.readerEnterAtEnd),
   });
   const chapterPage = position.page;
@@ -849,6 +853,18 @@ export default function ReaderPage() {
     setTbSel(null);
     setFlipDirection(delta > 0 ? "forward" : "back");
     const next = position.page + delta * pagesPerTurn;
+    if (useBookSpread && adjacentPassages.streamReady) {
+      const turn = readerWindowTurn({ bibleId, bookAbbr: book.abbr, chapter,
+        stream: readerStream, splits: navStreamSplits, page: position.page, pagesPerTurn,
+        delta, flow: windowFlow, firstPageNumber: windowFlow?.firstPageNumber ??
+          continuousReaderPageNumber(readerStream, navStreamSplits, book.abbr, chapter, 0, routeChapterStartNumber) });
+      if (turn) {
+        void openChapter(turn.bookAbbr, turn.chapter, turn.enterAtEnd, {
+          ...(location.state && typeof location.state === "object" ? location.state : {}), readerWindowFlow: turn.flow,
+        }, undefined, true);
+        return;
+      }
+    }
     if (next < 0 || next >= totalPagesForNav) {
       // When a spread contains neighbors, cross the edge of the displayed window,
       // not the route chapter whose neighbor has already been read.
@@ -1206,7 +1222,7 @@ export default function ReaderPage() {
     const measuresRestPage =
       isOpeningRightPage ||
       (isCurrentLeftPage && !measuresFirstPage);
-    const globalPage = continuousReaderPageNumber(readerStream, navStreamSplits, book.abbr, chapter, paginatorPageIndex, routeChapterStartNumber);
+    const globalPage = windowFlow ? windowFlow.firstPageNumber + paginatorPageIndex : continuousReaderPageNumber(readerStream, navStreamSplits, book.abbr, chapter, paginatorPageIndex, routeChapterStartNumber);
     const inkLayerId = `${pageBookAbbr}-${pageChapter}-${pageIdx}-${side}`;
     const pageFitProblem = !scrollMode && pageFitProblems[side];
     const pageLoading = loadingPassage && verses.length === 0;
@@ -1683,6 +1699,7 @@ export default function ReaderPage() {
       {/* Headless paginator — measures and reports splits (page mode only) */}
       {!scrollMode && paginatorReady && useStreamReader && streamChapters.length > 0 && !!passage ? (
         <BookPaginator
+          readerStream={readerStream}
           chapters={streamChapters}
           pageWidth={Math.max(180, pageBox.w)}
           pageHeight={Math.max(180, subsequentPageHeight || paginatorFirstPageHeight)}

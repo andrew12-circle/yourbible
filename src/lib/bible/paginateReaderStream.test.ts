@@ -52,3 +52,15 @@ describe("forward-only fit correction", () => {
     }
   });
 });
+
+it("does not leave an unmeasured next-chapter header at the bottom of the prior page", () => {
+  const current={...chapter,bookAbbr:"Jhn",bookName:"John",chapter:3,verses:chapter.verses.slice(0,4)};
+  const next={...current,chapter:4};
+  const stream=buildReaderStream([current,next]);
+  const splits=paginateReaderStream(stream,(start,end)=>stream.slice(start,end).filter(unit=>unit.kind==="verse").length<=4);
+  for(let page=0;page<splits.length-1;page++) {
+    const units=stream.slice(splits[page],splits[page+1]);
+    expect(units.at(-1)?.kind).not.toBe("chapter-header");
+    for(let index=0;index<units.length;index++) if(units[index].kind==="chapter-header") expect(units[index+1]?.kind).toBe("verse");
+  }
+});

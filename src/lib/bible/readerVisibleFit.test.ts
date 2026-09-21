@@ -56,3 +56,23 @@ describe("visible book-page fit", () => {
     expect(readerVisibleFit(root).fits).toBe(false);
   });
 });
+
+describe("short chapter-opening candidates", () => {
+  it("uses the available page height, not the short candidate's natural height", () => {
+    const root = document.createElement("div"); root.innerHTML = "<p>7 Opening verse</p>"; document.body.append(root);
+    sized(root, 400, 26);
+    const range = document.createRange();
+    Object.defineProperty(range, "getClientRects", { value: () => [rect(0, 0, 30, 44), rect(36, 0, 200, 20)] });
+    vi.spyOn(document, "createRange").mockReturnValue(range);
+    expect(readerVisibleFit(root, 600).fits).toBe(true);
+    expect(readerVisibleFit(root, 30).fits).toBe(false);
+  });
+  it("still rejects a numeral outside a genuinely clipped root", () => {
+    const root = document.createElement("div"); root.style.overflowY = "hidden";
+    root.innerHTML = "<p>Opening verse</p>"; document.body.append(root); sized(root, 400, 26);
+    const range = document.createRange();
+    Object.defineProperty(range, "getClientRects", { value: () => [rect(0, 0, 30, 44)] });
+    vi.spyOn(document, "createRange").mockReturnValue(range);
+    expect(readerVisibleFit(root, 600).fits).toBe(false);
+  });
+});

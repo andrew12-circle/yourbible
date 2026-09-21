@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFontLoadRevision } from "@/hooks/useFontLoadRevision";
 import { splitJesusSpeechForChapter } from "@/lib/bible/redLetter";
 import { applyScriptureColumnMeasureHtml, applyHolmanStudyMeasureHtml, paginatorSpreadPaneLimitPx, readerPageContentLimitPx, scriptureContentFitsPage } from "@/lib/bible/readerColumnMeasure";
-import { buildReaderStream, type ReaderChapterPassage, type ReaderPlateFocus } from "@/lib/bible/readerStream";
+import { buildReaderStream, type ReaderChapterPassage, type ReaderPlateFocus, type ReaderStreamUnit } from "@/lib/bible/readerStream";
 import { buildStreamSliceMeasureHtml, buildStreamSliceFootnotesMeasureHtml } from "@/lib/bible/streamSliceMeasureHtml";
 import { paginateReaderStream } from "@/lib/bible/paginateReaderStream";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
@@ -10,6 +10,7 @@ import { readerPageFootnotesEnabled } from "@/lib/bible/holmanStudyLayout";
 import { cn } from "@/lib/utils";
 interface Props {
   chapters: ReaderChapterPassage[];
+  readerStream?: ReaderStreamUnit[];
   plateFocus?: ReaderPlateFocus;
   pageWidth: number;
   pageHeight: number;
@@ -28,12 +29,12 @@ interface Props {
  * Two columns per page still read left-column → right-column → next page.
  * Images never enter hidden text measurement or change breaks after decoding.
  */
-export function BookPaginator({ chapters, plateFocus, pageWidth, pageHeight, firstPageHeight, className, columnsClassName, footerHeight = 0, fontSizeStyle, spreadMode = false, studyLayout = "inline", measurementKey, fixedPrefix, onSplitsChange }: Props) {
+export function BookPaginator({ chapters, readerStream, plateFocus, pageWidth, pageHeight, firstPageHeight, className, columnsClassName, footerHeight = 0, fontSizeStyle, spreadMode = false, studyLayout = "inline", measurementKey, fixedPrefix, onSplitsChange }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const fontLoadRevision = useFontLoadRevision();
-  const stream = useMemo(() => buildReaderStream(chapters, { plateFocus }), [chapters, plateFocus]);
+  const stream = useMemo(() => readerStream ?? buildReaderStream(chapters, { plateFocus }), [readerStream, chapters, plateFocus]);
   const redByChapter = useMemo(() => new Map(chapters.map((ch) => [`${ch.bookAbbr}|${ch.chapter}`, splitJesusSpeechForChapter(ch.bookAbbr, ch.chapter, ch.verses)])), [chapters]);
-  const contentKey = JSON.stringify(chapters);
+  const contentKey = JSON.stringify([chapters, stream]);
   const resolvedFirstPageHeight = firstPageHeight ?? pageHeight;
   const fontSize = fontSizeStyle?.fontSize;
   const fontFamily = fontSizeStyle?.fontFamily;
@@ -41,7 +42,7 @@ export function BookPaginator({ chapters, plateFocus, pageWidth, pageHeight, fir
     const node = ref.current;
     if (!node || pageWidth <= 0 || pageHeight <= 0 || !stream.length) return;
     const splits = paginateReaderStream(stream, (start, end, pageIndex) => {
-      const baseLimit = readerPageContentLimitPx({ pageIndex, startsWithChapterHeader: stream[start].kind === "chapter-header", firstPageHeight: resolvedFirstPageHeight, pageHeight, footerGuardPx: footerHeight });
+      const baseLimit = readerPageContentLimitPx({ pageIndex, startsWithChapterHeader: stream[start].kind === "chapter-header", firstPageHeight: resolvedFirstPageHeight, pageHeight, footerGuardPx: footerHeight, chapterHeaderReservePx: 0 });
       const limit = spreadMode && columnsClassName ? paginatorSpreadPaneLimitPx(baseLimit) : baseLimit;
       const slice = stream.slice(start, end);
       const html = buildStreamSliceMeasureHtml(slice, chapters, redByChapter, studyLayout);

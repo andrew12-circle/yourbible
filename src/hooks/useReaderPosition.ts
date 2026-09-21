@@ -17,15 +17,15 @@ export function readerPageForUnit(splits: number[], index: number, spread: boole
 interface Options {
   bibleId: string; bookAbbr: string; chapter: number; verses: PassageVerse[];
   stream: ReaderStreamUnit[]; useStream: boolean; splits: number[]; ready: boolean;
-  spread: boolean; layoutKey: string; requestedVerse?: number; enterAtEnd?: boolean;
+  spread: boolean; layoutKey: string; requestedVerse?: number; enterAtEnd?: boolean; requestedAnchorId?: string;
 }
 type Snapshot = { intent: string; layout: string; page: number; anchor: ReaderAnchor | null };
 
 /** Store a Scripture/artwork identity; visual page indexes are layout-dependent. */
 export function useReaderPosition(options: Options) {
-  const { bibleId, bookAbbr, chapter, verses, stream, useStream, splits, ready, spread, layoutKey, requestedVerse, enterAtEnd } = options;
+  const { bibleId, bookAbbr, chapter, verses, stream, useStream, splits, ready, spread, layoutKey, requestedVerse, enterAtEnd, requestedAnchorId } = options;
   const units = useMemo<ReaderAnchor[]>(() => useStream ? stream.map(readerUnitAnchor) : verses.map((v) => ({ id: `${bookAbbr}|${chapter}|v${v.number}`, bookAbbr, chapter, verse: v.number })), [useStream, stream, verses, bookAbbr, chapter]);
-  const intent = `${bibleId}|${bookAbbr}|${chapter}|${requestedVerse ?? ""}|${enterAtEnd ? "end" : "start"}`;
+  const intent = `${bibleId}|${bookAbbr}|${chapter}|${requestedVerse ?? ""}|${enterAtEnd ? "end" : "start"}|${requestedAnchorId ?? ""}`;
   const [snapshot, setSnapshot] = useState<Snapshot>({ intent: "", layout: "", page: 0, anchor: null });
   const maxPage = Math.max(0, splits.length - 2);
   const clamp = useCallback((page: number) => {
@@ -33,6 +33,10 @@ export function useReaderPosition(options: Options) {
     return spread ? n - n % 2 : n;
   }, [maxPage, spread]);
   const indexForIntent = useCallback(() => {
+    if (requestedAnchorId) {
+      const exact = units.findIndex((unit) => unit.id === requestedAnchorId);
+      if (exact >= 0) return exact;
+    }
     const inChapter = (unit: ReaderAnchor) => unit.bookAbbr === bookAbbr && unit.chapter === chapter;
     if (requestedVerse && requestedVerse > 0) {
       const exact = units.findIndex((u) => inChapter(u) && u.verse === requestedVerse);
@@ -42,7 +46,7 @@ export function useReaderPosition(options: Options) {
       for (let i = units.length - 1; i >= 0; i--) if (inChapter(units[i])) return i;
     }
     return Math.max(0, units.findIndex(inChapter));
-  }, [units, bookAbbr, chapter, requestedVerse, enterAtEnd]);
+  }, [units, bookAbbr, chapter, requestedVerse, enterAtEnd, requestedAnchorId]);
   const anchorAtPage = useCallback((page: number) => {
     const start = splits[page] ?? 0;
     const end = splits[Math.min(page + (spread ? 2 : 1), splits.length - 1)] ?? units.length;

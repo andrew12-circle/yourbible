@@ -18,6 +18,7 @@ export function sliceSegmentsForRange(
 ): Segment[] {
   const out: Segment[] = [];
   let pos = 0;
+  let coveredUntil = Math.max(0, start);
   for (const seg of segments) {
     const segStart = pos;
     const segEnd = pos + seg.text.length;
@@ -26,7 +27,13 @@ export function sliceSegmentsForRange(
     const oEnd = Math.min(end, segEnd);
     if (oEnd > oStart) {
       out.push({ text: plain.slice(oStart, oEnd), isJesus: seg.isJesus });
+      coveredUntil = oEnd;
     }
+  }
+  // Formatting is optional; Scripture characters are not. A stale or short
+  // segment map must never drop the remaining words or closing punctuation.
+  if (coveredUntil < Math.min(end, plain.length)) {
+    out.push({ text: plain.slice(coveredUntil, end), isJesus: false });
   }
   return out;
 }
@@ -50,7 +57,7 @@ export function buildVersePartsInnerHtml(
       html += `<sup class="scripture-footnote-mark" title="${escapeHtml(part.text)}">${part.marker}</sup>`;
       continue;
     }
-    if (part.kind === "crossref") {
+    if (part.kind === "crossref" || part.kind === "image") {
       continue;
     }
 

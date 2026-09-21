@@ -114,7 +114,7 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 19;
+export const READER_PAGINATOR_SPLIT_REVISION = 20;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
@@ -541,7 +541,7 @@ export function sliceReaderStreamRange(
   const startsWithChapterHeader =
     stream[start]?.kind === "chapter-header"
       ? (stream[start] as Extract<ReaderStreamUnit, { kind: "chapter-header" }>)
-      : stream[start + 1]?.kind === "chapter-header"
+      : stream[start]?.kind === "plate" && start + 1 < end && stream[start + 1]?.kind === "chapter-header"
         ? (stream[start + 1] as Extract<ReaderStreamUnit, { kind: "chapter-header" }>)
         : null;
 
