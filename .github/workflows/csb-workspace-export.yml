@@ -12,9 +12,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Export tracked source only
+      - name: Export tracked source and reader fixtures
         run: |
-          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/csb-current.tar.gz"
+          python3 - <<'PY'
+          import os, subprocess, tarfile
+          paths = subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          with tarfile.open(os.environ['RUNNER_TEMP']+'/csb-current.tar.gz','w:gz') as archive:
+            for path in paths:
+              if not path or not os.path.isfile(path): continue
+              if path.startswith('public/') and not path.startswith(('public/bibles/','public/bible-plates/','public/fonts/')): continue
+              if path.startswith(('android/', 'ios/')): continue
+              archive.add(path, arcname=path, recursive=False)
+          PY
           git rev-parse HEAD > "$RUNNER_TEMP/csb-source-sha.txt"
       - uses: actions/upload-artifact@v4
         with:
