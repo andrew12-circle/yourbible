@@ -278,7 +278,7 @@ export function parseConnectionNotes(raw: unknown): MorningConnectionNotes {
   if (!raw || typeof raw !== "object") return emptyConnectionNotes();
   const o = raw as Record<string, unknown>;
   const da = o.daily_assignment;
-  let daily_assignment = emptyDailyAssignment();
+  const daily_assignment = emptyDailyAssignment();
   if (da && typeof da === "object") {
     const d = da as Record<string, unknown>;
     // Normalize every configured field, including fields added to newer drafts.
