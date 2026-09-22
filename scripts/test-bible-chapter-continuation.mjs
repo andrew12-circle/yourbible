@@ -1,3 +1,4 @@
+import { waitForReaderLayout } from "./reader-browser-settled.mjs";
 import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords } from "./reader-browser-text.mjs";
 /** Real reader: visible page geometry and consecutive facing-page flow. No provider calls. */
 import assert from 'node:assert/strict';
@@ -66,7 +67,7 @@ async function settled() {
       root.querySelector('[data-reader-page-side] [data-verse-id], [data-reader-page-side] [data-reader-plate]');
   }, undefined, {timeout:30000});
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(500);
+  await waitForReaderLayout(page);
 }
 async function inspect() {
   // This deliberately does not import the production fit helper: independent

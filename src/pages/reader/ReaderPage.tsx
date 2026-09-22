@@ -1489,7 +1489,7 @@ export default function ReaderPage() {
   return (
     <div
       data-bible-reader
-      aria-busy={chapterNavigationPending || loadingPassage || continuationFilling}
+      aria-busy={chapterNavigationPending || loadingPassage || continuationFilling || (!scrollMode && verses.length > 0 && !(useStreamReader ? streamSplitsReady : splitsReady))}
       data-cropped-spread={!effectiveSpread ? "" : undefined}
       data-hub-fullscreen={hubFullscreen || undefined}
       className={cn(
