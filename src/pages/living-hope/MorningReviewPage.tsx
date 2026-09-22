@@ -540,6 +540,7 @@ export default function MorningReviewPage() {
                   storyRecall={storyRecall}
                   setStoryRecall={setStoryRecall}
                   currentGoal={currentGoal}
+                  goals={activeGoals}
                   touches={touches}
                   setTouch={setTouch}
                   visionRecall={visionRecall}
@@ -607,6 +608,7 @@ export default function MorningReviewPage() {
                   storyRecall={storyRecall}
                   setStoryRecall={setStoryRecall}
                   currentGoal={currentGoal}
+                  goals={activeGoals}
                   touches={touches}
                   setTouch={setTouch}
                   visionRecall={visionRecall}
