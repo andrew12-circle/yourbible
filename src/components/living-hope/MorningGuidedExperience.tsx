@@ -90,6 +90,8 @@ type Props = {
   stepExpired: boolean;
   durationMin: SessionDurationMin;
   onDurationChange: (next: SessionDurationMin) => void;
+  prayerRecordings: { surrender?: string; covering?: string };
+  onPrayerRecordingChange: (key: "surrender" | "covering", path: string) => void;
 };
 
 export function MorningGuidedExperience({
@@ -137,6 +139,8 @@ export function MorningGuidedExperience({
   stepBudgetMs,
   durationMin,
   onDurationChange,
+  prayerRecordings,
+  onPrayerRecordingChange,
 }: Props) {
   const beat = guidedCoachBeatForStep(step);
   const selectedStory =
@@ -218,7 +222,14 @@ export function MorningGuidedExperience({
       {step.kind === "surrender" ? (
         <div className="space-y-3">
           <p className={cn(lh.bodySm, "leading-relaxed")}>{SURRENDER_STEP_INTRO}</p>
-          <MorningPrayerReader title="Surrender" value={surrender} onChange={setSurrender} />
+          <MorningPrayerReader
+            title="Surrender"
+            value={surrender}
+            onChange={setSurrender}
+            prayerKey="surrender"
+            recordingPath={prayerRecordings.surrender}
+            onRecordingPathChange={(path) => onPrayerRecordingChange("surrender", path)}
+          />
         </div>
       ) : null}
 
@@ -230,7 +241,14 @@ export function MorningGuidedExperience({
               <li key={item}>{item}</li>
             ))}
           </ul>
-          <MorningPrayerReader title="Covering" value={covering} onChange={setCovering} />
+          <MorningPrayerReader
+            title="Covering"
+            value={covering}
+            onChange={setCovering}
+            prayerKey="covering"
+            recordingPath={prayerRecordings.covering}
+            onRecordingPathChange={(path) => onPrayerRecordingChange("covering", path)}
+          />
         </div>
       ) : null}
 
