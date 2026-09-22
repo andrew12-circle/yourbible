@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 import {
   VISION_EMBODIMENT_INTRO,
@@ -97,13 +97,13 @@ export function VisionEmbodimentWalkthrough({ workbook, visionRecall, onVisionRe
             <p className={cn(lh.footnote, "italic leading-snug")}>{currentStep.psychology}</p>
           </div>
           <p className={cn(lh.bodySm)}>{currentStep.prompt}</p>
-          <Textarea
+          <MorningVoiceField
             value={responses[currentStep.key]}
-            onChange={(e) => setField(currentStep.key, e.target.value)}
+            onChange={(value) => setField(currentStep.key, value)}
             rows={currentStep.rows}
-            className={lh.textarea}
+            multiline
             placeholder={currentStep.placeholder}
-            aria-label={currentStep.title}
+            label={currentStep.title}
           />
         </div>
       ) : null}
