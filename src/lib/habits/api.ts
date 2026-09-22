@@ -100,6 +100,19 @@ export async function reorderHabits(userId: string, orderedIds: string[]): Promi
   );
 }
 
+export async function completeDailyAlignmentHabit(
+  userId: string,
+  completionDate: string,
+): Promise<boolean> {
+  const alignmentName = DEFAULT_HABIT_NAMES[0]?.name?.trim().toLowerCase();
+  if (!alignmentName) return false;
+  const habits = await listHabits(userId);
+  const habit = habits.find((item) => item.name.trim().toLowerCase() === alignmentName);
+  if (!habit) return false;
+  await toggleCompletion(userId, habit.id, completionDate, true);
+  return true;
+}
+
 export async function toggleCompletion(
   userId: string,
   habitId: string,
