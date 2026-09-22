@@ -32,6 +32,8 @@ describe("buildMorningReviewJournalContent", () => {
           health: "Walk 20 minutes after lunch",
           family: "Finish closet",
           business: "Fix outage",
+          mustDo: "Call the borrower",
+          avoid: "Reactive inbox checking",
         },
       },
       visionRecall: "I see the dashboard green.",
