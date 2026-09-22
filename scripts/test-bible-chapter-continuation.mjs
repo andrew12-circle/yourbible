@@ -1,3 +1,4 @@
+import { verifyReaderPrintGeometry } from "./reader-print-geometry.mjs";
 import { waitForReaderLayout } from "./reader-browser-settled.mjs";
 import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords } from "./reader-browser-text.mjs";
 /** Real reader: visible page geometry and consecutive facing-page flow. No provider calls. */
@@ -121,6 +122,7 @@ try {
     {name:'acts-sans-single',font:'sans',columns:'single',study:'inline',scale:1,width:1491,height:936},
     {name:'acts-sans-double',font:'sans',columns:'double',study:'inline',scale:1,width:1491,height:936},
     {name:'acts-serif-single',font:'serif',columns:'single',study:'inline',scale:1,width:1491,height:936},
+    {name:'csb-serif-double',font:'serif',columns:'double',study:'inline',scale:1,width:1491,height:936},
     {name:'acts-sans-large',font:'sans',columns:'double',study:'holman',scale:1.5,width:1260,height:800},
   ].filter(s => !process.env.READER_SCENARIO || s.name.includes(process.env.READER_SCENARIO));
   for (scenario of scenarios) {
@@ -154,6 +156,7 @@ try {
       steps.push({scenario:scenario.name,step,...current,position:await page.evaluate(()=>window.__readerPositionHistory.at(-1)),path:await page.evaluate(()=>window.__path)});
       assert.deepEqual(current.issues, [], scenario.name + ': ' + current.issues.slice(0,3).join('\n'));
       verifyWords(words);
+      if (process.env.READER_PRINT_CHECKS === "1") await verifyReaderPrintGeometry(page);
       const faces = await page.locator('[data-reader-page-side] article').evaluateAll(nodes => nodes.map(node => ({
         ids:[...node.querySelectorAll('[data-verse-id]')].map(v=>v.dataset.verseId+'@'+(v.dataset.verseStart||'0')+'-'+(v.dataset.verseEnd||'')),
         plates:[...node.querySelectorAll('[data-reader-plate]')].map(v=>v.dataset.readerPlate),

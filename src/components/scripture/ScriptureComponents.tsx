@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { poetryParagraphClassName } from "@/lib/bible/verseParts";
 
 export function ScriptureHeading({
   children,
@@ -24,9 +25,9 @@ export function ScriptureParagraph({
 }) {
   const poetryClass =
     poetryLevel > 0
-      ? `scripture-poetry-q${Math.min(poetryLevel, 3)}${isContinuation ? " scripture-poetry-cont" : ""}`
+      ? poetryParagraphClassName(poetryLevel, isContinuation)
       : isContinuation
-        ? "scripture-paragraph scripture-paragraph-cont"
+        ? "scripture-paragraph scripture-paragraph-continue"
         : "scripture-paragraph";
   return (
     <p className={cn(poetryClass, className)} style={{ orphans: 2, widows: 2 }}>

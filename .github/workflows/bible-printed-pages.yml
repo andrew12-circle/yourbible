@@ -2,9 +2,9 @@ name: Printed Bible pages
 on:
   push:
     branches: [main, fix/true-book-pages]
-    paths: ['src/**', 'scripts/*bible*', 'scripts/reader-browser-text.mjs', '.github/workflows/bible-printed-pages.yml']
+    paths: ['src/**', 'scripts/*bible*', 'scripts/reader-browser-text.mjs', 'scripts/reader-print-geometry.mjs', '.github/workflows/bible-printed-pages.yml']
   pull_request:
-    paths: ['src/**', 'scripts/*bible*', 'scripts/reader-browser-text.mjs', '.github/workflows/bible-printed-pages.yml']
+    paths: ['src/**', 'scripts/*bible*', 'scripts/reader-browser-text.mjs', 'scripts/reader-print-geometry.mjs', '.github/workflows/bible-printed-pages.yml']
 permissions:
   contents: read
 concurrency:
@@ -45,6 +45,14 @@ jobs:
           READER_TEST_CHAPTER: '3'
           READER_TEST_END_CHAPTER: '6'
         run: node scripts/test-bible-chapter-continuation.mjs 2>&1 | tee "$RUNNER_TEMP/printed-bible.log"
+      - name: Print typography and number alignment in Proverbs and prose
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
+          READER_BROWSER: ${{ matrix.browser }}
+          READER_PRINT_CHECKS: '1'
+        run: |
+          READER_TEST_BOOK=Pro READER_TEST_CHAPTER=3 READER_TEST_END_CHAPTER=6 node scripts/test-bible-chapter-continuation.mjs 2>&1 | tee "$RUNNER_TEMP/print-proverbs.log"
+          READER_TEST_BOOK=Gen READER_TEST_CHAPTER=3 READER_TEST_END_CHAPTER=5 node scripts/test-bible-chapter-continuation.mjs 2>&1 | tee "$RUNNER_TEMP/print-prose.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -53,3 +61,4 @@ jobs:
             ${{ runner.temp }}/chapter-flow*.png
             ${{ runner.temp }}/chapter-flow*.json
             ${{ runner.temp }}/printed-bible.log
+            ${{ runner.temp }}/print-*.log

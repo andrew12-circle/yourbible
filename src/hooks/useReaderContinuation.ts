@@ -42,24 +42,33 @@ export function useReaderContinuation({ bibleId, bibleAbbr, scope, after, baseCh
     retry: 1,
   })), [refs, bibleId, bibleAbbr, enabled, baseReady]);
   const result = useQueries({ queries, combine });
+  // During a window switch useQueries can expose the previous combined array
+  // for one render. Query-level select is not enough: bind each assembled
+  // chapter to its requested identity again before pagination can observe it.
+  const passages = useMemo(() => refs.map((ref, index) => {
+    const data = result.passages[index];
+    if (!data) return undefined;
+    try { return identifyReaderPassage(data, bibleId, ref.book.abbr, ref.chapter); }
+    catch { return undefined; } // wait for the correctly scoped observer result
+  }), [refs, result.passages, bibleId]);
   const chapters = useMemo(() => {
     if (!enabled || !baseReady) return baseChapters;
     const extended = [...baseChapters];
     for (let i = 0; i < refs.length; i++) {
       // A later cached chapter must not jump over a missing earlier chapter.
-      if (!result.passages[i]) break;
+      if (!passages[i]) break;
       const ref = refs[i];
-      const chapter = passageToStreamChapter(ref.book.abbr, ref.book.name, ref.chapter, result.passages[i]);
+      const chapter = passageToStreamChapter(ref.book.abbr, ref.book.name, ref.chapter, passages[i]);
       if (!chapter) break;
       extended.push(chapter);
     }
     return extended.length === baseChapters.length ? baseChapters : extended;
-  }, [enabled, baseReady, baseChapters, refs, result.passages]);
+  }, [enabled, baseReady, baseChapters, refs, passages]);
   const edge = refs.at(-1);
   const hasNext = !!getNextChapterRef(edge?.book.abbr ?? after.bookAbbr, edge?.chapter ?? after.chapter);
   // useQueries can briefly expose the preceding combined result while a new
   // observer is attached. Requested-but-unresolved chapters are still loading.
-  const unresolved = refs.some((_, index) => !result.passages[index]);
+  const unresolved = refs.some((_, index) => !passages[index]);
   const pending = enabled && baseReady && !result.error && (result.pending || unresolved);
   const canExtend = enabled && baseReady && !closed && !pending && !result.error && hasNext && count < MAX_READER_CONTINUATION_CHAPTERS;
   const extend = useCallback(() => {

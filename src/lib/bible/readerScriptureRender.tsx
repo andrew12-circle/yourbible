@@ -256,7 +256,7 @@ export function renderScriptureParagraphNodes(
   resolveHeading: (bookAbbr: string, chapter: number) => Map<number, string>,
   renderVerse: (
     v: PassageVerse,
-    ctx: { bookAbbr: string; chapter: number; paragraphIsContinuation?: boolean },
+    ctx: { bookAbbr: string; chapter: number; paragraphIsContinuation?: boolean; startsPrintedParagraph?: boolean },
   ) => ReactNode,
   resolvePoetryBlocks?: (bookAbbr: string, chapter: number) => PoetryBlock[],
   options?: ScriptureRenderOptions,
@@ -266,7 +266,13 @@ export function renderScriptureParagraphNodes(
     const paragraphStartSet = resolveParagraphStarts(verseGroup.bookAbbr, verseGroup.chapter);
     const headingMap = resolveHeading(verseGroup.bookAbbr, verseGroup.chapter);
     const poetryBlocks = resolvePoetryBlocks?.(verseGroup.bookAbbr, verseGroup.chapter) ?? [];
-    return groupVersesIntoParagraphs(verseGroup.verses, paragraphStartSet).flatMap((group) => {
+    // Headings and publisher poetry transitions are paragraph boundaries too.
+    // Poetry has a verse-number gutter; prose keeps its existing paragraph flow.
+    const printStarts = new Set([...paragraphStartSet, ...headingMap.keys(), ...poetryBlocks.map(block => block.beforeVerse)]);
+    for (const verse of verseGroup.verses) {
+      if (poetryLevelForVerse(poetryBlocks, verse.number) > 0) printStarts.add(verse.number);
+    }
+    return groupVersesIntoParagraphs(verseGroup.verses, printStarts).flatMap((group) => {
       const nodes: ReactNode[] = [];
       const first = group.verses[0]?.number;
       const continuesVerse = (readerVerseFragment(group.verses[0])?.start ?? 0) > 0;
@@ -288,13 +294,15 @@ export function renderScriptureParagraphNodes(
         <ScriptureParagraph
           key={`p-${unitKey}`}
           poetryLevel={poetryLevel}
+          className={first === 1 && !continuesVerse ? "scripture-paragraph-chapter-open" : undefined}
           isContinuation={group.isContinuation || continuesVerse}
         >
-          {group.verses.map((v) =>
+          {group.verses.map((v, index) =>
             renderVerse(v, {
               bookAbbr: verseGroup.bookAbbr,
               chapter: verseGroup.chapter,
               paragraphIsContinuation: group.isContinuation || continuesVerse,
+              startsPrintedParagraph: index === 0,
             }),
           )}
         </ScriptureParagraph>,

@@ -1,4 +1,4 @@
-import { FONT_CHOICES, type FontChoiceId } from "@/lib/bible/fontChoices";
+import { FONT_CHOICES, scriptureFontFamily, type FontChoiceId } from "@/lib/bible/fontChoices";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -51,7 +51,7 @@ export function ReaderFontPicker({ value, onChange, layout = "row", className }:
                   ),
             )}
           >
-            <span className={cn(layout === "grid" && f.previewClass, layout === "grid" && "block text-base")}>
+            <span style={{ fontFamily: scriptureFontFamily(f.id) }} className={cn(layout === "grid" && f.previewClass, layout === "grid" && "block text-base")}>
               {layout === "grid" ? "Aa" : f.label}
             </span>
             {layout === "grid" ? (
