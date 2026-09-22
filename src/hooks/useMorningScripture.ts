@@ -120,6 +120,24 @@ export function useMorningScripture(userId: string | undefined) {
     }
   }, [userId, loadDaily]);
 
+  const completeCurrentPlanDay = useCallback(async () => {
+    if (!userId || !planDay) return false;
+    const { error: progressError } = await supabase.from("reading_plan_progress").upsert(
+      {
+        user_id: userId,
+        plan_id: planDay.plan.id,
+        day_index: planDay.dayIndex,
+      },
+      { onConflict: "user_id,plan_id,day_index" },
+    );
+    if (progressError) throw progressError;
+
+    // Advance immediately in the Morning Formula so returning from the Bible
+    // cannot serve the same plan day again.
+    await loadPlanProgress();
+    return true;
+  }, [userId, planDay, loadPlanProgress]);
+
   const ensureScripture = useCallback(async () => {
     const nextPlan = planDay ?? (await loadPlanProgress());
     if (nextPlan) return { source: "reading-plan" as const, planDay: nextPlan };
@@ -171,5 +189,6 @@ export function useMorningScripture(userId: string | undefined) {
     load,
     generateDaily,
     ensureScripture,
+    completeCurrentPlanDay,
   };
 }
