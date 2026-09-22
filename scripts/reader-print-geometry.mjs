@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 
+const observedGutters = new WeakMap();
+
 /** Independent browser checks: no import of the production fit/numbering code. */
 export async function verifyReaderPrintGeometry(page) {
   const result = await page.evaluate(() => {
@@ -15,7 +17,12 @@ export async function verifyReaderPrintGeometry(page) {
       }
       for (const verse of root.querySelectorAll('[data-verse-id]')) {
         const number = verse.querySelector(':scope > .verse-num');
-        if (!number) continue;
+        const continuation = Number(verse.dataset.verseStart || 0) > 0;
+        if (!number) {
+          if (!continuation && !verse.querySelector('.chapter-drop-cap')) errors.push(`${verse.dataset.verseId}: missing verse number`);
+          continue;
+        }
+        if (continuation) errors.push(`${verse.dataset.verseId}: repeated number on a continuation fragment`);
         const body = verse.querySelector('[data-verse-body]');
         const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
         let first = null;
@@ -41,6 +48,10 @@ export async function verifyReaderPrintGeometry(page) {
     return {errors,gutters};
   });
   assert.deepEqual(result.errors, [], result.errors.join('\n'));
-  assert(result.gutters.length > 0, 'No hanging verse numbers were exercised');
+  // An illustration plus the tail of one long verse can legitimately contain
+  // no new verse number. Coverage belongs to the whole page-turning scenario.
+  const total = (observedGutters.get(page) || 0) + result.gutters.length;
+  observedGutters.set(page, total);
+  assert(total > 0, 'No hanging verse numbers were exercised in this scenario');
   return result;
 }
