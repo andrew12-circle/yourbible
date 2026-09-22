@@ -1,0 +1,55 @@
+name: Morning Formula UI
+on:
+  push:
+    branches: ['feat/morning-formula-calm-session']
+  pull_request:
+    paths:
+      - 'src/components/living-hope/**'
+      - 'src/components/home/MorningFormulaHomeCard.tsx'
+      - 'package*.json'
+      - 'src/pages/living-hope/**'
+      - 'src/hooks/useMorning*'
+      - 'src/lib/livingHope/**'
+      - 'scripts/*morning-formula*'
+      - '.github/workflows/morning-formula-ui.yml'
+permissions:
+  contents: read
+concurrency:
+  group: morning-formula-ui-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: morning-formula-test-placeholder
+  VITE_SUPABASE_ANON_KEY: morning-formula-test-placeholder
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Repository lint
+        run: npm run lint
+      - name: Repository tests
+        if: ${{ !cancelled() }}
+        run: npm test
+      - name: Production build
+        if: ${{ !cancelled() }}
+        run: npm run build
+      - name: File size limits
+        if: ${{ !cancelled() }}
+        run: npm run check:file-size
+      - name: Record validated source identities
+        if: ${{ !cancelled() }}
+        run: git ls-tree -r HEAD > "$RUNNER_TEMP/morning-formula-tree.txt"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: morning-formula-validation
+          path: ${{ runner.temp }}/morning-formula-tree.txt
+          retention-days: 7

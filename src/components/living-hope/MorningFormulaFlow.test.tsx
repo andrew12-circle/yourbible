@@ -5,6 +5,8 @@ import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningScriptureActions } from "./MorningScriptureActions";
 import { MorningPrayerReader } from "./MorningPrayerReader";
 import { morningFormulaReaderHref, MORNING_FORMULA_SCRIPTURE_RETURN, readerReturnFromState } from "@/lib/bible/readerNavigation";
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "u" } }) }));
+vi.mock("./MorningJournalCapture", () => ({ MorningJournalCapture: ({ entryId }: { entryId: string }) => <div data-testid="morning-capture">{entryId}</div> }));
 vi.mock("./MorningFormulaInlineJournal", () => ({ MorningFormulaInlineJournal: () => <div>Optional text</div> }));
 import { MorningConversationPanel } from "./MorningConversationPanel";
 
@@ -59,19 +61,20 @@ describe("Morning Formula flow controls", () => {
     expect(morningFormulaReaderHref("//evil.test")).toMatch(/^\/reader\?/);
     expect(morningFormulaReaderHref("https://evil.test")).toMatch(/^\/reader\?/);
   });
-  it("uses Lumen's exact Bible page component, with editing secondary", () => {
+  it("presents a readable personal prayer with editing secondary", () => {
     const { container } = render(<MorningPrayerReader title="Surrender" value="Father, I trust You. Guide my day." onChange={vi.fn()} />);
-    expect(container.querySelector(".chat-prayer-bible")).toBeTruthy();
+    expect(container.querySelector("article")?.textContent).toContain("Father, I trust You.");
+    expect(screen.getByText("Personal prayer, not Scripture.")).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Edit prayer" }));
     expect(screen.getByRole("textbox").getAttribute("aria-label")).toBe("Surrender prayer text");
   });
-  it("routes video capture to the SAME journal entry with an exact return step", () => {
+  it("opens video capture inside the SAME journal entry without a route detour", () => {
     render(<MemoryRouter><MorningConversationPanel entryId="same-entry" preview={null} busy={false} error={null} /></MemoryRouter>);
-    const href = screen.getByRole("link", { name: /Record my video journal/ }).getAttribute("href")!;
-    const url = new URL(href, "https://app.test");
-    expect(url.pathname).toContain("same-entry");
-    expect(url.searchParams.get("capture")).toBe("video");
-    expect(url.searchParams.get("returnTo")).toBe("/living-hope/review?step=conversation");
+    expect(screen.getByTestId("morning-capture").textContent).toBe("same-entry");
+    expect(screen.getByRole("button", { name: "Video journal" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByRole("button", { name: "Write instead" }));
+    expect(screen.queryByTestId("morning-capture")).toBeNull();
+    expect(screen.getAllByText("Optional text").length).toBeGreaterThan(0);
   });
 });

@@ -31,11 +31,12 @@ export function MorningFormulaDurationPicker({
             <button
               key={option}
               type="button"
+              aria-pressed={active}
               onClick={() => onDurationChange(option)}
               className={cn(
                 "flex-1 rounded-lg py-2.5 text-[13px] font-semibold tabular-nums transition-colors",
                 active
-                  ? "bg-amber-500 text-white shadow-sm"
+                  ? "bg-foreground text-background"
                   : "bg-muted text-muted-foreground hover:bg-muted/80",
               )}
             >
@@ -64,32 +65,23 @@ export function MorningFormulaSessionTimer({
         <button
           type="button"
           className={cn(
-            "flex flex-col items-end rounded-lg px-2 py-1 text-right transition-colors",
+            "flex min-h-11 items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted-foreground transition-colors",
             "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50",
 
           )}
-          aria-label={`Step timer ${formatFormulaCountdown(stepRemainingMs)}, ${formatFormulaCountdown(sessionRemainingMs)} left in session`}
+          aria-label="Session pace"
         >
-          <span
-            className={cn(
-              "text-[15px] font-semibold tabular-nums leading-none",
-              stepExpired ? "text-amber-600 dark:text-amber-400" : "text-foreground",
-            )}
-          >
-            {formatFormulaCountdown(stepRemainingMs)}
-          </span>
-          <span className="text-[10px] text-muted-foreground tabular-nums leading-tight mt-0.5">
-            {formatFormulaCountdown(sessionRemainingMs)} left
-          </span>
+          <Timer className="h-4 w-4" aria-hidden /><span>Pace</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-52 p-3">
+      <PopoverContent align="end" className="w-72 p-4">
+        <p className="mb-3 text-sm tabular-nums">{stepExpired ? "Stay as long as you need." : `${formatFormulaCountdown(stepRemainingMs)} suggested for this step`} · {formatFormulaCountdown(sessionRemainingMs)} in your session</p>
         <div className="flex items-center gap-2 mb-3">
           <Timer className="h-4 w-4 text-amber-600" aria-hidden />
           <p className="text-[13px] font-semibold">Session pace</p>
         </div>
         <p className={cn(lh.footnote, "mb-3")}>
-          This is a suggested pace, not a deadline. Continue when ready, or add more time during thanksgiving.
+          This is a suggested pace, not a deadline. Continue when ready, change your session length here.
         </p>
         <div className="flex gap-1.5">
           {SESSION_DURATION_OPTIONS.map((option) => {
@@ -98,11 +90,12 @@ export function MorningFormulaSessionTimer({
               <button
                 key={option}
                 type="button"
-                onClick={() => onDurationChange(option)}
+                aria-pressed={active}
+              onClick={() => onDurationChange(option)}
                 className={cn(
                   "flex-1 rounded-lg py-2 text-[12px] font-semibold tabular-nums transition-colors",
                   active
-                    ? "bg-amber-500 text-white shadow-sm"
+                    ? "bg-foreground text-background"
                     : "bg-muted text-muted-foreground hover:bg-muted/80",
                 )}
               >

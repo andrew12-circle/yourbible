@@ -1,88 +1,40 @@
+import { useState } from "react";
 import { MorningThanksgivingVoice } from "./MorningThanksgivingVoice";
 import { Input } from "@/components/ui/input";
-import {
-  THANKSGIVING_ITEM_COUNT,
-  THANKSGIVING_NOT_YET_PROMPTS,
-  THANKSGIVING_NOW_PROMPTS,
-} from "@/lib/livingHope/morningRitual";
+import { Button } from "@/components/ui/button";
+import { THANKSGIVING_ITEM_COUNT, THANKSGIVING_NOT_YET_PROMPTS, THANKSGIVING_NOW_PROMPTS } from "@/lib/livingHope/morningRitual";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
-function PromptList({ items }: { items: readonly string[] }) {
-  return (
-    <ul className={cn("space-y-1 mb-3 text-[13px] list-disc pl-4", lh.muted)}>
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
-}
-
-type ListProps = {
-  title: string;
-  description: string;
-  prompts: readonly string[];
-  values: string[];
-  onChange: (index: number, value: string) => void;
-  placeholders: readonly string[];
-};
-
-function ThanksgivingListSection({ title, description, prompts, values, onChange, placeholders }: ListProps) {
-  return (
-    <section className={cn(lh.cardFlat, "p-4")}>
-      <h2 className={cn(lh.heading, "text-[15px] mb-1")}>{title}</h2>
-      <p className={cn(lh.bodySm, "mb-3")}>{description}</p>
-      <MorningThanksgivingVoice group={title.includes("not yet") ? "not-yet" : "now"} values={values} onChange={onChange} />
-      <PromptList items={prompts} />
-      <ol className="space-y-2 list-none p-0 m-0">
-        {Array.from({ length: THANKSGIVING_ITEM_COUNT }, (_, i) => (
-          <li key={i} className="flex items-center gap-2">
-            <span className={cn(lh.faint, "w-5 shrink-0 text-right tabular-nums text-[13px]")}>{i + 1}.</span>
-            <Input
-              value={values[i] ?? ""}
-              onChange={(e) => onChange(i, e.target.value)}
-              className={cn(lh.input, "flex-1")}
-              placeholder={placeholders[i] ?? `Item ${i + 1}`}
-              aria-label={`${title} ${i + 1}`}
-            />
-          </li>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-type Props = {
-  thanksgivingNow: string[];
-  thanksgivingNotYet: string[];
-  onThanksgivingNowChange: (index: number, value: string) => void;
-  onThanksgivingNotYetChange: (index: number, value: string) => void;
-};
-
-export function ThanksgivingListsInput({
-  thanksgivingNow,
-  thanksgivingNotYet,
-  onThanksgivingNowChange,
-  onThanksgivingNotYetChange,
-}: Props) {
-  return (
-    <div className="space-y-4">
-      <ThanksgivingListSection
-        title="5 things you're thankful for now"
-        description="Specific mercies already in your life — break anxiety and scarcity thinking."
-        prompts={THANKSGIVING_NOW_PROMPTS}
-        values={thanksgivingNow}
-        onChange={onThanksgivingNowChange}
-        placeholders={["Salvation", "Family", "Provision", "Yesterday's lesson", "Today's peace"]}
-      />
-      <ThanksgivingListSection
-        title="5 things you're thankful for that have not yet come"
-        description="Thank Him in faith for what's ahead — vision, provision, and promises you're walking toward."
-        prompts={THANKSGIVING_NOT_YET_PROMPTS}
-        values={thanksgivingNotYet}
-        onChange={onThanksgivingNotYetChange}
-        placeholders={["Income milestone", "Family dream", "System built", "Debt freedom", "Legacy"]}
-      />
+type Props = { thanksgivingNow: string[]; thanksgivingNotYet: string[]; onThanksgivingNowChange: (index: number, value: string) => void; onThanksgivingNotYetChange: (index: number, value: string) => void };
+export function ThanksgivingListsInput({ thanksgivingNow, thanksgivingNotYet, onThanksgivingNowChange, onThanksgivingNotYetChange }: Props) {
+  const [group, setGroup] = useState<"now" | "not-yet">("now");
+  const now = group === "now";
+  const values = now ? thanksgivingNow : thanksgivingNotYet;
+  const onChange = now ? onThanksgivingNowChange : onThanksgivingNotYetChange;
+  const count = (items: string[]) => items.filter((v) => v.trim()).length;
+  return <section className="space-y-6" aria-label="Gratitude">
+    <div role="group" aria-label="Gratitude lists" className="flex gap-2 rounded-xl bg-muted/50 p-1">
+      {(["now", "not-yet"] as const).map((key) => <button type="button" key={key} aria-pressed={group === key} onClick={() => setGroup(key)}
+        className={cn("min-h-12 flex-1 rounded-lg px-3 py-2 text-sm transition-colors", group === key ? "bg-background font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+        {key === "now" ? "Thankful today" : "Thankful for what's ahead"}<span className="ml-2 whitespace-nowrap text-xs font-normal">{count(key === "now" ? thanksgivingNow : thanksgivingNotYet)}/5</span>
+      </button>)}
     </div>
-  );
+    <div>
+      <h2 className="text-xl font-semibold">{now ? "What are you thankful for today?" : "What are you trusting God with?"}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{now ? "Name five gifts already in your life." : "Give thanks in faith for what has not yet come."}</p>
+    </div>
+    <MorningThanksgivingVoice key={group} group={group} values={values} onChange={onChange} />
+    <ol className="space-y-3">
+      {Array.from({ length: THANKSGIVING_ITEM_COUNT }, (_, i) => <li key={i} className="flex items-center gap-3">
+        <span className="w-4 shrink-0 text-sm tabular-nums text-muted-foreground" aria-hidden>{i + 1}</span>
+        <Input value={values[i] ?? ""} onChange={(event) => onChange(i, event.target.value)} className={lh.input}
+          aria-label={`${now ? "Thankful today" : "Thankful for what's ahead"} ${i + 1}`} placeholder={now ? "A person, a moment, a gift…" : "A hope or a promise…"} />
+      </li>)}
+    </ol>
+    <details className="text-sm text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">Need a prompt?</summary>
+      <ul className="space-y-2 pl-4 list-disc">{(now ? THANKSGIVING_NOW_PROMPTS : THANKSGIVING_NOT_YET_PROMPTS).map((prompt) => <li key={prompt}>{prompt}</li>)}</ul>
+    </details>
+    {now && <Button type="button" variant="outline" className="min-h-11" onClick={() => setGroup("not-yet")}>Reflect on what's ahead</Button>}
+  </section>;
 }

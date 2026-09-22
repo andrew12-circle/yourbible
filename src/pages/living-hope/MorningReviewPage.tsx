@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { LivingHopeChrome } from "@/components/living-hope/LivingHopeChrome";
 import { MorningFormulaSessionTimer } from "@/components/living-hope/MorningFormulaSessionTimer";
+import { flushMorningInlineJournals } from "@/components/living-hope/MorningFormulaInlineJournal";
+import { MorningSessionFooter } from "@/components/living-hope/MorningSessionFooter";
+import { MorningSessionComplete } from "@/components/living-hope/MorningSessionComplete";
+import { flushJournalDocument, peekJournalDocument } from "@/lib/journal/journalDocuments";
 import { MorningRitualStepNav } from "@/components/living-hope/MorningRitualStepNav";
 import { MorningRitualStepPanels } from "@/components/living-hope/MorningRitualStepPanels";
 import { MorningGuidedExperience } from "@/components/living-hope/MorningGuidedExperience";
@@ -37,7 +41,7 @@ import {
   emptyDailyAssignment,
   emptyThanksgivingLists,
   ritualStepSubtitle,
-  ritualProgressRatio,
+  ritualStepKey,
   type DailyAssignment,
   type MorningConnectionNotes,
 } from "@/lib/livingHope/morningRitual";
@@ -50,7 +54,6 @@ import { lh } from "@/lib/livingHope/themeClasses";
 import { clearMorningScriptureTimer } from "@/lib/livingHope/morningScriptureTimer";
 import {
   clearMorningFormulaTimer,
-  formatFormulaCountdown,
 } from "@/lib/livingHope/morningFormulaTimer";
 import { formatFormalGreetingName, resolveProfileDisplayName } from "@/lib/profile/displayName";
 import { cn } from "@/lib/utils";
@@ -98,6 +101,9 @@ export default function MorningReviewPage() {
   );
   const [covering, setCovering] = useState(DEFAULT_COVERING_PRAYER);
   const [saving, setSaving] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
+  const navigationLock = useRef(false);
+  const reducedMotion = useReducedMotion();
   const [journalEntryId, setJournalEntryId] = useState<string | null>(null);
   const restoredFormulaStep = useRef(false);
   const pendingDraftRestore = useRef<MorningRitualDraft | null>(null);
@@ -214,8 +220,13 @@ export default function MorningReviewPage() {
 
   const handleGuidedModeChange = useCallback((next: boolean) => {
     setGuidedMode(next);
-    if (next) setExpressMode(false);
-  }, []);
+    if (next && expressMode) {
+      const currentKey = ritualStepKey(steps[stepIndex]);
+      const full = buildRitualSteps(workbook, activeGoals, false);
+      setStepIndex(Math.max(0, full.findIndex((item) => ritualStepKey(item) === currentKey)));
+      setExpressMode(false);
+    }
+  }, [expressMode, steps, stepIndex, workbook, activeGoals]);
 
   const handleAddStory = useCallback(
     (text: string) => {
@@ -345,6 +356,11 @@ export default function MorningReviewPage() {
     setSaving(true);
     try {
       const sharedEntryId = await ensureConversationEntry();
+      if (sharedEntryId) await flushMorningInlineJournals(user.id, sharedEntryId);
+      if (sharedEntryId && peekJournalDocument(user.id, sharedEntryId)) {
+        const flushed = await flushJournalDocument(user.id, sharedEntryId);
+        if (!flushed.ok) throw new Error("Your journal still needs to finish saving. Your morning draft has been kept.");
+      }
       if (!sharedEntryId) throw new Error("Today's journal is unavailable. Your morning draft has been kept.");
       await syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet }).then((id) => {
         if (!id) throw new Error("Thanksgiving could not be saved. Your morning draft has been kept.");
@@ -438,41 +454,41 @@ export default function MorningReviewPage() {
     thanksgivingNotYet,
   ]);
 
-  const goToNextStep = useCallback(() => {
-    const isLastBeforeDone =
-      stepIndex === steps.length - 2 && steps[steps.length - 1]?.kind === "done";
-    if (isLastBeforeDone) void finish();
-    else {
-      if (step.kind === "thanksgiving") {
-        if (thanksgivingSaveTimer.current) {
-          clearTimeout(thanksgivingSaveTimer.current);
-          thanksgivingSaveTimer.current = null;
-        }
-        void syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet });
+  const goToNextStep = useCallback(async () => {
+    if (navigationLock.current || saving) return;
+    navigationLock.current = true; setAdvancing(true);
+    try {
+      if (user?.id && conversationEntryId) await flushMorningInlineJournals(user.id, conversationEntryId);
+      if (user?.id && conversationEntryId && peekJournalDocument(user.id, conversationEntryId)) {
+        const flushed = await flushJournalDocument(user.id, conversationEntryId);
+        if (!flushed.ok) throw new Error("Your journal has not finished saving. Stay here and try again; your draft is kept.");
       }
-      setStepIndex((i) => Math.min(i + 1, steps.length - 1));
-    }
-  }, [
-    stepIndex,
-    steps,
-    finish,
-    step.kind,
-    syncThanksgivingToJournal,
-    thanksgivingNow,
-    thanksgivingNotYet,
-  ]);
+      if (stepIndex === steps.length - 2 && steps[steps.length - 1]?.kind === "done") await finish();
+      else {
+        if (step.kind === "thanksgiving") {
+          if (thanksgivingSaveTimer.current) { clearTimeout(thanksgivingSaveTimer.current); thanksgivingSaveTimer.current = null; }
+          const id = await syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet });
+          if (!id) throw new Error("Your gratitude could not be saved. Your draft is kept; please try again.");
+        }
+        setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+      }
+    } catch (cause) { toast({ title: "Your morning is still here", description: formatSupabaseError(cause), variant: "destructive" }); }
+    finally { navigationLock.current = false; setAdvancing(false); }
+  }, [saving, user?.id, conversationEntryId, stepIndex, steps, finish, step.kind, syncThanksgivingToJournal, thanksgivingNow, thanksgivingNotYet]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const progress = ritualProgressRatio(stepIndex, steps);
   const loadingAll = busy || wbBusy;
   const canGoBack = step.kind !== "done" && stepIndex > 0;
 
   return (
     <LivingHopeChrome
-      title="Today's formula"
-      subtitle={ritualStepSubtitle(step, goalIndex, activeGoals.length)}
+      session
+      stepKey={`${ritualStepKey(step)}:${busy || wbBusy}`}
+      title="Morning formula"
+      footer={!loadingAll && step.kind !== "done" ? <MorningSessionFooter steps={steps} stepIndex={stepIndex} saving={saving || advancing}
+        onBack={() => setStepIndex((i) => Math.max(0, i - 1))} onContinue={() => void goToNextStep()} /> : undefined}
       right={
         <MorningFormulaSessionTimer
           durationMin={formulaTimer.durationMin}
@@ -489,35 +505,21 @@ export default function MorningReviewPage() {
           <Loader2 className={cn("w-6 h-6 animate-spin", lh.spinner)} />
         </div>
       ) : (
-        <div className="flex-1 flex flex-col py-2">
-          <div className={lh.progress}>
-            <motion.div
-              className={lh.progressFill}
-              animate={{ width: `${Math.round(progress * 100)}%` }}
-              transition={{ duration: 0.35 }}
-            />
-          </div>
-
-          {step.kind !== "done" && step.kind !== "intro" && !useGuidedUi ? (
-            <MorningRitualStepNav
-              steps={steps}
-              stepIndex={stepIndex}
-              goalTotal={activeGoals.length}
-              onStepIndexChange={setStepIndex}
-            />
-          ) : null}
-
-          {step.kind === "thanksgiving" && <div className="flex flex-wrap items-center justify-between gap-2 py-3"><p className={lh.footnote}>Take the time you need. The timer is a guide, not a deadline.</p><Button type="button" variant="outline" size="sm" onClick={formulaTimer.addFiveMinutes}>Add 5 minutes for thanks</Button></div>}
+        <div className="flex-1 flex flex-col py-3">
+          {step.kind !== "done" && <MorningRitualStepNav steps={steps} stepIndex={stepIndex} goalTotal={activeGoals.length} onStepIndexChange={setStepIndex} disabled={saving || advancing} />}
+          {step.kind !== "done" && <h1 data-morning-heading tabIndex={-1} className="mb-4 text-3xl font-semibold tracking-tight outline-none">{step.kind === "intro" ? "Make room for your morning." : ritualStepSubtitle(step, goalIndex, activeGoals.length)}</h1>}
+          {step.kind === "thanksgiving" && <details className="mb-4 text-sm text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">Need more time?</summary><Button type="button" variant="ghost" className="min-h-11" onClick={formulaTimer.addFiveMinutes}>Add 5 minutes for thanks</Button></details>}
           <AnimatePresence mode="wait">
             <motion.div
               key={`${expressMode}-${stepIndex}`}
-              initial={{ opacity: 0, x: 12 }}
+              initial={reducedMotion ? false : { opacity: 0 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -12 }}
-              transition={{ duration: 0.25 }}
+              exit={reducedMotion ? undefined : { opacity: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.15 }}
               className="flex-1 flex flex-col"
             >
-              {useGuidedUi ? (
+              {step.kind === "done" ? <MorningSessionComplete key={`${user.id}:${journalEntryId}`} userId={user.id} entryId={journalEntryId}
+                reference={scripture?.reference} reflection={scriptureReflection} assignment={dailyAssignment} /> : useGuidedUi ? (
                 <MorningGuidedExperience
                   step={step}
                   formalName={formalName}
@@ -632,41 +634,12 @@ export default function MorningReviewPage() {
             </motion.div>
           </AnimatePresence>
 
-          {step.kind !== "done" && !useGuidedUi ? (
-            <div className="mt-6 pt-2 flex gap-2">
-              {canGoBack ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className={cn(lh.btnSecondary, "h-12 px-4 shrink-0")}
-                  disabled={saving}
-                  onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-0.5" />
-                  Back
-                </Button>
-              ) : null}
-              <Button
-                className={cn(lh.btnPrimary, canGoBack ? "flex-1" : "w-full")}
-                disabled={saving}
-                onClick={goToNextStep}
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    {stepIndex === steps.length - 2
-                      ? "Complete review"
-                      : formulaTimer.stepExpired
-                        ? "Continue when ready"
-                        : formulaTimer.showTimer
-                          ? `Continue (${formatFormulaCountdown(formulaTimer.stepRemainingMs)} left)`
-                          : "Continue"}
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </>
-                )}
-              </Button>
-            </div>
+          {step.kind !== "done" ? (
+            <details className="mt-7 border-t border-border/40 pt-2 text-sm text-muted-foreground">
+              <summary className="min-h-11 cursor-pointer py-3">Session options</summary>
+              {step.kind === "intro" && <Button type="button" variant="ghost" className="min-h-11" aria-pressed={expressMode} onClick={() => handleExpressModeChange(!expressMode)}>{expressMode ? "Express morning selected" : "Use express morning"}</Button>}
+              <Button type="button" variant="ghost" className="min-h-11" disabled={saving || advancing} onClick={() => handleGuidedModeChange(!useGuidedUi)}>{useGuidedUi ? "Use structured view" : "Use guided view"}</Button>
+            </details>
           ) : step.kind === "done" ? (
             <Button
               className={cn(lh.btnDone, "mt-6")}
