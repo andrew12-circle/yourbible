@@ -32,6 +32,7 @@ export default function PrayerAnswerCelebrationPage() {
   const [answeredAt, setAnsweredAt] = useState(localDateISO());
   const [answerText, setAnswerText] = useState("");
   const [amountProvided, setAmountProvided] = useState("");
+  const [provisionSource, setProvisionSource] = useState("");
   const [praiseBody, setPraiseBody] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -46,6 +47,7 @@ export default function PrayerAnswerCelebrationPage() {
       setRequest(row);
       if (row) {
         setAmountProvided(row.amount_requested != null ? String(row.amount_requested) : "");
+        setProvisionSource(row.provision_source ?? "");
         setPraiseBody(
           buildPraiseReportBody({
             ...row,
@@ -83,6 +85,7 @@ export default function PrayerAnswerCelebrationPage() {
     nextAnsweredAt: string,
     nextAnswer: string,
     nextAmount: string,
+    nextSource = provisionSource,
   ) => {
     const amountNum = parseLedgerAmount(nextAmount);
     setPraiseBody(
@@ -92,6 +95,7 @@ export default function PrayerAnswerCelebrationPage() {
           answered_at: nextAnsweredAt,
           answer_text: nextAnswer,
           amount_provided: amountNum,
+          provision_source: nextSource.trim(),
           status: celebrationStatus,
         },
         nextAnswer,
@@ -110,6 +114,7 @@ export default function PrayerAnswerCelebrationPage() {
         answerText,
         answeredAt,
         amountProvided: parseLedgerAmount(amountProvided),
+        provisionSource,
         status: celebrationStatus,
         praiseBodyOverride: praiseBody,
       });
@@ -179,7 +184,7 @@ export default function PrayerAnswerCelebrationPage() {
             value={answeredAt}
             onChange={(e) => {
               setAnsweredAt(e.target.value);
-              rebuildPraise(e.target.value, answerText, amountProvided);
+              rebuildPraise(e.target.value, answerText, amountProvided, provisionSource);
             }}
           />
         </div>
@@ -191,11 +196,27 @@ export default function PrayerAnswerCelebrationPage() {
             value={amountProvided}
             onChange={(e) => {
               setAmountProvided(e.target.value);
-              rebuildPraise(answeredAt, answerText, e.target.value);
+              rebuildPraise(answeredAt, answerText, e.target.value, provisionSource);
             }}
             placeholder="$4,200"
             inputMode="decimal"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="provision-source">Provision source</Label>
+          <Input
+            id="provision-source"
+            value={provisionSource}
+            onChange={(e) => {
+              setProvisionSource(e.target.value);
+              rebuildPraise(answeredAt, answerText, amountProvided, e.target.value);
+            }}
+            placeholder="Commission from the Smith closing"
+          />
+          <p className="text-xs text-muted-foreground">
+            Record where the provision actually came from.
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -205,7 +226,7 @@ export default function PrayerAnswerCelebrationPage() {
             value={answerText}
             onChange={(e) => {
               setAnswerText(e.target.value);
-              rebuildPraise(answeredAt, e.target.value, amountProvided);
+              rebuildPraise(answeredAt, e.target.value, amountProvided, provisionSource);
             }}
             placeholder="Closed three unexpected loans that fully covered payroll."
             className="min-h-[100px] resize-none"
