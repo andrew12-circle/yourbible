@@ -1,0 +1,45 @@
+name: Use atomic reader test snapshots
+on:
+  push:
+    branches: [fix/reader-short-chapter-continuation]
+    paths: [.github/workflows/atomic-reader-test.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Keep DOM lookup and inspection in a single browser task
+        shell: bash
+        run: |
+          test "$GITHUB_REF" = refs/heads/fix/reader-short-chapter-continuation
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          p = Path('scripts/test-bible-chapter-continuation.mjs')
+          assert subprocess.check_output(['git', 'hash-object', str(p)], text=True).strip() == 'fe442596ec8e0e226a603a2b1fd349a1e32fa0a4'
+          text = p.read_text()
+          old = "return page.locator('[data-reader-page-side] article[data-reading-area]').evaluateAll(articles => {"
+          new = "return page.evaluate(() => {\n    // Query and measure atomically: a reflow must not detach locator handles\n    // between their selection and the independent visible-fit assertions.\n    const articles = document.querySelectorAll('[data-reader-page-side] article[data-reading-area]');"
+          assert text.count(old) == 1
+          p.write_text(text.replace(old, new))
+          p = Path('scripts/reader-browser-text.mjs')
+          text = p.read_text()
+          old = "return page.locator('[data-reader-page-side] [data-verse-id]').evaluateAll(nodes => nodes.map(node => {"
+          new = "return page.evaluate(() => [...document.querySelectorAll('[data-reader-page-side] [data-verse-id]')].map(node => {"
+          assert text.count(old) == 1
+          p.write_text(text.replace(old, new))
+          PY
+          node --check scripts/test-bible-chapter-continuation.mjs
+          node --check scripts/reader-browser-text.mjs
+          git add -- scripts/test-bible-chapter-continuation.mjs scripts/reader-browser-text.mjs
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Inspect reader DOM atomically during resize without weakening fit or text assertions'
+          test "$(git ls-remote origin refs/heads/fix/reader-short-chapter-continuation | cut -f1)" = "$GITHUB_SHA"
+          git push origin HEAD:refs/heads/fix/reader-short-chapter-continuation
