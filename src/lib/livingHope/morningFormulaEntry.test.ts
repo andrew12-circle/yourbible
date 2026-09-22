@@ -87,7 +87,7 @@ describe("morningRitualDraft", () => {
       thanksgivingNow: ["Grace", "", "", "", ""],
       thanksgivingNotYet: ["", "", "", "", ""],
       scriptureReflection: "Mercy",
-      dailyAssignment: { spiritual: "Pray", health: "", family: "", business: "" },
+      dailyAssignment: { spiritual: "Pray", health: "", family: "", business: "", mustDo: "", avoid: "" },
       surrender: "",
       covering: "",
       storySelectedIndex: null,
