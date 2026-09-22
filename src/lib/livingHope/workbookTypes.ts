@@ -70,6 +70,8 @@ export interface LivingHopeWorkbookContent {
   worship_playlist_url: string;
   /** Previously saved worship links — pick or replay during the ritual. */
   worship_music_history: WorshipMusicHistoryItem[];
+  /** Private voice recordings of personal prayers stored in voice-memos. */
+  prayer_recordings: { surrender?: string; covering?: string };
 }
 
 export type WorkbookSection =
@@ -149,6 +151,7 @@ export function emptyWorkbook(): LivingHopeWorkbookContent {
     metrics: [],
     worship_playlist_url: "",
     worship_music_history: [],
+    prayer_recordings: {},
   };
 }
 
@@ -177,7 +180,17 @@ export function mergeWorkbook(raw: unknown): LivingHopeWorkbookContent {
     metrics: parseMetrics(o.metrics),
     worship_playlist_url: String(o.worship_playlist_url ?? base.worship_playlist_url),
     worship_music_history: parseWorshipMusicHistory(o.worship_music_history, String(o.worship_playlist_url ?? "")),
+    prayer_recordings: parsePrayerRecordings(o.prayer_recordings),
   };
+}
+
+function parsePrayerRecordings(raw: unknown): { surrender?: string; covering?: string } {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const o = raw as Record<string, unknown>;
+  const result: { surrender?: string; covering?: string } = {};
+  if (typeof o.surrender === "string" && o.surrender.trim()) result.surrender = o.surrender.trim();
+  if (typeof o.covering === "string" && o.covering.trim()) result.covering = o.covering.trim();
+  return result;
 }
 
 function parseWorshipMusicHistory(raw: unknown, currentUrl: string): WorshipMusicHistoryItem[] {
