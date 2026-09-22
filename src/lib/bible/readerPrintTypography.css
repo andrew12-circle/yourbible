@@ -1,0 +1,101 @@
+/* Print-style typography shared by the visible reader AND hidden paginator.
+   A gutter lives INSIDE each text column. Numbers stay in normal inline flow,
+   not absolute positioning, which would detach them during column/page breaks. */
+[data-reading-area].reader-print-text {
+  --reader-number-inset: 1.35em;
+  --reader-poetry-depth: 0em;
+  line-height: 1.42;
+}
+[data-reading-area].reader-print-text :is(.scripture-columns-2, .scripture-columns-spread) {
+  column-rule: none;
+  column-gap: 1.5em;
+}
+[data-reading-area].reader-print-text :is(.scripture-paragraph, .scripture-poetry) {
+  margin-block: 0;
+  padding-inline: var(--reader-number-inset) 0.2em;
+  text-indent: 0;
+  hyphens: none;
+  -webkit-hyphens: none;
+  overflow-wrap: break-word;
+  break-inside: auto;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+[data-reading-area].reader-print-text .scripture-paragraph { text-align: justify; }
+[data-reading-area].reader-print-text .scripture-paragraph + .scripture-paragraph { margin-block-start: 0.28em; }
+[data-reading-area].reader-print-text .scripture-poetry {
+  text-align: start;
+  padding-inline-start: calc(var(--reader-number-inset) + var(--reader-poetry-depth) + 1em);
+  text-indent: -1em;
+}
+[data-reading-area].reader-print-text .scripture-poetry-q2 { --reader-poetry-depth: 1em; }
+[data-reading-area].reader-print-text .scripture-poetry-q3 { --reader-poetry-depth: 2em; }
+[data-reading-area].reader-print-text .scripture-poetry-continue { text-indent: 0; }
+[data-reading-area].reader-print-text .scripture-verse { display: inline; margin: 0; }
+[data-reading-area].reader-print-text .verse-body-wrap { padding-inline-end: 0.15em; text-align: inherit; }
+[data-reading-area].reader-print-text .verse-num-gutter {
+  font-family: inherit;
+  font-size: 1em;
+  line-height: inherit;
+  font-weight: 600;
+  vertical-align: baseline;
+  padding: 0;
+  margin-inline: 0.12em 0.16em;
+  color: inherit;
+}
+[data-reading-area].reader-print-text .reader-verse-number-glyph {
+  font-size: 0.6em;
+  font-variant-numeric: lining-nums tabular-nums;
+  line-height: 1;
+  vertical-align: 0.3em;
+}
+[data-reading-area].reader-print-text .scripture-verse-paragraph-start > .verse-num-gutter {
+  display: inline-block;
+  width: 1em;
+  margin-inline-start: calc(-1 * (var(--reader-number-inset) + var(--reader-poetry-depth)));
+  margin-inline-end: calc(var(--reader-number-inset) + var(--reader-poetry-depth) - 1em);
+  text-align: end;
+  text-indent: 0;
+}
+[data-reading-area].reader-print-text .verse-num:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }
+[data-reading-area].reader-print-text .scripture-heading {
+  text-align: start;
+  text-indent: 0;
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.82em;
+  line-height: 1.3;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  color: inherit;
+  margin: 0.8em 0 0.28em;
+  padding-inline-start: 0;
+  break-after: avoid;
+  -webkit-column-break-after: avoid;
+}
+[data-reading-area].reader-print-text .scripture-heading:first-child { margin-block-start: 0; }
+[data-reading-area].reader-print-text .chapter-drop-cap {
+  font-family: inherit;
+  font-size: 2.4em;
+  font-weight: 600;
+  font-variant-numeric: lining-nums;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: inherit;
+  margin: 0 0.12em 0 -0.5625em;
+  padding: 0;
+}
+[data-reading-area].reader-print-text .scripture-paragraph-chapter-open {
+  --reader-poetry-depth: 0em;
+  padding-inline-start: var(--reader-number-inset);
+  text-indent: 0;
+  break-before: auto;
+  -webkit-column-break-before: auto;
+}
+/* Keep the number and the first body word together while allowing the verse
+   itself to wrap; this affects inline prose numbers as well as gutter numbers. */
+[data-reading-area].reader-print-text .scripture-verse { white-space: nowrap; }
+[data-reading-area].reader-print-text .verse-body-wrap { white-space: normal; }
+
+[data-reading-area].reader-print-text .reader-verse-first-word { white-space: nowrap; }

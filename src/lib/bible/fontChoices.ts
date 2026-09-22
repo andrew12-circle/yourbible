@@ -1,3 +1,4 @@
+import "./readerPrintTypography.css";
 import { effectiveReaderFontScaleEm, type ReaderFontScaleLayout } from "@/lib/bible/readerFontScale";
 
 export type FontChoiceId = "serif" | "sans" | "sf";
@@ -13,13 +14,13 @@ export type FontChoice = {
 };
 
 export const FONT_CHOICES: FontChoice[] = [
-  { id: "serif", label: "Serif", sample: "Cormorant Garamond", previewClass: "font-scripture" },
+  { id: "serif", label: "Serif", sample: "Georgia (print)", previewClass: "font-scripture" },
   { id: "sans", label: "Sans", sample: "Inter", previewClass: "font-sans" },
   { id: "sf", label: "San Francisco", sample: "SF Pro", previewClass: "font-system" },
 ];
 
 export const SCRIPTURE_FONT_STACKS: Record<FontChoiceId, string> = {
-  serif: "'Cormorant Garamond', 'Crimson Pro', Georgia, serif",
+  serif: "Georgia, 'Times New Roman', serif",
   sans: "'Inter', system-ui, sans-serif",
   sf: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif',
 };
@@ -45,9 +46,9 @@ export const READER_SCRIPTURE_TYPO_BASE = `${READER_SCRIPTURE_SIZE} ink-text`;
 
 export function pageTypoClass(choice: string | undefined | null): string {
   const id = normalizeFontChoice(choice);
-  if (id === "sans") return `font-sans ${READER_SCRIPTURE_TYPO_BASE}`;
-  if (id === "sf") return `font-system reader-sf-body ${READER_SCRIPTURE_SIZE}`;
-  return `font-scripture ${READER_SCRIPTURE_TYPO_BASE}`;
+  if (id === "sans") return `reader-print-text font-sans ${READER_SCRIPTURE_TYPO_BASE}`;
+  if (id === "sf") return `reader-print-text font-system reader-sf-body ${READER_SCRIPTURE_SIZE}`;
+  return `reader-print-text font-scripture ${READER_SCRIPTURE_TYPO_BASE}`;
 }
 
 export function readerScriptureTypographyStyle(

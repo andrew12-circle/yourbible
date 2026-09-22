@@ -17,7 +17,7 @@ describe("fontChoices", () => {
     const serif = scriptureFontFamily("serif");
     const sans = scriptureFontFamily("sans");
     const sf = scriptureFontFamily("sf");
-    expect(serif).toContain("Cormorant");
+    expect(serif).toContain("Georgia");
     expect(sans).toContain("Inter");
     expect(sf).toContain("-apple-system");
     expect(new Set([serif, sans, sf]).size).toBe(3);

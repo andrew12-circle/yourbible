@@ -1,3 +1,4 @@
+import { bindVerseOpeningWord } from "./readerVerseLead";
 import { readerVerseFragment } from "./readerVerseFragments";
 import type { ReactNode } from "react";
 import { NotebookPen } from "lucide-react";
@@ -165,6 +166,8 @@ export function createReaderVerseRenderer({
       bookAbbr: string;
       chapter: number;
       paragraphIsContinuation?: boolean;
+      /** First visible verse in a prose paragraph or publisher-marked poetry line. */
+      startsPrintedParagraph?: boolean;
       /** False on mid-chapter continuation pages in spread mode. */
       showChapterDropCap?: boolean;
     },
@@ -175,6 +178,7 @@ export function createReaderVerseRenderer({
     const verseBook = ctx?.bookAbbr ?? bookAbbr;
     const verseChapter = ctx?.chapter ?? chapter;
     const paragraphIsContinuation = ctx?.paragraphIsContinuation ?? false;
+    const hangingNumber = ctx?.startsPrintedParagraph === true && startOffset === 0;
     const chapterDropCap =
       startOffset === 0 && ctx?.showChapterDropCap !== false &&
       shouldShowChapterDropCap(v.number, paragraphIsContinuation);
@@ -247,7 +251,7 @@ export function createReaderVerseRenderer({
         className={ul ? "pen-underline" : undefined}
         style={bodyStyle}
       >
-        {bodyNodes}
+        {!chapterDropCap && startOffset === 0 ? bindVerseOpeningWord(bodyNodes, versePlainText(v)) : bodyNodes}
       </span>
     );
 
@@ -261,7 +265,7 @@ export function createReaderVerseRenderer({
         data-verse-start={startOffset}
         data-verse-end={fragment?.end ?? plain.length}
         className={
-          chapterDropCap ? "scripture-verse scripture-verse-chapter-open" : "scripture-verse"
+          ["scripture-verse", chapterDropCap && "scripture-verse-chapter-open", hangingNumber && "scripture-verse-paragraph-start"].filter(Boolean).join(" ")
         }
       >
         {chapterDropCap ? (
@@ -276,7 +280,7 @@ export function createReaderVerseRenderer({
             aria-label={`Verse ${v.number}`}
             style={{ userSelect: "none" }}
           >
-            {v.number}
+            <span className="reader-verse-number-glyph">{v.number}</span>
           </button>
         )}
         <span className="verse-body-wrap">

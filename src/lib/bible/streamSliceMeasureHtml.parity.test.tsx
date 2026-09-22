@@ -15,7 +15,7 @@ describe("measurement uses the actual Scripture renderer", () => {
     const node = document.createElement("div");
     node.innerHTML = buildStreamSliceMeasureHtml(stream, [chapter], new Map(), "holman");
     expect(node.querySelectorAll("button.verse-num.verse-num-gutter")).toHaveLength(2);
-    expect(node.querySelector(".scripture-poetry-q2.scripture-poetry-cont")).not.toBeNull();
+    expect(node.querySelector(".scripture-poetry.scripture-poetry-q2")).not.toBeNull();
     expect(node.querySelector("sup.scripture-footnote-mark")?.textContent).toBe("14");
     expect(node.querySelector('[data-verse-body="13"]')?.textContent).toBe("Synthetic text.");
     expect(node.querySelector('[data-verse-body="14"]')?.textContent).toBe("More synthetic text.14");
