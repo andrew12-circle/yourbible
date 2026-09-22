@@ -17,6 +17,29 @@ function setup() {
 }
 beforeEach(() => { vi.mocked(fetchPassageWithCache).mockReset(); });
 describe("measured continuation query ownership", () => {
+  it("never relabels an optimistic result during cached forward and reverse window changes", async () => {
+    const { client, wrapper, options } = setup();
+    for (let ch = 5; ch <= 40; ch++) client.setQueryData(passageQueryKey("test", "Psa", ch), passage(ch));
+    const initial = { ...options, through: { bookAbbr: "Psa", chapter: 23 } };
+    const mismatches: string[] = [];
+    const { result, rerender } = renderHook(opts => {
+      const value = useReaderContinuation(opts);
+      for (const ch of value.chapters) {
+        const expected = `Original chapter ${ch.chapter}.`;
+        if (ch.verses[0].text !== expected) mismatches.push(`${ch.chapter}: ${ch.verses[0].text}`);
+      }
+      return value;
+    }, { initialProps: initial, wrapper });
+    await waitFor(() => expect(result.current.chapters).toHaveLength(17));
+    rerender({ ...initial, scope: "Psa22", after: { bookAbbr: "Psa", chapter: 23 },
+      baseChapters: [{ ...base[0], chapter: 23, ...passage(23) }], through: { bookAbbr: "Psa", chapter: 31 } });
+    await waitFor(() => expect(result.current.chapters).toHaveLength(9));
+    rerender(initial);
+    await waitFor(() => expect(result.current.chapters).toHaveLength(17));
+    expect(mismatches).toEqual([]);
+    expect(fetchPassageWithCache).not.toHaveBeenCalled();
+    client.clear();
+  });
   it("loads one additional chapter on demand, reuses cached data, and keeps stable paragraphs", async () => {
     const { client, wrapper, options } = setup();
     client.setQueryData(passageQueryKey("test", "Psa", 8), passage(8));
