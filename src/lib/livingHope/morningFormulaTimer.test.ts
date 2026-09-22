@@ -29,9 +29,22 @@ describe("buildStepDurationMap", () => {
   it("scales down for shorter sessions", () => {
     const steps = buildRitualSteps(null, []);
     const full = buildStepDurationMap(steps, 60);
+    const threeQuarter = buildStepDurationMap(steps, 45);
     const half = buildStepDurationMap(steps, 30);
     const worshipKey = stepKey({ kind: "worship" });
-    expect(half[worshipKey]).toBeLessThan(full[worshipKey]);
+    expect(threeQuarter[worshipKey]).toBeLessThan(full[worshipKey]);
+    expect(half[worshipKey]).toBeLessThan(threeQuarter[worshipKey]);
+  });
+
+  it.each([15, 30, 45, 60] as const)("keeps every %i minute plan on its exact total", (minutes) => {
+    const steps = buildRitualSteps(emptyWorkbook(), []);
+    const budgets = buildStepDurationMap(steps, minutes);
+    const timedKeys = steps
+      .filter((s) => s.kind !== "intro" && s.kind !== "done")
+      .map((s) => stepKey(s));
+    const totalMs = timedKeys.reduce((sum, key) => sum + (budgets[key] ?? 0), 0);
+    expect(totalMs).toBe(minutes * 60 * 1000);
+    expect(timedKeys.every((key) => (budgets[key] ?? 0) > 0)).toBe(true);
   });
 });
 
