@@ -200,6 +200,7 @@ export default function ReaderPage() {
     });
   }, []);
   const [searchParams] = useSearchParams();
+  const formulaPopout = searchParams.get("formulaPopout") === "1";
   const params = useParams<{ book?: string; chapter?: string }>();
   const dailyToastShown = useRef(false);
   const [readerReturn, setReaderReturn] = useState<{ to: string; label: string } | null>(null);
@@ -1485,14 +1486,23 @@ export default function ReaderPage() {
 
       <OfflineBanner showCachedHint={showCachedHint && !!passage} />
 
-      {readerReturn?.to === MORNING_FORMULA_SCRIPTURE_RETURN && (
+      {readerReturn?.to === MORNING_FORMULA_SCRIPTURE_RETURN && formulaPopout ? (
+        <button
+          type="button"
+          onClick={() => navigate(MORNING_FORMULA_SCRIPTURE_RETURN)}
+          aria-label="Back to Morning Formula"
+          title="Back to Morning Formula"
+          className="fixed left-4 top-[max(1rem,env(safe-area-inset-top))] z-50 flex h-11 w-11 items-center justify-center rounded-full border border-white/35 bg-background/55 text-xl text-foreground shadow-sm backdrop-blur-xl transition hover:bg-background/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          ←
+        </button>
+      ) : readerReturn?.to === MORNING_FORMULA_SCRIPTURE_RETURN ? (
         <div className="relative z-40 flex flex-wrap items-center justify-between gap-2 border-b bg-background px-4 py-2" role="navigation" aria-label="Morning Formula return">
           <Button variant="outline" size="sm" onClick={() => navigate(MORNING_FORMULA_SCRIPTURE_RETURN)}>Return to Morning Formula · Scripture</Button>
           <span className="text-xs text-muted-foreground">Your morning is still on the Scripture step.</span>
-          {searchParams.get("formulaPopout") === "1" && <Button variant="ghost" size="sm" onClick={() => window.close()}>Close Bible window</Button>}
         </div>
-      )}
-      <TopBar
+      ) : null}
+      {!formulaPopout && <TopBar
         reference={reference}
         collapsed={false}
         focusMode={focusMode}
@@ -1556,7 +1566,7 @@ export default function ReaderPage() {
           clearReaderReturn();
           setReaderReturn(null);
         }}
-      />
+      />}
 
       {staleLayoutInk && inkMode ? (
         <div
@@ -1593,7 +1603,7 @@ export default function ReaderPage() {
           "flex min-h-0 flex-1 flex-col",
           overlayPos,
           "inset-x-0",
-          readerSceneTopOffsetClass(compactChrome, hubInline),
+          formulaPopout ? "top-0" : readerSceneTopOffsetClass(compactChrome, hubInline),
           mobileChromeBottom,
         )}
       >
@@ -1679,7 +1689,7 @@ export default function ReaderPage() {
         aria-label="Previous page"
         className={cn(
           overlayPos,
-          readerPageTurnTopOffsetClass(compactChrome, hubInline),
+          formulaPopout ? "top-0" : readerPageTurnTopOffsetClass(compactChrome, hubInline),
           "left-0 w-8 z-[5] opacity-0",
           mobilePageTurnBottom,
           inkMode && "pointer-events-none",
