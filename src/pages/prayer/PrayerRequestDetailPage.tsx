@@ -51,9 +51,11 @@ export default function PrayerRequestDetailPage() {
   const [showPartialForm, setShowPartialForm] = useState(false);
   const [partialAnsweredAt, setPartialAnsweredAt] = useState("");
   const [partialAmount, setPartialAmount] = useState("");
+  const [partialSource, setPartialSource] = useState("");
   const [partialStory, setPartialStory] = useState("");
   const [editAnsweredAt, setEditAnsweredAt] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editSource, setEditSource] = useState("");
   const [editStory, setEditStory] = useState("");
 
   const {
@@ -71,6 +73,7 @@ export default function PrayerRequestDetailPage() {
     if (!request) return;
     setEditAnsweredAt(request.answered_at ?? "");
     setEditAmount(request.amount_provided != null ? String(request.amount_provided) : "");
+    setEditSource(request.provision_source ?? "");
     setEditStory(request.answer_text ?? "");
   }, [request]);
 
@@ -122,6 +125,7 @@ export default function PrayerRequestDetailPage() {
   const openPartialForm = () => {
     setPartialAnsweredAt(request.answered_at ?? localDateISO());
     setPartialAmount(request.amount_provided != null ? String(request.amount_provided) : "");
+    setPartialSource(request.provision_source ?? "");
     setPartialStory(request.answer_text ?? "");
     setShowPartialForm(true);
   };
@@ -130,6 +134,7 @@ export default function PrayerRequestDetailPage() {
     const hasAny =
       partialAnsweredAt.trim() ||
       partialAmount.trim() ||
+      partialSource.trim() ||
       partialStory.trim();
     if (!hasAny) {
       toast({ title: "Add at least one detail", variant: "destructive" });
@@ -141,6 +146,7 @@ export default function PrayerRequestDetailPage() {
         status: "partial",
         answered_at: partialAnsweredAt.trim() || null,
         amount_provided: parseLedgerAmount(partialAmount),
+        provision_source: partialSource.trim(),
         answer_text: partialStory.trim() || null,
       });
       await reload();
@@ -159,6 +165,7 @@ export default function PrayerRequestDetailPage() {
       await updatePrayerRequest(user.id, request.id, {
         answered_at: editAnsweredAt.trim() || null,
         amount_provided: parseLedgerAmount(editAmount),
+        provision_source: editSource.trim(),
         answer_text: editStory.trim() || null,
       });
       await reload();
@@ -332,9 +339,11 @@ export default function PrayerRequestDetailPage() {
                 <PrayerAnswerFieldsSection
                   answeredAt={partialAnsweredAt}
                   amountProvided={partialAmount}
+                  provisionSource={partialSource}
                   answerText={partialStory}
                   onAnsweredAtChange={setPartialAnsweredAt}
                   onAmountProvidedChange={setPartialAmount}
+                  onProvisionSourceChange={setPartialSource}
                   onAnswerTextChange={setPartialStory}
                   disabled={busy}
                 />
@@ -368,9 +377,11 @@ export default function PrayerRequestDetailPage() {
             <PrayerAnswerFieldsSection
               answeredAt={editAnsweredAt}
               amountProvided={editAmount}
+              provisionSource={editSource}
               answerText={editStory}
               onAnsweredAtChange={setEditAnsweredAt}
               onAmountProvidedChange={setEditAmount}
+              onProvisionSourceChange={setEditSource}
               onAnswerTextChange={setEditStory}
               disabled={busy}
             />
