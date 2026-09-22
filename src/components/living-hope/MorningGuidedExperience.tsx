@@ -20,7 +20,6 @@ import {
   COVERING_STEP_INTRO,
 } from "@/lib/livingHope/coveringPrayer";
 import {
-  DAILY_ASSIGNMENT_FIELDS,
   SURRENDER_STEP_INTRO,
   type DailyAssignment,
   type RitualStep,
