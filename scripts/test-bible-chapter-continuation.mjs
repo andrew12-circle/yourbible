@@ -122,6 +122,7 @@ try {
     {name:'acts-sans-single',font:'sans',columns:'single',study:'inline',scale:1,width:1491,height:936},
     {name:'acts-sans-double',font:'sans',columns:'double',study:'inline',scale:1,width:1491,height:936},
     {name:'acts-serif-single',font:'serif',columns:'single',study:'inline',scale:1,width:1491,height:936},
+    {name:'csb-serif-double',font:'serif',columns:'double',study:'inline',scale:1,width:1491,height:936},
     {name:'acts-sans-large',font:'sans',columns:'double',study:'holman',scale:1.5,width:1260,height:800},
   ].filter(s => !process.env.READER_SCENARIO || s.name.includes(process.env.READER_SCENARIO));
   for (scenario of scenarios) {
