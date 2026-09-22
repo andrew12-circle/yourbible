@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createPrayerRequest,
   deletePrayerRequest,
+  ensureProvisionOccurrences,
   listPrayerRequests,
   updatePrayerRequest,
 } from "@/lib/prayer/api";
@@ -25,6 +26,7 @@ export function usePrayerRequests(
     if (!userId) return;
     setLoading(true);
     try {
+      await ensureProvisionOccurrences().catch(() => 0);
       const data = await listPrayerRequests(userId, filter);
       setRows(data);
     } finally {
