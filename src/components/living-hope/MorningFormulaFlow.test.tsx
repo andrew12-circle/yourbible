@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningScriptureActions } from "./MorningScriptureActions";
 import { MorningPrayerReader } from "./MorningPrayerReader";
@@ -62,7 +63,7 @@ describe("Morning Formula flow controls", () => {
     expect(morningFormulaReaderHref("https://evil.test")).toMatch(/^\/reader\?/);
   });
   it("presents a readable personal prayer with editing secondary", () => {
-    const { container } = render(<MorningPrayerReader title="Surrender" value="Father, I trust You. Guide my day." onChange={vi.fn()} />);
+    const { container } = render(<MorningPrayerReader title="Surrender" value="Father, I trust You. Guide my day." onChange={vi.fn()} />, { wrapper: TooltipProvider });
     expect(container.querySelector("article")?.textContent).toContain("Father, I trust You.");
     expect(screen.getByText("Personal prayer, not Scripture.")).toBeTruthy();
     expect(screen.queryByRole("textbox")).toBeNull();
