@@ -18,9 +18,8 @@ export function buildPraiseReportBody(
     | "amount_requested"
     | "amount_provided"
     | "deadline"
-    | "consequence"
-    | "provision_source"
-  >,
+  > &
+    Partial<Pick<PrayerRequestRow, "consequence" | "provision_source">>,
   answerOverride?: string,
 ): string {
   const answeredAt = request.answered_at ?? new Date().toISOString().slice(0, 10);
