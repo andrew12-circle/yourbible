@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import type { WorkbookStory } from "@/lib/livingHope/workbookTypes";
 import { newId } from "@/lib/livingHope/workbookTypes";
 import {
@@ -164,13 +164,13 @@ export function MorningStoryPanel({
           <p className={cn(lh.footnote)}>
             Present tense. One vivid moment — tithing, family, business, home. Real, not fantasy.
           </p>
-          <Textarea
+          <MorningVoiceField
             value={newStoryText}
-            onChange={(e) => setNewStoryText(e.target.value)}
+            onChange={setNewStoryText}
+            multiline
             rows={3}
-            className={lh.textarea}
+            label="New story scene"
             placeholder="I'm writing the check for tithe and there's no flinch — just gratitude…"
-            aria-label="New story scene"
           />
           <div className="flex gap-2">
             <Button type="button" className={cn(lh.btnSecondary, "h-9")} onClick={handleAddStory}>
@@ -222,13 +222,13 @@ export function MorningStoryPanel({
                 <p className={cn(lh.footnote, "italic leading-snug")}>{currentPlayStep.psychology}</p>
               </div>
               <p className={lh.bodySm}>{currentPlayStep.prompt}</p>
-              <Textarea
+              <MorningVoiceField
                 value={responses[currentPlayStep.key]}
-                onChange={(e) => setField(currentPlayStep.key, e.target.value)}
+                onChange={(value) => setField(currentPlayStep.key, value)}
+                multiline
                 rows={currentPlayStep.rows}
-                className={lh.textarea}
+                label={currentPlayStep.title}
                 placeholder={currentPlayStep.placeholder}
-                aria-label={currentPlayStep.title}
               />
             </div>
           ) : null}
