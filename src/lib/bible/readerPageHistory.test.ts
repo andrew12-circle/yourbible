@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildReaderStream, type ReaderChapterPassage } from "./readerStream";
 import { fragmentReaderStream } from "./readerVerseFragments";
-import { ReaderPageHistory, type ReaderPageHistoryEntry } from "./readerPageHistory";
+import { ReaderPageHistory, readerPageHistoryForRoot, type ReaderPageHistoryEntry } from "./readerPageHistory";
 
 const chapter = (number: number): ReaderChapterPassage => ({ bookAbbr: "Test", bookName: "Test", chapter: number,
   verses: [{ number: 1, text: "one two three four five six seven eight nine ten" }],
@@ -13,6 +13,12 @@ const entry = (n = 6): ReaderPageHistoryEntry => {
 };
 
 describe("exact printed page history", () => {
+  it("survives hidden paginator remounts without sharing history with a different visible reader", () => {
+    const root = document.createElement("div"), other = document.createElement("div"), first = entry();
+    readerPageHistoryForRoot(root).remember(first);
+    expect(readerPageHistoryForRoot(root).find(first.geometryKey, 12, first.chapters, first.stream)).toEqual(first.splits);
+    expect(readerPageHistoryForRoot(other).find(first.geometryKey, 12, first.chapters, first.stream)).toBeUndefined();
+  });
   it("restores corrected page cuts after leaving and returning to a chapter window", () => {
     const history = new ReaderPageHistory(), first = entry();
     history.remember(first); history.remember(entry(23));

@@ -29,5 +29,6 @@ export function bindVerseOpeningWord(nodes: ReactNode[], text: string): ReactNod
       [cloneElement(element, { key: `${element.key ?? "text"}-rest` }, ...rest)]];
   }
   const [lead, rest] = split(nodes);
-  return [<span key="verse-opening-word" className="reader-verse-first-word">{lead}</span>, ...rest];
+  return [<span key="verse-opening-word" className="reader-verse-first-word">{lead}</span>,
+    <span key="verse-remainder" className="reader-verse-remainder">{rest}</span>];
 }

@@ -98,4 +98,9 @@
 [data-reading-area].reader-print-text .scripture-verse { white-space: nowrap; }
 [data-reading-area].reader-print-text .verse-body-wrap { white-space: normal; }
 
+/* WebKit can break before a normal-white-space body span even inside a
+   nowrap verse. Keep that inheritance through the first word and allow line
+   breaks only in the remainder; no invisible joiner is added to Scripture. */
+[data-reading-area].reader-print-text .scripture-verse:has(.reader-verse-first-word) .verse-body-wrap { white-space: inherit; }
 [data-reading-area].reader-print-text .reader-verse-first-word { white-space: nowrap; }
+[data-reading-area].reader-print-text .reader-verse-remainder { white-space: normal; }

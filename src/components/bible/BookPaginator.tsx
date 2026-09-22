@@ -5,7 +5,7 @@ import { applyScriptureColumnMeasureHtml, applyHolmanStudyMeasureHtml, paginator
 import { buildReaderStream, type ReaderChapterPassage, type ReaderPlateFocus, type ReaderStreamUnit } from "@/lib/bible/readerStream";
 import { buildStreamSliceMeasureHtml, buildStreamSliceFootnotesMeasureHtml } from "@/lib/bible/streamSliceMeasureHtml";
 import { paginateReaderStream } from "@/lib/bible/paginateReaderStream";
-import { ReaderPageHistory } from "@/lib/bible/readerPageHistory";
+import { ReaderPageHistory, readerPageHistoryForRoot } from "@/lib/bible/readerPageHistory";
 import { readerAppendedPagePrefix, type ReaderAppendPaginationSnapshot } from "@/lib/bible/readerAppendPagination";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { readerPageFootnotesEnabled } from "@/lib/bible/holmanStudyLayout";
@@ -50,7 +50,9 @@ export function BookPaginator({ chapters, readerStream, plateFocus, pageWidth, p
       fontSizeStyle, fontLoadRevision, plateFocus]);
     const geometryKey = JSON.stringify([pageWidth, pageHeight, resolvedFirstPageHeight,
       className, columnsClassName, spreadMode, studyLayout, fontSizeStyle, fontLoadRevision, plateFocus]);
-    const remembered = pageHistory.current.find(geometryKey, footerHeight, chapters, stream, fixedPrefix);
+    const readerRoot = node.closest("[data-bible-reader]");
+    const history = readerRoot ? readerPageHistoryForRoot(readerRoot) : pageHistory.current;
+    const remembered = history.find(geometryKey, footerHeight, chapters, stream, fixedPrefix);
     if (remembered) {
       lastMeasurement.current = { layoutKey, chapters, stream, splits: remembered };
       onSplitsChange(remembered);
@@ -69,7 +71,7 @@ export function BookPaginator({ chapters, readerStream, plateFocus, pageWidth, p
       return scriptureContentFitsPage(node, limit, columnsClassName);
     }, fixedPrefix ?? appendPrefix);
     lastMeasurement.current = { layoutKey, chapters, stream, splits };
-    pageHistory.current.remember({ geometryKey, footerHeight, chapters, stream, splits });
+    history.remember({ geometryKey, footerHeight, chapters, stream, splits });
     onSplitsChange(splits);
     // Serialized content includes notes, poetry and equal-length text changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps

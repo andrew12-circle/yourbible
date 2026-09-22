@@ -59,3 +59,13 @@ export class ReaderPageHistory {
     while (this.entries.size > this.limit) this.entries.delete(this.entries.keys().next().value!);
   }
 }
+
+// The hidden measuring component can unmount while cached adjacent chapters
+// reattach. The visible reader root lives through that transition. A weak key
+// preserves its page cuts without leaking history into another reader instance.
+const historiesByReaderRoot = new WeakMap<Element, ReaderPageHistory>();
+export function readerPageHistoryForRoot(root: Element): ReaderPageHistory {
+  let history = historiesByReaderRoot.get(root);
+  if (!history) { history = new ReaderPageHistory(); historiesByReaderRoot.set(root, history); }
+  return history;
+}
