@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { BookOpen, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePassage } from "@/hooks/usePassage";
 import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
@@ -84,7 +84,15 @@ export function MorningScriptureReading({ scripture, busy, error, onRetry, refle
     </> : busy ? <p role="status" className="py-6 text-muted-foreground">Loading today's passage…</p> : <Button variant="outline" onClick={onRetry}><BookOpen className="mr-2 h-4 w-4" />Get today's passage</Button>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     <label className="block text-sm font-medium">What stood out? <span className="font-normal text-muted-foreground">Optional</span>
-      <Textarea className={cn(lh.textarea, "mt-3")} rows={3} value={reflection} onChange={(e) => onReflectionChange(e.target.value)} placeholder="A verse, a thought, or something to carry into today…" />
+      <MorningVoiceField
+        value={reflection}
+        onChange={onReflectionChange}
+        multiline
+        rows={3}
+        className="mt-3"
+        label="What stood out?"
+        placeholder="A verse, a thought, or something to carry into today…"
+      />
     </label>
   </section>;
 }
