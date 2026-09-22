@@ -1,4 +1,5 @@
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
+import { MorningWorshipGuide } from "./MorningWorshipGuide";
 import { MorningScriptureReading } from "./MorningScriptureReading";
 import { MorningPrayerHelp } from "./MorningPrayerHelp";
 import { MorningPrayerReader } from "./MorningPrayerReader";
@@ -133,6 +134,7 @@ export function MorningGuidedExperience({
   worshipPlaylistUrl,
   worshipPlaylistHistory,
   onWorshipMusicChange,
+  stepBudgetMs,
   durationMin,
   onDurationChange,
 }: Props) {
@@ -164,7 +166,12 @@ export function MorningGuidedExperience({
         <details><summary className="min-h-11 cursor-pointer py-3 text-sm text-muted-foreground">A reminder from your foundation</summary><blockquote className={lh.quote}>{letter.full_letter ?? letter.outlook}</blockquote></details>
       ) : null}
 
-      {step.kind === "worship" ? <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} /> : null}
+      {step.kind === "worship" ? (
+        <div className="space-y-6">
+          <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} />
+          <MorningWorshipGuide stepBudgetMs={stepBudgetMs} />
+        </div>
+      ) : null}
 
       {step.kind === "thanksgiving" && <ThanksgivingListsInput
         thanksgivingNow={thanksgivingNow} thanksgivingNotYet={thanksgivingNotYet}
