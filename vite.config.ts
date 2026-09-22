@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     youtubeCaptionsDevPlugin(),
-    visualBibleAssetsPlugin(),
+    !process.env.VERCEL && visualBibleAssetsPlugin(),
     VitePWA({
       registerType: "prompt",
       includeAssets: ["app-icon-192.png", "app-icon-512.png", "site.webmanifest"],
