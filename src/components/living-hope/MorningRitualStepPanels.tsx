@@ -93,6 +93,8 @@ type Props = {
   onGuidedModeChange?: (next: boolean) => void;
   durationMin?: SessionDurationMin;
   onDurationChange?: (next: SessionDurationMin) => void;
+  prayerRecordings: { surrender?: string; covering?: string };
+  onPrayerRecordingChange: (key: "surrender" | "covering", path: string) => void;
 };
 
 export function MorningRitualStepPanels({
@@ -139,6 +141,8 @@ export function MorningRitualStepPanels({
   onWorshipMusicChange,
   durationMin,
   onDurationChange,
+  prayerRecordings,
+  onPrayerRecordingChange,
 }: Props) {
   if (step.kind === "intro") {
     return <div className="space-y-6">
@@ -326,7 +330,14 @@ export function MorningRitualStepPanels({
         <p className={cn(lh.bodySm, "mb-3 leading-relaxed")}>{SURRENDER_STEP_INTRO}</p>
         <PromptList items={SURRENDER_PRAYER_PROMPTS} />
         <label className={cn(lh.label, "mb-1 block")}>Prayer of release</label>
-        <MorningPrayerReader title="Surrender" value={surrender} onChange={setSurrender} />
+        <MorningPrayerReader
+          title="Surrender"
+          value={surrender}
+          onChange={setSurrender}
+          prayerKey="surrender"
+          recordingPath={prayerRecordings.surrender}
+          onRecordingPathChange={(path) => onPrayerRecordingChange("surrender", path)}
+        />
         <p className={cn(lh.footnote, "mt-3 italic")}>
           Speak it slowly. When you finish, let your shoulders drop. Then continue.
         </p>
@@ -341,7 +352,14 @@ export function MorningRitualStepPanels({
         <p className={cn(lh.labelUpper, lh.accent, "mb-3")}>Pray aloud</p>
         <PromptList items={COVERING_PRAYER_PROMPTS} />
         <label className={cn(lh.label, "mb-1 block")}>Blood, warfare &amp; angels</label>
-        <MorningPrayerReader title="Covering" value={covering} onChange={setCovering} />
+        <MorningPrayerReader
+          title="Covering"
+          value={covering}
+          onChange={setCovering}
+          prayerKey="covering"
+          recordingPath={prayerRecordings.covering}
+          onRecordingPathChange={(path) => onPrayerRecordingChange("covering", path)}
+        />
         <p className={cn(lh.footnote, "mt-3 italic")}>
           Declare it with your voice. Command angels. Seal the day. Then continue.
         </p>
