@@ -1,3 +1,6 @@
+import { useReaderContinuationMarks } from "@/hooks/useReaderContinuationMarks";
+import { useReaderContinuation } from "@/hooks/useReaderContinuation";
+import { readerNeedsContinuation } from "@/lib/bible/readerContinuation";
 import { Button } from "@/components/ui/button";
 import { versePlainText } from "@/lib/bible/verseParts";
 import { fragmentReaderStream } from "@/lib/bible/readerVerseFragments";
@@ -145,8 +148,7 @@ import {
   READER_LIVE_COLUMN_SAFETY_PX,
 } from "@/lib/bible/readerColumnMeasure";
 import { type HolmanVerseGroup } from "@/lib/bible/readerScriptureRender";
-import { resolveStudyLayout, readReaderStudyLayout, writeReaderStudyLayout, isStudyBibleEdition, type ReaderStudyLayoutPreference } from "@/lib/bible/readerStudyLayout";
-import { formatReaderSourceLine } from "@/lib/bible/readerEditionAttribution";
+import { resolveStudyLayout, readReaderStudyLayout, writeReaderStudyLayout, type ReaderStudyLayoutPreference } from "@/lib/bible/readerStudyLayout";
 import {
   holmanVerseGroupsForRenderedPage,
   readerPageFootnotesEnabled,
@@ -270,14 +272,6 @@ export default function ReaderPage() {
     setStudyLayoutPreference(next);
     writeReaderStudyLayout(next);
   }, []);
-  const readerSourceLine = useMemo(
-    () =>
-      formatReaderSourceLine(
-        currentBible,
-        isStudyBibleEdition(bibleEditionAbbr) ? effectiveStudyLayout : null,
-      ),
-    [currentBible, bibleEditionAbbr, effectiveStudyLayout],
-  );
   const {
     data: passage,
     isLoading: loadingPassage,
@@ -608,7 +602,7 @@ export default function ReaderPage() {
     () => (chapterStudyParseReliable(verses) ? effectiveStudyLayout : "inline"),
     [verses, effectiveStudyLayout],
   );
-  const streamChapters = useMemo(
+  const baseStreamChapters = useMemo(
     () => {
       if (readerSpread) {
         if (!adjacentPassages.streamReady) {
@@ -662,6 +656,19 @@ export default function ReaderPage() {
     ],
   );
   const windowFlow = readReaderWindowFlow(location.state, bibleId, book.abbr, chapter);
+  const continuation = useReaderContinuation({
+    bibleId, bibleAbbr: bibleEditionAbbr,
+    scope: `${bibleId}|${book.abbr}|${chapter}|${windowFlow?.startId ?? ""}|${windowFlow?.endId ?? ""}`,
+    after: { bookAbbr: nextChapterRef?.book.abbr ?? book.abbr, chapter: nextChapterRef?.chapter ?? chapter },
+    baseChapters: baseStreamChapters,
+    baseReady: adjacentPassages.streamReady,
+    enabled: readerSpread && !scrollMode,
+    through: windowFlow?.through,
+    closed: Boolean(windowFlow?.endId),
+  });
+  const streamChapters = continuation.chapters;
+  const continuationMarks = useReaderContinuationMarks(continuation.refs, readerSpread && !scrollMode);
+
   const readerStream = useMemo(
     () =>
       streamChapters.length > 0
@@ -797,6 +804,14 @@ export default function ReaderPage() {
     requestedAnchorId: windowFlow?.restoreId ?? windowFlow?.startId,
     enterAtEnd: Boolean((location.state as { readerEnterAtEnd?: boolean } | null)?.readerEnterAtEnd),
   });
+  const needsContinuation = readerSpread && !scrollMode && readerNeedsContinuation(
+    navStreamSplits, readerStream.length, position.page, effectiveSpread ? 2 : 1,
+  );
+  const continuationFilling = continuation.pending || (needsContinuation && continuation.canExtend);
+  const extendContinuation = continuation.extend;
+  useEffect(() => {
+    if (needsContinuation) extendContinuation();
+  }, [needsContinuation, extendContinuation]);
   const chapterPage = position.page;
   const spreadPageIdx = position.page;
   const pendingVerse = position.anchor?.verse ?? null;
@@ -850,6 +865,7 @@ export default function ReaderPage() {
 
   const goPage = (delta: number) => {
     if (!passage || !(useStreamReader ? streamSplitsReady : splitsReady)) return;
+    if (delta > 0 && continuationFilling && position.page + 2 * pagesPerTurn >= totalPagesForNav) return;
     lockPageFlip();
     window.getSelection()?.removeAllRanges();
     tbSelRef.current = null;
@@ -920,9 +936,10 @@ export default function ReaderPage() {
     ) {
       return nextChapterMarks;
     }
+    const extra = continuationMarks.get(`${bookAbbr}|${chapterNum}`);
     return {
-      highlights: [] as typeof highlights,
-      notes: [] as typeof notes,
+      highlights: extra?.highlights ?? [] as typeof highlights,
+      notes: extra?.notes ?? [] as typeof notes,
       setMarks: async () => {},
       setMarkRanges: async () => {},
     };
@@ -1318,7 +1335,6 @@ export default function ReaderPage() {
             effectiveSpread={effectiveSpread}
             globalPage={globalPage}
             pageBookName={pageBookName}
-            readerSourceLine={readerSourceLine}
             onOpenSettings={openReaderSettings}
           />
         </div>
@@ -1471,7 +1487,7 @@ export default function ReaderPage() {
   return (
     <div
       data-bible-reader
-      aria-busy={chapterNavigationPending || loadingPassage}
+      aria-busy={chapterNavigationPending || loadingPassage || continuationFilling}
       data-cropped-spread={!effectiveSpread ? "" : undefined}
       data-hub-fullscreen={hubFullscreen || undefined}
       className={cn(
@@ -1485,6 +1501,12 @@ export default function ReaderPage() {
       <MarkerSvgFilter />
 
       <OfflineBanner showCachedHint={showCachedHint && !!passage} />
+      {continuation.error ? (
+        <div role="status" className="absolute bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-md border bg-background px-3 py-2 text-xs">
+          <span>The next chapter could not be loaded. Your current pages are still available.</span>
+          <button type="button" className="shrink-0 underline" onClick={continuation.retry}>Retry next chapter</button>
+        </div>
+      ) : null}
 
       {readerReturn?.to === MORNING_FORMULA_SCRIPTURE_RETURN && formulaPopout ? (
         <button

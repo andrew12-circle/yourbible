@@ -163,6 +163,23 @@ try {
         if(scenario.scale===1)
           assert(face.ids.some(id=>id.includes(':Act:7:2@')), 'Screenshot-sized page did not continue after Acts 7:1');
       }
+      if(testBook==='Psa' && testChapter===6 && step===0 && scenario.columns==='double' && scenario.scale===1) {
+        assert(current.ids.some(id=>id.includes(':Psa:8:')), 'Psalm 8 must continue after 7 on the initial spread without a page turn');
+        const rightColumnText = await page.locator('[data-reader-page-side="right"] article').evaluate(article => {
+          const box=article.getBoundingClientRect();
+          const range=document.createRange();
+          const walker=document.createTreeWalker(article,NodeFilter.SHOW_TEXT);
+          let count=0;
+          for(let n=walker.nextNode();n;n=walker.nextNode()) {
+            if(!n.textContent.trim() || !n.parentElement.closest('[data-verse-body]'))continue;
+            range.selectNodeContents(n);
+            if([...range.getClientRects()].some(r=>r.left>box.left+box.width/2))count++;
+          }
+          return count;
+        });
+        assert(rightColumnText>0,'Right page second column must not be empty at the loaded-chapter boundary');
+      }
+      assert.equal(await page.locator('[data-reader-page-side] p[title*="API.Bible"]').count(),0,'Source attribution must not occupy the page header');
       if(testBook==='Mrk' && step===0) {
         assert(faces.some(face=>face.plates.length),'Opening artwork missing');
         assert(current.ids.some(id=>id.includes(':Mrk:3:2')),'Mark 3 text must fill the facing page, not show a fit notice');

@@ -9,6 +9,8 @@ export interface ReaderWindowFlow {
   startId?: string;
   endId?: string;
   restoreId?: string;
+  /** Last loaded chapter, so reverse navigation rebuilds the same window. */
+  through?: { bookAbbr: string; chapter: number };
   firstPageNumber: number;
   back?: ReaderWindowFlow;
   forward?: ReaderWindowFlow;
@@ -24,6 +26,7 @@ export function readReaderWindowFlow(state: unknown, bibleId: string, bookAbbr: 
   if (!flow || flow.bibleId !== bibleId || flow.bookAbbr !== bookAbbr || flow.chapter !== chapter
     || !Number.isInteger(flow.firstPageNumber) || flow.firstPageNumber < 1) return;
   for (const id of [flow.startId, flow.endId, flow.restoreId]) if (id != null && typeof id !== "string") return;
+  if (flow.through && (typeof flow.through.bookAbbr !== "string" || !Number.isInteger(flow.through.chapter) || flow.through.chapter < 1)) return;
   return flow;
 }
 /** Both the paginator and live pages receive this same exact reading window. */
@@ -54,7 +57,8 @@ export function readerWindowTurn(options: ReaderWindowTurnOptions): ReaderWindow
     // Preserve the actual first unit, even when this is the initial route window.
     // Otherwise returning to it can prepend the previous chapter and move every page.
     startId: flow?.startId ?? readerStreamUnitId(stream[0]),
-    restoreId: readerStreamUnitId(currentStart) };
+    restoreId: readerStreamUnitId(currentStart),
+    through: { bookAbbr: stream.at(-1)!.bookAbbr, chapter: stream.at(-1)!.chapter } };
   if (delta < 0 && nextPage < 0) {
     if (flow?.back) return { bookAbbr: flow.back.bookAbbr, chapter: flow.back.chapter, flow: flow.back };
     const edge = stream[0];
@@ -74,10 +78,19 @@ export function readerWindowTurn(options: ReaderWindowTurnOptions): ReaderWindow
   const unread = stream[splits[nextPage]];
   // Shift the three-chapter window by one, not beyond the whole next chapter.
   // Include its unfinished tail at the left, then fill across the new chapter.
-  const target = unread ? { bookAbbr: edge.bookAbbr, chapter: edge.chapter }
+  // Read-ahead can cover more than three short chapters. Recenter close to the
+  // unread chapter so the new window cannot skip the identity it must restore.
+  const edgePrevious = getPrevChapterRef(edge.bookAbbr, edge.chapter);
+  const nearEdge = unread && ((unread.bookAbbr === edge.bookAbbr && unread.chapter === edge.chapter)
+    || (unread.bookAbbr === edgePrevious?.book.abbr && unread.chapter === edgePrevious.chapter));
+  const unreadNext = unread && getNextChapterRef(unread.bookAbbr, unread.chapter);
+  const target = unread ? (nearEdge || !unreadNext
+    ? { bookAbbr: edge.bookAbbr, chapter: edge.chapter }
+    : { bookAbbr: unreadNext.book.abbr, chapter: unreadNext.chapter })
     : { bookAbbr: following.book.abbr, chapter: following.chapter };
   // A failed/missing adjacent chapter must not create a same-route retry loop.
   if (unread && target.bookAbbr === bookAbbr && target.chapter === chapter) return null;
   return { ...target, flow: { bibleId, ...target, firstPageNumber: firstPageNumber + nextPage,
-    startId: unread ? readerStreamUnitId(unread) : `${target.bookAbbr}|${target.chapter}|start`, back: frame } };
+    startId: unread ? readerStreamUnitId(unread) : `${target.bookAbbr}|${target.chapter}|start`, back: frame,
+    ...(unread ? { through: { bookAbbr: edge.bookAbbr, chapter: edge.chapter } } : {}) } };
 }

@@ -42,6 +42,8 @@ import {
 } from "@/lib/bible/readerChromeClasses";
 import type { BibleEntry } from "@/lib/bible/api";
 import { isBundledBibleId } from "@/lib/bible/bibleEditions";
+import { formatReaderSourceLine } from "@/lib/bible/readerEditionAttribution";
+import { resolveStudyLayout } from "@/lib/bible/readerStudyLayout";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -132,6 +134,7 @@ export function ReaderToolbarActions({
   const current = bibles.find((b) => b.id === bibleId);
   const showStudyLayout = isStudyBibleEdition(current?.abbreviation);
   const bundledEdition = isBundledBibleId(bibleId);
+  const sourceLine = formatReaderSourceLine(current, showStudyLayout ? resolveStudyLayout(studyLayoutPreference, current?.abbreviation) : null);
   const scaleBtn = compact ? "p-1" : "p-1";
   const scaleIcon = compact ? "w-3 h-3" : "w-3 h-3";
 
@@ -391,11 +394,7 @@ export function ReaderToolbarActions({
           ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[10px] font-normal leading-snug text-muted-foreground whitespace-normal">
-            {current
-              ? bundledEdition
-                ? `Full ${current.name} (${current.abbreviation}) text is bundled for offline reading.`
-                : `Scripture${showStudyLayout ? " and study notes" : ""} from ${current.name} (${current.abbreviation}).`
-              : "Scripture edition unavailable."}
+            {sourceLine ?? "Scripture edition unavailable."}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {onToggleColumnLayout ? (

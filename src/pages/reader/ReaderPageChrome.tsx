@@ -11,7 +11,6 @@ type HeaderProps = {
   effectiveSpread: boolean;
   globalPage: number;
   pageBookName: string;
-  readerSourceLine: string | null;
   onOpenSettings: () => void;
 };
 
@@ -22,7 +21,6 @@ export function ReaderPageHeader({
   effectiveSpread,
   globalPage,
   pageBookName,
-  readerSourceLine,
   onOpenSettings,
 }: HeaderProps) {
   const showRightNumber = side === "right" && !scrollMode && !compactChrome;
@@ -50,14 +48,7 @@ export function ReaderPageHeader({
         >
           {pageBookName}
         </button>
-        {side === "left" && readerSourceLine ? (
-          <p
-            className="mt-0.5 max-w-[18rem] text-[9px] leading-snug text-muted-foreground/50 font-system"
-            title={readerSourceLine}
-          >
-            {readerSourceLine}
-          </p>
-        ) : null}
+
       </div>
       {showLeftNumber ? (
         <span className="reader-page-number pt-0.5 shrink-0" aria-hidden>
