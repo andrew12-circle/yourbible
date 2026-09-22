@@ -7,6 +7,8 @@ export interface DailyAssignment {
   health: string;
   family: string;
   business: string;
+  mustDo: string;
+  avoid: string;
 }
 
 export const DAILY_ASSIGNMENT_FIELDS: {
@@ -33,6 +35,16 @@ export const DAILY_ASSIGNMENT_FIELDS: {
     key: "business",
     label: "Work — top 1 work priority",
     placeholder: "e.g. Fix the system outage",
+  },
+  {
+    key: "mustDo",
+    label: "The one thing — if only one thing gets done",
+    placeholder: "What would make today faithful and meaningful?",
+  },
+  {
+    key: "avoid",
+    label: "Protect the day — what will you not get pulled into?",
+    placeholder: "e.g. Reactive texting before the first deep-work block",
   },
 ];
 
@@ -190,7 +202,7 @@ export type RitualStep =
   | { kind: "done" };
 
 export function emptyDailyAssignment(): DailyAssignment {
-  return { spiritual: "", health: "", family: "", business: "" };
+  return { spiritual: "", health: "", family: "", business: "", mustDo: "", avoid: "" };
 }
 
 export function dailyAssignmentHasContent(assignment: DailyAssignment): boolean {
