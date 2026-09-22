@@ -258,25 +258,16 @@ export function MorningRitualStepPanels({
 
   if (step.kind === "assignment") {
     return (
-      <>
-        <p className={cn(lh.bodySm, "mb-2")}>
-          Not destiny or the five-year plan — just: what does God want you to do today?
-        </p>
-        <p className={cn(lh.footnote, "mb-4")}>{ASSIGNMENT_VS_GOALS_HINT}</p>
-        <div className="space-y-4">
-          {DAILY_ASSIGNMENT_FIELDS.map((field) => (
-            <div key={field.key}>
-              <label className={cn(lh.label, "mb-1 block")}>{field.label}</label>
-              <Input
-                value={dailyAssignment[field.key]}
-                onChange={(e) => setDailyAssignment({ [field.key]: e.target.value })}
-                className={lh.input}
-                placeholder={field.placeholder}
-              />
-            </div>
-          ))}
-        </div>
-      </>
+      <TodayAssignmentPanel
+        assignment={dailyAssignment}
+        onChange={setDailyAssignment}
+        scriptureReflection={scriptureReflection}
+        visionRecall={visionRecall}
+        storyRecall={storyRecall}
+        thanksgivingNow={thanksgivingNow}
+        touches={touches}
+        goals={goals}
+      />
     );
   }
 
