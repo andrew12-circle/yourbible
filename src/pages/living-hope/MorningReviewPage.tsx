@@ -57,6 +57,8 @@ import {
 } from "@/lib/livingHope/morningFormulaTimer";
 import { formatFormalGreetingName, resolveProfileDisplayName } from "@/lib/profile/displayName";
 import { cn } from "@/lib/utils";
+import { completeDailyAlignmentHabit } from "@/lib/habits/api";
+import { localDateISO } from "@/lib/lifePriorities";
 
 export default function MorningReviewPage() {
   const { user, profile, loading } = useAuth();
@@ -70,6 +72,7 @@ export default function MorningReviewPage() {
     error: scriptureError,
     generateDaily,
     ensureScripture,
+    completeCurrentPlanDay,
   } = useMorningScripture(user?.id);
   const {
     entryId: conversationEntryId,
@@ -415,6 +418,7 @@ export default function MorningReviewPage() {
       if (!synced?.entryId) throw new Error("Your morning summary was not saved. Your draft has been kept.");
       setJournalEntryId(synced.entryId);
       setTodayReview(review);
+      void completeDailyAlignmentHabit(user.id, localDateISO()).catch(() => undefined);
       clearMorningRitualDraftForUser(user.id);
       clearMorningScriptureTimer();
       clearMorningFormulaTimer();
@@ -470,11 +474,14 @@ export default function MorningReviewPage() {
           const id = await syncThanksgivingToJournal({ now: thanksgivingNow, notYet: thanksgivingNotYet });
           if (!id) throw new Error("Your gratitude could not be saved. Your draft is kept; please try again.");
         }
+        if (step.kind === "scripture" && scripture?.source === "reading-plan") {
+          await completeCurrentPlanDay();
+        }
         setStepIndex((i) => Math.min(i + 1, steps.length - 1));
       }
     } catch (cause) { toast({ title: "Your morning is still here", description: formatSupabaseError(cause), variant: "destructive" }); }
     finally { navigationLock.current = false; setAdvancing(false); }
-  }, [saving, user?.id, conversationEntryId, stepIndex, steps, finish, step.kind, syncThanksgivingToJournal, thanksgivingNow, thanksgivingNotYet]);
+  }, [saving, user?.id, conversationEntryId, stepIndex, steps, finish, step.kind, scripture?.source, completeCurrentPlanDay, syncThanksgivingToJournal, thanksgivingNow, thanksgivingNotYet]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
