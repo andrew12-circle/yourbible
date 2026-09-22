@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { MorningScriptureReading } from "./MorningScriptureReading";
 import { API_BIBLE_CSB_ID } from "@/lib/bible/bibleEditions";
 const mocks = vi.hoisted(() => ({ passage: vi.fn(), userId: "reader", bibles: vi.fn() }));
@@ -17,12 +18,12 @@ beforeEach(() => {
 afterEach(cleanup);
 describe("Reading without leaving the morning", () => {
   it("does not load Bible text in physical mode", () => {
-    render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>);
+    render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>, { wrapper: TooltipProvider });
     expect(mocks.passage).not.toHaveBeenCalled();
     expect(screen.queryByText(/UNVERIFIED/)).toBeNull();
   });
   it("loads the exact verified chapter, not a route fallback or generated preview", () => {
-    render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>);
+    render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>, { wrapper: TooltipProvider });
     fireEvent.click(screen.getByRole("button", { name: "Read here" }));
     expect(mocks.passage).toHaveBeenCalledWith(API_BIBLE_CSB_ID, "Jhn", 14, true, "CSB");
     expect(screen.getByText("Verified verse fixture")).toBeTruthy();
@@ -31,7 +32,7 @@ describe("Reading without leaving the morning", () => {
     expect(localStorage.getItem("yb-morning-reading:reader")).toBe("app");
   });
   it("does not carry the reading preference into another account", () => {
-    const { rerender } = render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>);
+    const { rerender } = render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>, { wrapper: TooltipProvider });
     fireEvent.click(screen.getByRole("button", { name: "Read here" }));
     mocks.userId = "other-reader";
     rerender(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>);
@@ -39,7 +40,7 @@ describe("Reading without leaving the morning", () => {
   });
   it("shows a loading error instead of preview text when verified delivery fails", () => {
     mocks.passage.mockReturnValue({ error: new Error("Network"), refetch: vi.fn() });
-    render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>);
+    render(<MemoryRouter><MorningScriptureReading {...props} /></MemoryRouter>, { wrapper: TooltipProvider });
     fireEvent.click(screen.getByRole("button", { name: "Read here" }));
     expect(screen.getByRole("alert").textContent).toContain("No substitute text");
   });

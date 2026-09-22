@@ -1,3 +1,4 @@
+import { waitForReaderLayout } from "./reader-browser-settled.mjs";
 import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords } from "./reader-browser-text.mjs";
 /** Real reader: visible page geometry and consecutive facing-page flow. No provider calls. */
 import assert from 'node:assert/strict';
@@ -66,12 +67,15 @@ async function settled() {
       root.querySelector('[data-reader-page-side] [data-verse-id], [data-reader-page-side] [data-reader-plate]');
   }, undefined, {timeout:30000});
   await page.evaluate(() => document.fonts.ready);
-  await page.waitForTimeout(500);
+  await waitForReaderLayout(page);
 }
 async function inspect() {
   // This deliberately does not import the production fit helper: independent
   // line rectangles catch hidden words even when verse nodes still exist.
-  return page.locator('[data-reader-page-side] article[data-reading-area]').evaluateAll(articles => {
+  return page.evaluate(() => {
+    // Query and measure atomically: a reflow must not detach locator handles
+    // between their selection and the independent visible-fit assertions.
+    const articles = document.querySelectorAll('[data-reader-page-side] article[data-reading-area]');
     const issues = [], ids = [], pages = [];
     for (const article of articles) {
       const side = article.closest('[data-reader-page-side]').dataset.readerPageSide;
@@ -163,6 +167,23 @@ try {
         if(scenario.scale===1)
           assert(face.ids.some(id=>id.includes(':Act:7:2@')), 'Screenshot-sized page did not continue after Acts 7:1');
       }
+      if(testBook==='Psa' && testChapter===6 && step===0 && scenario.columns==='double' && scenario.scale===1) {
+        assert(current.ids.some(id=>id.includes(':Psa:8:')), 'Psalm 8 must continue after 7 on the initial spread without a page turn');
+        const rightColumnText = await page.locator('[data-reader-page-side="right"] article').evaluate(article => {
+          const box=article.getBoundingClientRect();
+          const range=document.createRange();
+          const walker=document.createTreeWalker(article,NodeFilter.SHOW_TEXT);
+          let count=0;
+          for(let n=walker.nextNode();n;n=walker.nextNode()) {
+            if(!n.textContent.trim() || !n.parentElement.closest('[data-verse-body]'))continue;
+            range.selectNodeContents(n);
+            if([...range.getClientRects()].some(r=>r.left>box.left+box.width/2))count++;
+          }
+          return count;
+        });
+        assert(rightColumnText>0,'Right page second column must not be empty at the loaded-chapter boundary');
+      }
+      assert.equal(await page.locator('[data-reader-page-side] p[title*="API.Bible"]').count(),0,'Source attribution must not occupy the page header');
       if(testBook==='Mrk' && step===0) {
         assert(faces.some(face=>face.plates.length),'Opening artwork missing');
         assert(current.ids.some(id=>id.includes(':Mrk:3:2')),'Mark 3 text must fill the facing page, not show a fit notice');

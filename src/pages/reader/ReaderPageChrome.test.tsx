@@ -1,7 +1,7 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useReaderPageMeasurement } from "@/hooks/useReaderPageMeasurement";
-import { ReaderPageBodyPlaceholder } from "@/pages/reader/ReaderPageChrome";
+import { ReaderPageBodyPlaceholder, ReaderPageHeader } from "@/pages/reader/ReaderPageChrome";
 
 function ColdCompactMeasurementHarness() {
   const { onMeasureRestRef, pageBox, paginatorReady } =
@@ -46,5 +46,15 @@ describe("ReaderPageBodyPlaceholder", () => {
         "324x480",
       );
     });
+  });
+});
+
+describe("printed page header", () => {
+  it("contains only the book and page number, not edition/provider/layout copy", () => {
+    const onOpenSettings = vi.fn();
+    const { container } = render(<ReaderPageHeader side="left" scrollMode={false} compactChrome={false} effectiveSpread globalPage={640} pageBookName="Psalms" onOpenSettings={onOpenSettings} />);
+    expect(container.textContent).toBe("Psalms640");
+    fireEvent.click(screen.getByRole("button", { name: /Psalms/ }));
+    expect(onOpenSettings).toHaveBeenCalledOnce();
   });
 });

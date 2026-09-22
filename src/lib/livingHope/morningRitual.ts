@@ -290,15 +290,13 @@ export function parseConnectionNotes(raw: unknown): MorningConnectionNotes {
   if (!raw || typeof raw !== "object") return emptyConnectionNotes();
   const o = raw as Record<string, unknown>;
   const da = o.daily_assignment;
-  let daily_assignment = emptyDailyAssignment();
+  const daily_assignment = emptyDailyAssignment();
   if (da && typeof da === "object") {
     const d = da as Record<string, unknown>;
-    daily_assignment = {
-      spiritual: String(d.spiritual ?? ""),
-      health: String(d.health ?? ""),
-      family: String(d.family ?? ""),
-      business: String(d.business ?? ""),
-    };
+    // Normalize every configured field, including fields added to newer drafts.
+    for (const { key } of DAILY_ASSIGNMENT_FIELDS) {
+      daily_assignment[key] = String(d[key] ?? "");
+    }
   }
   return {
     worship_note: o.worship_note ? String(o.worship_note) : undefined,

@@ -22,9 +22,16 @@ export function useReaderPageMeasurement(bookAbbr: string, chapter: number) {
     if (performance.now() < lockUntil.current) { scheduleRef.current(); return; }
     const first = els.current.first;
     const rest = els.current.rest;
-    const firstBox = first ? quantizePageBox(first.clientWidth, first.clientHeight) : null;
-    const restBox = rest ? quantizePageBox(rest.clientWidth, rest.clientHeight) : null;
-    const next = smallestReaderPageBox([firstBox, restBox]);
+    // A held/replaced PageFlip subtree can detach a callback ref after the
+    // replacement has mounted. Measure the current DOM, not that stale handle.
+    const root = [first, rest].find(el => el?.isConnected)?.closest("[data-bible-reader]")
+      ?? document.querySelector("[data-bible-reader]");
+    const selector = root?.hasAttribute("data-cropped-spread")
+      ? '[data-reader-page-side="left"] article[data-reading-area]'
+      : '[data-reader-page-side] article[data-reading-area]';
+    const live = root ? [...root.querySelectorAll<HTMLElement>(selector)] : [];
+    const nodes = live.length ? live : [first, rest].filter((el): el is HTMLElement => !!el?.isConnected);
+    const next = smallestReaderPageBox(nodes.map(el => quantizePageBox(el.clientWidth, el.clientHeight)));
     if (next) setFirstPageHeight((old) => old === next.h ? old : next.h);
     if (next && next.w > 0 && next.h > 0) setPageBox((old) => old.w === next.w && old.h === next.h ? old : next);
   }, []);
@@ -42,6 +49,9 @@ export function useReaderPageMeasurement(bookAbbr: string, chapter: number) {
     observer.current?.disconnect();
     if (typeof ResizeObserver !== "undefined") {
       observer.current = new ResizeObserver(schedule);
+      const root = [els.current.first, els.current.rest].find(el => el?.isConnected)?.closest("[data-bible-reader]")
+        ?? document.querySelector("[data-bible-reader]");
+      if (root) observer.current.observe(root);
       for (const el of [els.current.first, els.current.rest]) {
         if (!el) continue;
         observer.current.observe(el);
