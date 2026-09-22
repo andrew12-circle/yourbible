@@ -69,9 +69,13 @@ export function MorningFormulaSessionTimer({
             "hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50",
 
           )}
-          aria-label="Session pace"
+          aria-label={`Step pace: ${formatFormulaCountdown(stepRemainingMs)} remaining`}
         >
-          <Timer className="h-4 w-4" aria-hidden /><span>Pace</span>
+          <Timer className="h-4 w-4" aria-hidden />
+          <span className="font-medium tabular-nums text-foreground">
+            {stepExpired ? "Ready" : formatFormulaCountdown(stepRemainingMs)}
+          </span>
+          <span className="hidden sm:inline">step</span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-4">
