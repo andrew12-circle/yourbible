@@ -5,6 +5,7 @@ import { applyScriptureColumnMeasureHtml, applyHolmanStudyMeasureHtml, paginator
 import { buildReaderStream, type ReaderChapterPassage, type ReaderPlateFocus, type ReaderStreamUnit } from "@/lib/bible/readerStream";
 import { buildStreamSliceMeasureHtml, buildStreamSliceFootnotesMeasureHtml } from "@/lib/bible/streamSliceMeasureHtml";
 import { paginateReaderStream } from "@/lib/bible/paginateReaderStream";
+import { readerAppendedPagePrefix, type ReaderAppendPaginationSnapshot } from "@/lib/bible/readerAppendPagination";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import { readerPageFootnotesEnabled } from "@/lib/bible/holmanStudyLayout";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ interface Props {
  */
 export function BookPaginator({ chapters, readerStream, plateFocus, pageWidth, pageHeight, firstPageHeight, className, columnsClassName, footerHeight = 0, fontSizeStyle, spreadMode = false, studyLayout = "inline", measurementKey, fixedPrefix, onSplitsChange }: Props) {
   const ref = useRef<HTMLDivElement>(null);
+  const lastMeasurement = useRef<ReaderAppendPaginationSnapshot | null>(null);
   const fontLoadRevision = useFontLoadRevision();
   const stream = useMemo(() => readerStream ?? buildReaderStream(chapters, { plateFocus }), [readerStream, chapters, plateFocus]);
   const redByChapter = useMemo(() => new Map(chapters.map((ch) => [`${ch.bookAbbr}|${ch.chapter}`, splitJesusSpeechForChapter(ch.bookAbbr, ch.chapter, ch.verses)])), [chapters]);
@@ -41,6 +43,10 @@ export function BookPaginator({ chapters, readerStream, plateFocus, pageWidth, p
   useEffect(() => {
     const node = ref.current;
     if (!node || pageWidth <= 0 || pageHeight <= 0 || !stream.length) return;
+    const layoutKey = JSON.stringify([pageWidth, pageHeight, resolvedFirstPageHeight,
+      footerHeight, className, columnsClassName, spreadMode, studyLayout,
+      fontSizeStyle, fontLoadRevision, plateFocus]);
+    const appendPrefix = readerAppendedPagePrefix(lastMeasurement.current, layoutKey, chapters, stream);
     const splits = paginateReaderStream(stream, (start, end, pageIndex) => {
       const baseLimit = readerPageContentLimitPx({ pageIndex, startsWithChapterHeader: stream[start].kind === "chapter-header", firstPageHeight: resolvedFirstPageHeight, pageHeight, footerGuardPx: footerHeight, chapterHeaderReservePx: 0 });
       const limit = spreadMode && columnsClassName ? paginatorSpreadPaneLimitPx(baseLimit) : baseLimit;
@@ -51,7 +57,8 @@ export function BookPaginator({ chapters, readerStream, plateFocus, pageWidth, p
       if (studyLayout === "holman" || notes) applyHolmanStudyMeasureHtml(node, html, "", notes, columnsClassName, limit, options);
       else applyScriptureColumnMeasureHtml(node, html, columnsClassName, limit, options);
       return scriptureContentFitsPage(node, limit, columnsClassName);
-    }, fixedPrefix);
+    }, fixedPrefix ?? appendPrefix);
+    lastMeasurement.current = { layoutKey, chapters, stream, splits };
     onSplitsChange(splits);
     // Serialized content includes notes, poetry and equal-length text changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
