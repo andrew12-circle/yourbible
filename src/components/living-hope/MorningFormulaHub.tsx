@@ -1,9 +1,9 @@
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   Calendar,
-  Check,
   ChevronRight,
   Mail,
   Sparkles,
@@ -14,8 +14,6 @@ import type { LivingHopeGoalRow, LivingHopeLetterRow, LivingHopeReviewRow } from
 import { findMorningReviewJournalEntry } from "@/lib/livingHope/morningReviewJournal";
 import { getMorningFormulaEntryTarget } from "@/lib/livingHope/morningFormulaEntry";
 import { getMorningRitualDraftSummary } from "@/lib/livingHope/morningRitualDraft";
-import { MORNING_FORMULA_TAGLINE } from "@/lib/livingHope/morningRitual";
-import { FIRST_LIGHT_HUB_FOOTER } from "@/lib/journal/journalPurpose";
 import { localDateISO } from "@/lib/lifePriorities";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatUnlockLabel, isLetterUnlockable } from "@/lib/livingHope/letterSections";
@@ -25,7 +23,6 @@ import {
   getTodayPreview,
   getWorkbookReadiness,
   isSectionComplete,
-  RITUAL_STEPS,
 } from "@/lib/livingHope/workbookProgress";
 import {
   WORKBOOK_PHASES,
@@ -34,7 +31,6 @@ import {
   type WorkbookPhase,
 } from "@/lib/livingHope/workbookTypes";
 import { IosGroupedRow, IosGroupedSection } from "@/components/living-hope/IosGroupedSection";
-import { cn } from "@/lib/utils";
 
 type Props = {
   workbook: LivingHopeWorkbookContent | null;
@@ -47,7 +43,10 @@ type Props = {
 
 export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak, greeting }: Props) {
   const { user } = useAuth();
-  const [journalEntryId, setJournalEntryId] = useState<string | null>(null);
+  const [lookupAttempt, setLookupAttempt] = useState(0);
+  const [lookupError, setLookupError] = useState(false);
+  const [journalLookup, setJournalLookup] = useState<{ owner: string; date: string; id: string } | null>(null);
+  const journalEntryId = journalLookup?.owner === user?.id && journalLookup?.date === (todayReview?.review_date ?? localDateISO()) ? journalLookup.id : null;
   const reviewedToday = !!todayReview;
   const letterStatus = letter?.status ?? "draft";
   const canOpen = letter?.unlock_at && isLetterUnlockable(letter.unlock_at);
@@ -73,12 +72,15 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
   });
 
   useEffect(() => {
-    if (!user?.id || !reviewedToday) {
-      setJournalEntryId(null);
-      return;
+    let active = true;
+    setJournalLookup(null); setLookupError(false);
+    if (user?.id && reviewedToday) {
+      void findMorningReviewJournalEntry(user.id, todayReview?.review_date ?? localDateISO()).then((id) => {
+        if (active) { setJournalLookup(id ? { owner: user.id, date: todayReview?.review_date ?? localDateISO(), id } : null); setLookupError(!id); }
+      }).catch(() => { if (active) setLookupError(true); });
     }
-    void findMorningReviewJournalEntry(user.id, todayReview?.review_date ?? localDateISO()).then(setJournalEntryId);
-  }, [user?.id, reviewedToday, todayReview?.review_date]);
+    return () => { active = false; };
+  }, [user?.id, reviewedToday, todayReview?.review_date, lookupAttempt]);
 
   const letterDetail = (() => {
     if (letterStatus === "draft") return "Write your 2-year letter";
@@ -207,91 +209,36 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
     </>
   );
 
-  const hasSideSections =
-    (reviewedToday && !!todayReview?.surrender_note) ||
-    (!ritualReady && !!nextStep) ||
-    isSunday ||
-    (ritualReady && !!preview && !!(preview.manifesto || workbook?.vision_headline || preview.story));
+  const resuming = !!draftSummary?.inProgress;
+  const href = resuming ? entry.href : reviewedToday && journalEntryId ? `/journal/${journalEntryId}` : "/living-hope/review";
+  const label = resuming ? `Resume at ${draftSummary.stepLabel}` : reviewedToday ? "Open today's journal" : "Begin my morning";
 
-  return (
-    <div className="flex-1 flex flex-col py-1 md:py-2 overflow-y-auto scrollbar-hide w-full">
-      <header className="mb-5 pt-1">
-        <p className="text-[13px] text-muted-foreground">{dateStr}</p>
-        <div className="mt-0.5 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-[34px] font-extrabold tracking-tight leading-[1.08] text-foreground lg:text-[40px]">
-              Morning formula
-            </h1>
-            <p className="mt-1 text-[15px] text-muted-foreground leading-snug">
-              {greeting} — never look backwards.
-            </p>
-            <p className="mt-2 text-[13px] text-muted-foreground/90 leading-snug max-w-xl">
-              {FIRST_LIGHT_HUB_FOOTER}
-            </p>
-          </div>
-          {streak > 0 ? (
-            <span className={cn("shrink-0 mt-2", lh.pillActive)}>{streak}-day streak</span>
-          ) : null}
-        </div>
-      </header>
-
-      <div
-        className={cn(
-          "mb-5 lg:mb-6 gap-5",
-          hasSideSections ? "grid grid-cols-1 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,1fr)] lg:items-start" : "",
-        )}
-      >
-        <Link
-          to={entry.href}
-          className={cn(lh.heroCard, "block h-full min-h-[148px] lg:min-h-[180px]")}
-        >
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-white/20 lg:h-12 lg:w-12">
-              <Sunrise className="h-6 w-6 text-white lg:h-7 lg:w-7" aria-hidden />
-            </div>
-            <div className="min-w-0 flex-1 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80">
-                Today&apos;s formula
-              </p>
-              <p className="text-[17px] font-semibold leading-snug mt-0.5 lg:text-[20px]">
-                {entry.headline}
-              </p>
-              <p className="text-[13px] text-white/75 mt-1 leading-snug lg:text-[14px]">
-                {draftSummary?.inProgress ? entry.subline : MORNING_FORMULA_TAGLINE}
-              </p>
-            </div>
-            <ChevronRight className="w-5 h-5 text-white/60 shrink-0 mt-2" aria-hidden />
-          </div>
-
-          <div className="mt-3 flex flex-wrap gap-1 lg:mt-4 lg:gap-1.5">
-            {RITUAL_STEPS.map((step) => (
-              <span
-                key={step.key}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium lg:text-[11px] lg:px-2.5",
-                  reviewedToday ? "bg-white/25 text-white" : "bg-black/10 text-white/85",
-                )}
-              >
-                {reviewedToday ? <Check className="w-2.5 h-2.5" /> : null}
-                {step.label}
-              </span>
-            ))}
-          </div>
-        </Link>
-
-        {hasSideSections ? (
-          <div className="flex flex-col gap-5 min-w-0">{sideSections}</div>
-        ) : null}
+  return <div className="mx-auto w-full max-w-4xl py-6 sm:py-10">
+    <header className="mb-8">
+      <p className="mb-3 text-sm text-muted-foreground">{dateStr}</p>
+      <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Morning formula</h1>
+      <p className="mt-3 text-lg text-muted-foreground">{greeting}. Take a moment. Begin with God.</p>
+    </header>
+    <section className={lh.heroCard} aria-label="Today's morning">
+      <Sunrise className="mb-5 h-7 w-7 text-amber-700 dark:text-amber-300" aria-hidden />
+      <h2 className="font-serif text-3xl leading-tight">{resuming ? "Pick up where you left off." : reviewedToday ? "Carry this morning with you." : "A little stillness. A clear next step."}</h2>
+      <p className="mt-3 max-w-lg text-base leading-relaxed text-muted-foreground">{reviewedToday && !resuming ? "Your reflections and priorities are together in today's journal." : "Worship, reflect, and make room for what matters today."}</p>
+      <div className="mt-7 max-w-sm">
+        {reviewedToday && !resuming && !journalEntryId ? <>
+          <Button className={lh.btnPrimary} disabled={!lookupError} onClick={() => setLookupAttempt((n) => n + 1)}>{lookupError ? "Try opening today's journal again" : "Opening today's journal…"}</Button>
+          {lookupError && <p role="alert" className="mt-2 text-sm text-destructive">Your completed journal could not be found. No new entry has been created.</p>}
+        </> : <Button asChild className={lh.btnPrimary}><Link to={href}>{label}<ChevronRight className="ml-2 h-4 w-4" aria-hidden /></Link></Button>}
       </div>
-
-      <div className="mb-3 flex items-baseline justify-between px-1 lg:mb-4">
-        <h2 className="text-[22px] font-bold tracking-tight text-foreground lg:text-[24px]">Foundation</h2>
-        <span className="text-[13px] text-muted-foreground tabular-nums">{percent}%</span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 pb-2">
-        {WORKBOOK_PHASES.map((phase) => renderPhaseSection(phase.key))}
-      </div>
-    </div>
-  );
+      {streak > 0 && <p className="mt-4 text-sm text-muted-foreground">{streak} {streak === 1 ? "morning" : "mornings"} in a row</p>}
+    </section>
+    <details className="mt-8 border-t border-border/60 pt-2">
+      <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-lg py-3 text-base font-medium focus-visible:ring-2 focus-visible:ring-ring">My foundation <span className="text-sm font-normal text-muted-foreground">{percent}% ready</span></summary>
+      <p className="mb-5 text-sm text-muted-foreground">Build once. Return to it when you need to realign.</p>
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{WORKBOOK_PHASES.map((phase) => renderPhaseSection(phase.key))}</div>
+    </details>
+    <details className="mt-2 border-t border-border/60 pt-2">
+      <summary className="min-h-14 cursor-pointer rounded-lg py-4 text-base font-medium focus-visible:ring-2 focus-visible:ring-ring">Reflections & supporting tools</summary>
+      <div className="grid gap-5 md:grid-cols-2">{sideSections}</div>
+    </details>
+  </div>;
 }

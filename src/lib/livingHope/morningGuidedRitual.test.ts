@@ -12,8 +12,8 @@ describe("morningGuidedRitual", () => {
   it("builds a personalized intro with formal name", () => {
     const msg = buildGuidedIntroMessage("Mr. Heisley");
     expect(msg).toContain("Good morning, Mr. Heisley");
-    expect(msg).toContain("worship, thanks, scripture");
-    expect(msg).toContain("one step at a time");
+    expect(msg).toContain("at your own pace");
+    expect(msg.toLowerCase()).toContain("one step at a time");
   });
 
   it("falls back when name is empty", () => {

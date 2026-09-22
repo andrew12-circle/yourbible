@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - 'src/components/living-hope/**'
+      - 'src/components/home/MorningFormulaHomeCard.tsx'
+      - 'package*.json'
       - 'src/pages/living-hope/**'
       - 'src/hooks/useMorning*'
       - 'src/lib/livingHope/**'
@@ -27,14 +29,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Package tracked source for isolated review
-        run: |
-          git ls-files -z | python3 -c 'import sys; paths=sys.stdin.buffer.read().split(b"\0"); sys.stdout.buffer.write(b"\0".join(p for p in paths if p and (b"/" not in p or p.startswith((b"src/", b"scripts/", b".cursor/", b".github/")))) + b"\0")' | tar --null -T - -czf "$RUNNER_TEMP/morning-formula-source.tgz"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: morning-formula-source
-          path: ${{ runner.temp }}/morning-formula-source.tgz
-          retention-days: 1
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -50,3 +44,12 @@ jobs:
       - name: File size limits
         if: ${{ !cancelled() }}
         run: npm run check:file-size
+      - name: Record validated source identities
+        if: ${{ !cancelled() }}
+        run: git ls-tree -r HEAD > "$RUNNER_TEMP/morning-formula-tree.txt"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: morning-formula-validation
+          path: ${{ runner.temp }}/morning-formula-tree.txt
+          retention-days: 7

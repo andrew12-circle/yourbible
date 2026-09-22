@@ -59,20 +59,16 @@ export function guidedCoachBeatForStep(step: RitualStep): GuidedCoachBeat | null
 
 export function buildGuidedIntroMessage(formalName: string): string {
   const name = formalName.trim() || "friend";
-  return [
-    `Good morning, ${name}. Let's start our day off right.`,
-    "I'll take you through worship, thanks, scripture, prayer, manifesto, vision, stories, and surrender today.",
-    "We'll take this one step at a time.",
-  ].join(" ");
+  return `Good morning, ${name}. Take a moment to settle in. One step at a time, at your own pace.`;
 }
 
 export const GUIDED_COACH_COPY: Record<
   Exclude<GuidedCoachBeat, "intro" | "worship_start" | "done">,
   string
 > = {
-  thanks: "Okay, let's give thanks and go.",
-  scripture: "Okay, let's hear from our Lord and Savior.",
-  prayer: "Let's bring what's on your heart before Him — I'll help you craft prayers that feel personal.",
+  thanks: "Notice what you have received, and make room for gratitude.",
+  scripture: "Read slowly. Let the Scripture speak first.",
+  prayer: "Bring what is on your heart before God. Speak honestly, then listen.",
   manifesto: "Speak your manifesto slowly. Let it land.",
   vision: "Step into the life you're building. Answer each question as if you're already there.",
   story: "This is the story you'll be living out — inhabit it.",

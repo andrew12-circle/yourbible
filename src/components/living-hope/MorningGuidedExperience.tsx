@@ -1,27 +1,19 @@
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
-import { MorningScriptureActions } from "./MorningScriptureActions";
+import { MorningScriptureReading } from "./MorningScriptureReading";
+import { MorningPrayerHelp } from "./MorningPrayerHelp";
 import { MorningPrayerReader } from "./MorningPrayerReader";
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, LayoutList, Loader2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MorningGuidedCoach } from "@/components/living-hope/MorningGuidedCoach";
 import { MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
 import { MorningConversationPanel } from "@/components/living-hope/MorningConversationPanel";
-import { MorningFormulaJournalLink } from "@/components/living-hope/MorningFormulaJournalLink";
 import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
 import { ThanksgivingListsInput } from "@/components/living-hope/ThanksgivingListsInput";
 import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
-import { useAuth } from "@/contexts/AuthContext";
-import { useMorningScriptureTimer } from "@/hooks/useMorningScriptureTimer";
 import type { MorningScripture } from "@/hooks/useMorningScripture";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
-import {
-  MORNING_FORMULA_WORSHIP_RETURN,
-} from "@/lib/bible/readerNavigation";
 import {
   COVERING_PRAYER_PROMPTS,
   COVERING_STEP_INTRO,
@@ -34,16 +26,10 @@ import {
 } from "@/lib/livingHope/morningRitual";
 import {
   buildGuidedIntroMessage,
-  formatGuidedCountdown,
-  formatGuidedElapsed,
   GUIDED_COACH_COPY,
   guidedCoachBeatForStep,
-  worshipPhaseComplete,
 } from "@/lib/livingHope/morningGuidedRitual";
 import type { SessionDurationMin } from "@/lib/livingHope/morningFormulaTimer";
-import { generateGuidedMorningPrayers } from "@/lib/livingHope/morningGuidedPrayer";
-import { syncHeartToConversationEntry } from "@/lib/livingHope/morningConversationJournal";
-import { supabase } from "@/integrations/supabase/client";
 import type { LivingHopeWorkbookContent, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
@@ -132,7 +118,6 @@ export function MorningGuidedExperience({
   conversationPreview,
   conversationBusy,
   conversationError,
-  ensureConversationEntry,
   scriptureReflection,
   setScriptureReflection,
   dailyAssignment,
@@ -145,48 +130,13 @@ export function MorningGuidedExperience({
   scriptureBusy,
   scriptureError,
   onGenerateScripture,
-  journalEntryId,
   worshipPlaylistUrl,
   worshipPlaylistHistory,
   onWorshipMusicChange,
-  onSwitchToStructured,
-  canGoBack,
-  onGoBack,
-  onContinue,
-  saving,
-  isLastStep,
-  stepBudgetMs,
-  stepRemainingMs,
-  stepExpired,
   durationMin,
   onDurationChange,
 }: Props) {
-  const { user } = useAuth();
   const beat = guidedCoachBeatForStep(step);
-  const [worshipElapsedMs, setWorshipElapsedMs] = useState(0);
-  const [prayerGenerating, setPrayerGenerating] = useState(false);
-  const [generatedPrayers, setGeneratedPrayers] = useState<string | null>(null);
-  const [prayerError, setPrayerError] = useState<string | null>(null);
-
-  const scriptureTimer = useMorningScriptureTimer(
-    step.kind === "scripture",
-    step.kind === "scripture" ? stepBudgetMs : undefined,
-  );
-
-  useEffect(() => {
-    if (step.kind !== "worship") {
-      setWorshipElapsedMs(0);
-      return;
-    }
-    const started = Date.now();
-    const id = window.setInterval(() => {
-      setWorshipElapsedMs(Date.now() - started);
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [step.kind]);
-
-  const worshipTargetMs = step.kind === "worship" ? stepBudgetMs : 0;
-
   const selectedStory =
     storySelectedIndex != null && workbook?.stories[storySelectedIndex]
       ? workbook.stories[storySelectedIndex]
@@ -194,86 +144,15 @@ export function MorningGuidedExperience({
 
   const introMessage = useMemo(() => buildGuidedIntroMessage(formalName), [formalName]);
 
-  const handleGeneratePrayers = async () => {
-    if (!user?.id || !conversationEntryId) return;
-    setPrayerGenerating(true);
-    setPrayerError(null);
-    try {
-      const { data } = await supabase
-        .from("journal_entries")
-        .select("body")
-        .eq("id", conversationEntryId)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const body = String(data?.body ?? "");
-      const prayers = await generateGuidedMorningPrayers(user.id, body);
-      setGeneratedPrayers(prayers);
-    } catch (e) {
-      setPrayerError(e instanceof Error ? e.message : "Couldn't generate prayers");
-    } finally {
-      setPrayerGenerating(false);
-    }
-  };
-
-  const handleUseGeneratedPrayers = async () => {
-    if (!user?.id || !conversationEntryId || !generatedPrayers?.trim()) return;
-    try {
-      await syncHeartToConversationEntry(user.id, conversationEntryId, generatedPrayers);
-      setGeneratedPrayers(null);
-    } catch (e) {
-      setPrayerError(e instanceof Error ? e.message : "Couldn't save prayers");
-    }
-  };
-
-  const continueLabel = (() => {
-    if (isLastStep) return "Complete review";
-    if (stepExpired) return "Continue when ready";
-    if (step.kind === "worship" && !worshipPhaseComplete(worshipElapsedMs, worshipTargetMs)) {
-      return `Continue (${formatGuidedCountdown(worshipTargetMs - worshipElapsedMs)} left)`;
-    }
-    if (step.kind === "scripture" && !scriptureTimer.complete) {
-      return `Keep reading (${formatGuidedCountdown(scriptureTimer.targetMs - scriptureTimer.elapsedMs)} left)`;
-    }
-    if (stepBudgetMs > 0) {
-      return `Continue (${formatGuidedCountdown(stepRemainingMs)} left)`;
-    }
-    return "Continue";
-  })();
-
-  const continueDisabled = saving;
-
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <div className="flex items-center justify-between gap-2 px-0.5">
-        <p className={cn(lh.labelUpper, "mb-0")}>Guided morning</p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className={cn(lh.btnGhost, "h-8 text-[12px] gap-1.5")}
-          onClick={onSwitchToStructured}
-        >
-          <LayoutList className="h-3.5 w-3.5" aria-hidden />
-          Structured view
-        </Button>
-      </div>
-
-      {step.kind === "worship" ? (
-        <p className={cn(lh.footnote, "text-center tabular-nums")}>
-          {worshipPhaseComplete(worshipElapsedMs, worshipTargetMs)
-            ? "Music time complete — continue when ready"
-            : `${formatGuidedCountdown(worshipTargetMs - worshipElapsedMs)} of worship remaining`}
-        </p>
-      ) : null}
-
+    <div className="flex flex-1 flex-col gap-6">
       {beat === "intro" ? (
         <MorningGuidedCoach>{introMessage}</MorningGuidedCoach>
       ) : beat && beat !== "done" && beat !== "worship_start" && GUIDED_COACH_COPY[beat] ? (
         <MorningGuidedCoach>{GUIDED_COACH_COPY[beat]}</MorningGuidedCoach>
       ) : beat === "worship_start" ? (
         <MorningGuidedCoach>
-          Put on praise music and pray. Get your eyes off pressure — talk to Him. Change the track if you&apos;d
-          like; stay until the step timer runs out.
+          Put on your worship music. Take a breath and turn your attention to God.
         </MorningGuidedCoach>
       ) : null}
 
@@ -282,113 +161,20 @@ export function MorningGuidedExperience({
       ) : null}
 
       {step.kind === "intro" && (letter?.full_letter ?? letter?.outlook) ? (
-        <blockquote className={lh.quote}>{(letter.full_letter ?? letter.outlook ?? "").slice(0, 280)}…</blockquote>
+        <details><summary className="min-h-11 cursor-pointer py-3 text-sm text-muted-foreground">A reminder from your foundation</summary><blockquote className={lh.quote}>{letter.full_letter ?? letter.outlook}</blockquote></details>
       ) : null}
 
       {step.kind === "worship" ? <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} /> : null}
 
-      {step.kind === "thanksgiving" ? (
-        <div className="space-y-4">
-          <MorningFormulaJournalLink
-            entryId={conversationEntryId}
-            busy={conversationBusy}
-            error={conversationError}
-            onEnsureEntry={ensureConversationEntry}
-            returnTo={MORNING_FORMULA_WORSHIP_RETURN}
-            label="Open today's journal"
-            continueLabel="Journal gratitude"
-          />
-          <ThanksgivingListsInput
-            thanksgivingNow={thanksgivingNow}
-            thanksgivingNotYet={thanksgivingNotYet}
-            onThanksgivingNowChange={onThanksgivingNowChange}
-            onThanksgivingNotYetChange={onThanksgivingNotYetChange}
-          />
-        </div>
-      ) : null}
-
-      {step.kind === "scripture" ? (
-        <div className="space-y-3">
-          {scriptureBusy && !scripture ? (
-            <div className="flex items-center gap-2 py-6 justify-center text-muted-foreground">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="text-sm">Loading today&apos;s passage…</span>
-            </div>
-          ) : scripture ? (
-            <>
-              <h2 className="text-[17px] font-semibold">{scripture.reference}</h2>
-              {scripture.passage ? (
-                <blockquote className="border-l-2 border-amber-400/70 pl-3 italic text-[14px] leading-relaxed whitespace-pre-wrap line-clamp-6">
-                  {scripture.passage}
-                </blockquote>
-              ) : null}
-              <MorningScriptureActions readerHref={scripture.readerHref} />
-            </>
-          ) : (
-            <Button variant="outline" size="sm" onClick={onGenerateScripture} disabled={scriptureBusy}>
-              {scriptureBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Get today's passage"}
-            </Button>
-          )}
-          {scriptureError ? <p className="text-[12px] text-destructive">{scriptureError}</p> : null}
-          <div className={lh.progress}>
-            <div
-              className={lh.progressFill}
-              style={{ width: `${Math.round(scriptureTimer.progress * 100)}%` }}
-            />
-          </div>
-          <p className={cn(lh.footnote, "tabular-nums")}>
-            {scriptureTimer.complete
-              ? "Reading complete — continue when ready"
-              : `${formatGuidedElapsed(scriptureTimer.elapsedMs)} of ${formatGuidedElapsed(scriptureTimer.targetMs)}`}
-          </p>
-          <Textarea
-            value={scriptureReflection}
-            onChange={(e) => setScriptureReflection(e.target.value)}
-            rows={2}
-            className={lh.textarea}
-            placeholder="What stood out? (optional)"
-          />
-        </div>
-      ) : null}
-
-      {step.kind === "prayer" ? (
-        <div className="space-y-4">
-          <div className={cn(lh.cardFlat, "p-4 space-y-3")}>
-            <p className={cn(lh.bodySm, "mb-0")}>Do you need help generating prayers from your journal?</p>
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(lh.btnSecondary, "h-10")}
-              disabled={prayerGenerating || !conversationEntryId}
-              onClick={() => void handleGeneratePrayers()}
-            >
-              {prayerGenerating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate prayers
-                </>
-              )}
-            </Button>
-            {prayerError ? <p className="text-[12px] text-destructive">{prayerError}</p> : null}
-            {generatedPrayers ? (
-              <div className="space-y-2">
-                <Textarea value={generatedPrayers} readOnly rows={8} className={cn(lh.textarea, "text-[13px]")} />
-                <Button type="button" size="sm" className={lh.btnSecondary} onClick={() => void handleUseGeneratedPrayers()}>
-                  Add to journal
-                </Button>
-              </div>
-            ) : null}
-          </div>
-          <MorningConversationPanel
-            entryId={conversationEntryId}
-            preview={conversationPreview}
-            busy={conversationBusy}
-            error={conversationError}
-          />
-        </div>
-      ) : null}
+      {step.kind === "thanksgiving" && <ThanksgivingListsInput
+        thanksgivingNow={thanksgivingNow} thanksgivingNotYet={thanksgivingNotYet}
+        onThanksgivingNowChange={onThanksgivingNowChange} onThanksgivingNotYetChange={onThanksgivingNotYetChange} />}
+      {step.kind === "scripture" && <MorningScriptureReading scripture={scripture} busy={scriptureBusy} error={scriptureError}
+        onRetry={onGenerateScripture} reflection={scriptureReflection} onReflectionChange={setScriptureReflection} />}
+      {step.kind === "prayer" && <>
+        <MorningConversationPanel entryId={conversationEntryId} preview={conversationPreview} busy={conversationBusy} error={conversationError} />
+        <MorningPrayerHelp entryId={conversationEntryId} />
+      </>}
 
       {step.kind === "manifesto" && manifestoItem ? (
         <p className={cn(lh.bodyQuote, "text-[18px]")}>{manifestoItem.text}</p>
@@ -492,46 +278,6 @@ export function MorningGuidedExperience({
         </div>
       ) : null}
 
-      {step.kind === "done" ? (
-        <MorningGuidedCoach>Work as worship — go execute what you wrote down.</MorningGuidedCoach>
-      ) : null}
-
-      {step.kind !== "done" ? (
-        <div className="mt-auto pt-2 flex gap-2">
-          {canGoBack ? (
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(lh.btnSecondary, "h-12 px-4 shrink-0")}
-              disabled={saving}
-              onClick={onGoBack}
-            >
-              <ChevronLeft className="w-4 h-4 mr-0.5" />
-              Back
-            </Button>
-          ) : null}
-          <Button
-            className={cn(lh.btnPrimary, canGoBack ? "flex-1" : "w-full")}
-            disabled={continueDisabled}
-            onClick={onContinue}
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                {continueLabel}
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </>
-            )}
-          </Button>
-        </div>
-      ) : null}
-
-      {step.kind === "done" && journalEntryId ? (
-        <Link to={`/journal/${journalEntryId}`} className={cn(lh.accentLink, "text-center text-[13px]")}>
-          Open journal entry →
-        </Link>
-      ) : null}
     </div>
   );
 }
