@@ -584,6 +584,15 @@ export default function MorningReviewPage() {
                   stepExpired={formulaTimer.stepExpired}
                   durationMin={formulaTimer.durationMin}
                   onDurationChange={formulaTimer.setDurationMin}
+                  prayerRecordings={workbook?.prayer_recordings ?? {}}
+                  onPrayerRecordingChange={(key, path) =>
+                    updateWorkbook({
+                      prayer_recordings: {
+                        ...(workbook?.prayer_recordings ?? {}),
+                        [key]: path || undefined,
+                      },
+                    })
+                  }
                 />
               ) : (
                 <MorningRitualStepPanels
@@ -636,6 +645,15 @@ export default function MorningReviewPage() {
                   onGuidedModeChange={handleGuidedModeChange}
                   durationMin={formulaTimer.durationMin}
                   onDurationChange={formulaTimer.setDurationMin}
+                  prayerRecordings={workbook?.prayer_recordings ?? {}}
+                  onPrayerRecordingChange={(key, path) =>
+                    updateWorkbook({
+                      prayer_recordings: {
+                        ...(workbook?.prayer_recordings ?? {}),
+                        [key]: path || undefined,
+                      },
+                    })
+                  }
                 />
               )}
             </motion.div>
