@@ -110,6 +110,8 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
   if (assignment?.health?.trim()) assignmentLines.push(`- **Build the temple:** ${assignment.health.trim()}`);
   if (assignment?.family?.trim()) assignmentLines.push(`- **Family:** ${assignment.family.trim()}`);
   if (assignment?.business?.trim()) assignmentLines.push(`- **Work:** ${assignment.business.trim()}`);
+  if (assignment?.mustDo?.trim()) assignmentLines.push(`- **The one thing:** ${assignment.mustDo.trim()}`);
+  if (assignment?.avoid?.trim()) assignmentLines.push(`- **Protect the day from:** ${assignment.avoid.trim()}`);
 
   const routineLines =
     ctx.workbook?.routine
