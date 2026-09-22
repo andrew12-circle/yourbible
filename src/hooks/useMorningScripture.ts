@@ -13,6 +13,7 @@ import {
 } from "@/lib/bible/readingPlanProgress";
 import { readerPath } from "@/lib/bible/reference";
 import { getStoredBibleId } from "@/lib/bible/storedBibleId";
+import { localDateISO } from "@/lib/lifePriorities";
 
 export interface MorningDailyReading {
   id: string;
@@ -50,18 +51,57 @@ export function useMorningScripture(userId: string | undefined) {
   const [error, setError] = useState<string | null>(null);
   const autoStarted = useRef(false);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateISO();
 
   const loadPlanProgress = useCallback(async () => {
     if (!userId) return null;
-    const { data } = await supabase
+    const { data, error: progressError } = await supabase
       .from("reading_plan_progress")
       .select("plan_id, day_index")
       .eq("user_id", userId);
-    const next = findNextReadingPlanDay((data ?? []) as { plan_id: string; day_index: number }[]);
+    if (progressError) throw progressError;
+
+    const progress = ((data ?? []) as { plan_id: string; day_index: number }[]).slice();
+
+    // Reconcile completed prior Morning Formula reviews with plan progress.
+    // This repairs days completed before plan-day saving was wired into Morning Formula.
+    const { data: reviews } = await supabase
+      .from("living_hope_reviews")
+      .select("review_date, connection_notes")
+      .eq("user_id", userId)
+      .lt("review_date", today)
+      .order("review_date", { ascending: false })
+      .limit(14);
+
+    const completedRefs = new Set(
+      (reviews ?? [])
+        .map((row) => {
+          const notes = row.connection_notes;
+          if (!notes || typeof notes !== "object" || Array.isArray(notes)) return "";
+          const ref = (notes as Record<string, unknown>).scripture_ref;
+          return typeof ref === "string" ? ref.trim() : "";
+        })
+        .filter(Boolean),
+    );
+
+    let next = findNextReadingPlanDay(progress);
+    while (next && completedRefs.has(next.referenceLabel)) {
+      const { error: repairError } = await supabase.from("reading_plan_progress").upsert(
+        {
+          user_id: userId,
+          plan_id: next.plan.id,
+          day_index: next.dayIndex,
+        },
+        { onConflict: "user_id,plan_id,day_index" },
+      );
+      if (repairError) break;
+      progress.push({ plan_id: next.plan.id, day_index: next.dayIndex });
+      next = findNextReadingPlanDay(progress);
+    }
+
     setPlanDay(next);
     return next;
-  }, [userId]);
+  }, [userId, today]);
 
   const loadDaily = useCallback(async () => {
     if (!userId) return null;
