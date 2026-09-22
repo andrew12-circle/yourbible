@@ -1,9 +1,9 @@
 import { localDateISO } from "@/lib/lifePriorities";
 import { ritualStepKey, type RitualStep } from "@/lib/livingHope/morningRitual";
 
-export type SessionDurationMin = 15 | 30 | 60;
+export type SessionDurationMin = 15 | 30 | 45 | 60;
 
-export const SESSION_DURATION_OPTIONS: readonly SessionDurationMin[] = [15, 30, 60];
+export const SESSION_DURATION_OPTIONS: readonly SessionDurationMin[] = [15, 30, 45, 60];
 export const DEFAULT_SESSION_DURATION_MIN: SessionDurationMin = 60;
 
 const STORAGE_KEY = "yb_morning_formula_timer_v1";
@@ -100,17 +100,23 @@ export function buildStepDurationMap(
   const totalWeight = timedSteps.reduce((sum, step) => sum + stepTimeWeight(step), 0);
   if (totalWeight <= 0) return {};
 
+  // Give every step a floor without ever letting minimums make the
+  // allocated step budgets exceed the chosen session length.
+  const floorMs = Math.min(MIN_STEP_MS, Math.floor(totalMs / timedSteps.length));
+  const reservedMs = floorMs * timedSteps.length;
+  const weightedMs = Math.max(0, totalMs - reservedMs);
+
   const map: Record<string, number> = {};
   let allocated = 0;
 
   timedSteps.forEach((step, index) => {
     const key = ritualStepKey(step);
     if (index === timedSteps.length - 1) {
-      map[key] = Math.max(MIN_STEP_MS, totalMs - allocated);
+      map[key] = Math.max(0, totalMs - allocated);
       return;
     }
     const weight = stepTimeWeight(step);
-    const ms = Math.max(MIN_STEP_MS, Math.round((weight / totalWeight) * totalMs));
+    const ms = floorMs + Math.round((weight / totalWeight) * weightedMs);
     map[key] = ms;
     allocated += ms;
   });
