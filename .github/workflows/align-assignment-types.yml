@@ -1,4 +1,4 @@
-name: Align assignment normalization with current fields
+name: Align immutable assignment normalization
 on:
   push:
     branches: [fix/reader-short-chapter-continuation]
@@ -18,25 +18,16 @@ jobs:
           test "$GITHUB_REF" = refs/heads/fix/reader-short-chapter-continuation
           python3 - <<'PY'
           from pathlib import Path
-          p = Path('src/lib/livingHope/morningRitual.ts')
-          text = p.read_text()
-          old = '    daily_assignment = {\n      spiritual: String(d.spiritual ?? ""),\n      health: String(d.health ?? ""),\n      family: String(d.family ?? ""),\n      business: String(d.business ?? ""),\n    };'
-          new = '    // Normalize every configured field, including fields added to newer drafts.\n    for (const { key } of DAILY_ASSIGNMENT_FIELDS) {\n      daily_assignment[key] = String(d[key] ?? "");\n    }'
-          assert text.count(old) == 1
-          p.write_text(text.replace(old, new))
-          p = Path('src/lib/livingHope/morningFormulaEntry.test.ts')
-          text = p.read_text()
-          old = 'import { buildExpressRitualSteps, buildRitualSteps }'
-          assert text.count(old) == 1
-          text = text.replace(old, 'import { buildExpressRitualSteps, buildRitualSteps, emptyDailyAssignment }')
-          old = 'dailyAssignment: { spiritual: "", health: "", family: "", business: "" },'
-          assert text.count(old) == 1
-          p.write_text(text.replace(old, 'dailyAssignment: emptyDailyAssignment(),'))
+          p=Path('src/lib/livingHope/morningRitual.ts')
+          text=p.read_text()
+          old='  let daily_assignment = emptyDailyAssignment();'
+          assert text.count(old)==1
+          p.write_text(text.replace(old,'  const daily_assignment = emptyDailyAssignment();'))
           PY
-          git add -- src/lib/livingHope/morningRitual.ts src/lib/livingHope/morningFormulaEntry.test.ts
+          git add -- src/lib/livingHope/morningRitual.ts
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Normalize all current assignment fields and use the shared draft default in tests'
+          git commit -m 'Keep the normalized assignment object binding immutable'
           test "$(git ls-remote origin refs/heads/fix/reader-short-chapter-continuation | cut -f1)" = "$GITHUB_SHA"
           git push origin HEAD:refs/heads/fix/reader-short-chapter-continuation
