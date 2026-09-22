@@ -71,7 +71,10 @@ async function settled() {
 async function inspect() {
   // This deliberately does not import the production fit helper: independent
   // line rectangles catch hidden words even when verse nodes still exist.
-  return page.locator('[data-reader-page-side] article[data-reading-area]').evaluateAll(articles => {
+  return page.evaluate(() => {
+    // Query and measure atomically: a reflow must not detach locator handles
+    // between their selection and the independent visible-fit assertions.
+    const articles = document.querySelectorAll('[data-reader-page-side] article[data-reading-area]');
     const issues = [], ids = [], pages = [];
     for (const article of articles) {
       const side = article.closest('[data-reader-page-side]').dataset.readerPageSide;

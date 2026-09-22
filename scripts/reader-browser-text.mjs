@@ -6,7 +6,7 @@ export const fixtureVerseText = verse => verse.parts?.length
 
 /** A verse may cross a page, but each source character must appear exactly once. */
 export async function renderedVerseFragments(page) {
-  return page.locator('[data-reader-page-side] [data-verse-id]').evaluateAll(nodes => nodes.map(node => {
+  return page.evaluate(() => [...document.querySelectorAll('[data-reader-page-side] [data-verse-id]')].map(node => {
     const body = node.querySelector('[data-verse-body]').cloneNode(true);
     body.querySelectorAll('sup, figure').forEach(mark => mark.remove());
     const start = Number(node.dataset.verseStart || 0);
