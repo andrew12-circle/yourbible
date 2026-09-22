@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { PropsWithChildren } from "react";
+import { useEffect, type PropsWithChildren } from "react";
 import { useReaderContinuation } from "./useReaderContinuation";
 import { passageQueryKey } from "./usePassage";
 import { fetchPassageWithCache } from "@/lib/bible/fetchPassageWithCache";
@@ -55,4 +55,22 @@ describe("measured continuation query ownership", () => {
     expect(result.current.chapters).toBe(base);
     expect(result.current.canExtend).toBe(false);
   });
+  it("keeps filling a new window after the previous window reached its cap", async () => {
+    const { client, wrapper, options } = setup();
+    vi.mocked(fetchPassageWithCache).mockImplementation(async (_id, _book, chapter) => passage(chapter));
+    const { result, rerender } = renderHook((opts) => {
+      const value = useReaderContinuation(opts);
+      const need = value.refs.length < 5;
+      const extend = value.extend;
+      useEffect(() => { if (need) extend(); }, [need, extend]);
+      return value;
+    }, { initialProps: { ...options, through: {bookAbbr:"Psa", chapter:23} }, wrapper });
+    await waitFor(() => expect(result.current.chapters.length).toBe(17));
+    rerender({ ...options, scope:"Psa23", after:{bookAbbr:"Psa",chapter:24}, through:{bookAbbr:"Psa",chapter:23} });
+    await waitFor(() => expect(result.current.refs.length).toBe(5));
+    await waitFor(() => expect(result.current.pending).toBe(false));
+    expect(result.current.error).toBeNull();
+    client.clear();
+  });
+
 });

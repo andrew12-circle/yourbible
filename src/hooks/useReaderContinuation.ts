@@ -57,7 +57,10 @@ export function useReaderContinuation({ bibleId, bibleAbbr, scope, after, baseCh
   }, [enabled, baseReady, baseChapters, refs, result.passages]);
   const edge = refs.at(-1);
   const hasNext = !!getNextChapterRef(edge?.book.abbr ?? after.bookAbbr, edge?.chapter ?? after.chapter);
-  const pending = enabled && baseReady && result.pending;
+  // useQueries can briefly expose the preceding combined result while a new
+  // observer is attached. Requested-but-unresolved chapters are still loading.
+  const unresolved = refs.some((_, index) => !result.passages[index]);
+  const pending = enabled && baseReady && !result.error && (result.pending || unresolved);
   const canExtend = enabled && baseReady && !closed && !pending && !result.error && hasNext && count < MAX_READER_CONTINUATION_CHAPTERS;
   const extend = useCallback(() => {
     if (!canExtend) return;

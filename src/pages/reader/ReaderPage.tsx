@@ -811,7 +811,9 @@ export default function ReaderPage() {
   const extendContinuation = continuation.extend;
   useEffect(() => {
     if (needsContinuation) extendContinuation();
-  }, [needsContinuation, extendContinuation]);
+  // Recheck each completed measurement even when the Boolean demand stays true
+  // across a chapter-window handoff or cached chapter insertion.
+  }, [needsContinuation, extendContinuation, streamPaginationKey, navStreamSplits]);
   const chapterPage = position.page;
   const spreadPageIdx = position.page;
   const pendingVerse = position.anchor?.verse ?? null;
