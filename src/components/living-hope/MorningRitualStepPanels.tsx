@@ -3,8 +3,8 @@ import { MorningScriptureReading } from "./MorningScriptureReading";
 import { MorningPrayerReader } from "./MorningPrayerReader";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
+import { TodayAssignmentPanel } from "@/components/living-hope/TodayAssignmentPanel";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import type { MorningScripture } from "@/hooks/useMorningScripture";
 import {
@@ -57,6 +57,7 @@ type Props = {
   storyRecall: string;
   setStoryRecall: (v: string) => void;
   currentGoal: LivingHopeGoalRow | null | undefined;
+  goals: LivingHopeGoalRow[];
   touches: Record<string, GoalTouch>;
   setTouch: (goalId: string, patch: Partial<GoalTouch>) => void;
   visionRecall: string;
@@ -109,6 +110,7 @@ export function MorningRitualStepPanels({
   storyRecall,
   setStoryRecall,
   currentGoal,
+  goals,
   touches,
   setTouch,
   visionRecall,
@@ -289,18 +291,16 @@ export function MorningRitualStepPanels({
           <p className={cn("text-[13px] mb-4", lh.muted)}>Target: {currentGoal.target_metric}</p>
         ) : null}
         <label className={cn(lh.label, "mb-1 block")}>See it vividly</label>
-        <Textarea
+        <MorningVoiceField
           value={touches[currentGoal.id]?.vivid_recall ?? currentGoal.vivid_detail ?? ""}
-          onChange={(e) => setTouch(currentGoal.id, { vivid_recall: e.target.value })}
-          rows={4}
-          className={cn(lh.textarea, "mb-4")}
+          onChange={(value) => setTouch(currentGoal.id, { vivid_recall: value })}
+          multiline rows={4} label="See it vividly" className="mb-4"
         />
         <label className={cn(lh.label, "mb-1 block")}>One obedience step today</label>
-        <Textarea
+        <MorningVoiceField
           value={touches[currentGoal.id]?.obedience_step ?? ""}
-          onChange={(e) => setTouch(currentGoal.id, { obedience_step: e.target.value })}
-          rows={2}
-          className={lh.textarea}
+          onChange={(value) => setTouch(currentGoal.id, { obedience_step: value })}
+          multiline rows={2} label="One obedience step today"
         />
       </>
     );
@@ -312,11 +312,12 @@ export function MorningRitualStepPanels({
         {workbook.metrics.map((m) => (
           <div key={m.id} className="flex items-center gap-2 mb-3">
             <span className={cn("text-[13px] w-36 shrink-0 truncate", lh.muted)}>{m.label}</span>
-            <Input
+            <MorningVoiceField
               value={metricValues[m.id] ?? ""}
-              onChange={(e) => setMetricValues((v) => ({ ...v, [m.id]: e.target.value }))}
-              className={cn(lh.input, "flex-1")}
+              onChange={(value) => setMetricValues((v) => ({ ...v, [m.id]: value }))}
+              label={m.label}
               placeholder={m.unit ?? "today"}
+              className="flex-1"
             />
           </div>
         ))}
