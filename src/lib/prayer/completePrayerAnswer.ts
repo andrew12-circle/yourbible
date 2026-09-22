@@ -14,6 +14,7 @@ export type CompletePrayerAnswerInput = {
   answerText: string;
   answeredAt?: string;
   amountProvided?: number | null;
+  provisionSource?: string;
   status?: Extract<PrayerRequestStatus, "answered" | "different_answer">;
   praiseBodyOverride?: string;
 };
@@ -36,6 +37,7 @@ export async function completePrayerAnswer(
         answered_at: answeredAt,
         answer_text: answerText,
         amount_provided: input.amountProvided ?? request.amount_provided,
+        provision_source: input.provisionSource?.trim() || request.provision_source,
         status,
       },
       answerText,
@@ -57,6 +59,7 @@ export async function completePrayerAnswer(
     answered_at: answeredAt,
     answer_text: answerText,
     amount_provided: input.amountProvided ?? request.amount_provided,
+    provision_source: input.provisionSource?.trim() || request.provision_source,
     praise_report_entry_id: praiseEntryId,
   });
   if (!updated) return null;
