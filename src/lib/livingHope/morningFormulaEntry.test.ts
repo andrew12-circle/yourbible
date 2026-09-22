@@ -6,7 +6,7 @@ import {
   saveMorningRitualDraft,
   summarizeMorningRitualDraft,
 } from "@/lib/livingHope/morningRitualDraft";
-import { buildExpressRitualSteps, buildRitualSteps } from "@/lib/livingHope/morningRitual";
+import { buildExpressRitualSteps, buildRitualSteps, emptyDailyAssignment } from "@/lib/livingHope/morningRitual";
 import { localDateISO } from "@/lib/lifePriorities";
 
 describe("getMorningFormulaEntryTarget", () => {
@@ -122,7 +122,7 @@ describe("morningRitualDraft", () => {
       thanksgivingNow: ["", "", "", "", ""],
       thanksgivingNotYet: ["", "", "", "", ""],
       scriptureReflection: "",
-      dailyAssignment: { spiritual: "", health: "", family: "", business: "" },
+      dailyAssignment: emptyDailyAssignment(),
       surrender: "",
       covering: "",
       storySelectedIndex: null,
