@@ -12,7 +12,6 @@ import {
   COVERING_STEP_INTRO,
 } from "@/lib/livingHope/coveringPrayer";
 import {
-  ASSIGNMENT_VS_GOALS_HINT,
   DAILY_ASSIGNMENT_FIELDS,
   dailyAssignmentDisplayLabel,
   dailyAssignmentHasContent,
