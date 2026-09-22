@@ -1,0 +1,25 @@
+name: CSB workspace export
+on:
+  push:
+    branches: [fix/csb-print-typography]
+    paths: [.github/workflows/csb-workspace-export.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Export tracked source only
+        run: |
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/csb-current.tar.gz"
+          git rev-parse HEAD > "$RUNNER_TEMP/csb-source-sha.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: csb-current-source
+          path: |
+            ${{ runner.temp }}/csb-current.tar.gz
+            ${{ runner.temp }}/csb-source-sha.txt
+          retention-days: 1
