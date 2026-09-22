@@ -4,8 +4,8 @@ import { MorningScriptureReading } from "./MorningScriptureReading";
 import { MorningPrayerHelp } from "./MorningPrayerHelp";
 import { MorningPrayerReader } from "./MorningPrayerReader";
 import { useMemo } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
+import { TodayAssignmentPanel } from "@/components/living-hope/TodayAssignmentPanel";
 import { MorningGuidedCoach } from "@/components/living-hope/MorningGuidedCoach";
 import { MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
 import { MorningConversationPanel } from "@/components/living-hope/MorningConversationPanel";
@@ -48,6 +48,7 @@ type Props = {
   storyRecall: string;
   setStoryRecall: (v: string) => void;
   currentGoal: LivingHopeGoalRow | null | undefined;
+  goals: LivingHopeGoalRow[];
   touches: Record<string, GoalTouch>;
   setTouch: (goalId: string, patch: Partial<GoalTouch>) => void;
   visionRecall: string;
@@ -107,6 +108,7 @@ export function MorningGuidedExperience({
   storyRecall,
   setStoryRecall,
   currentGoal,
+  goals,
   touches,
   setTouch,
   visionRecall,
@@ -253,36 +255,35 @@ export function MorningGuidedExperience({
       ) : null}
 
       {step.kind === "assignment" ? (
-        <div className="space-y-4">
-          {DAILY_ASSIGNMENT_FIELDS.map((field) => (
-            <div key={field.key}>
-              <label className={cn(lh.label, "mb-1 block")}>{field.label}</label>
-              <Input
-                value={dailyAssignment[field.key]}
-                onChange={(e) => setDailyAssignment({ [field.key]: e.target.value })}
-                className={lh.input}
-                placeholder={field.placeholder}
-              />
-            </div>
-          ))}
-        </div>
+        <TodayAssignmentPanel
+          assignment={dailyAssignment}
+          onChange={setDailyAssignment}
+          scriptureReflection={scriptureReflection}
+          visionRecall={visionRecall}
+          storyRecall={storyRecall}
+          thanksgivingNow={thanksgivingNow}
+          touches={touches}
+          goals={goals}
+        />
       ) : null}
 
       {step.kind === "goal" && currentGoal ? (
         <div className="space-y-3">
           <h2 className={cn(lh.titleMd, "mb-0")}>{currentGoal.title}</h2>
-          <Textarea
+          <MorningVoiceField
             value={touches[currentGoal.id]?.vivid_recall ?? currentGoal.vivid_detail ?? ""}
-            onChange={(e) => setTouch(currentGoal.id, { vivid_recall: e.target.value })}
+            onChange={(value) => setTouch(currentGoal.id, { vivid_recall: value })}
+            multiline
             rows={3}
-            className={lh.textarea}
+            label="See it vividly"
             placeholder="See it vividly"
           />
-          <Textarea
+          <MorningVoiceField
             value={touches[currentGoal.id]?.obedience_step ?? ""}
-            onChange={(e) => setTouch(currentGoal.id, { obedience_step: e.target.value })}
+            onChange={(value) => setTouch(currentGoal.id, { obedience_step: value })}
+            multiline
             rows={2}
-            className={lh.textarea}
+            label="One obedience step today"
             placeholder="One obedience step today"
           />
         </div>
@@ -293,10 +294,11 @@ export function MorningGuidedExperience({
           {workbook.metrics.map((m) => (
             <div key={m.id} className="flex items-center gap-2 mb-3">
               <span className={cn("text-[13px] w-36 shrink-0 truncate", lh.muted)}>{m.label}</span>
-              <Input
+              <MorningVoiceField
                 value={metricValues[m.id] ?? ""}
-                onChange={(e) => setMetricValues((v) => ({ ...v, [m.id]: e.target.value }))}
-                className={cn(lh.input, "flex-1")}
+                onChange={(value) => setMetricValues((v) => ({ ...v, [m.id]: value }))}
+                label={m.label}
+                className="flex-1"
               />
             </div>
           ))}
