@@ -1,3 +1,4 @@
+import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords } from "./reader-browser-text.mjs";
 /** Real ReaderPage in Chromium. Synthetic Scripture; no live Bible/API/account data. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -52,10 +53,8 @@ try{
  await page.goto(origin+'/'+basename(scratch)+'/index.html');
  const verses=()=>page.locator('[data-reader-page-side] [data-verse-id]');
  await verses().first().waitFor({timeout:45000});await page.waitForFunction(()=>document.querySelector('[data-bible-reader]')?.getAttribute('aria-busy')==='false');
- const identity=async()=>{
-  const wrong=await verses().evaluateAll(nodes=>nodes.flatMap(node=>{const id=node.getAttribute('data-verse-id');const[,book,chapter,verse]=id.split(':');return node.textContent.includes('FIXTURE '+book+' '+chapter+' '+verse+'.')?[]:[{id,text:node.textContent.slice(0,130)}]}));
-  assert.deepEqual(wrong,[],'Text belongs to a different verse identity');
- };
+ const lookupVerse=(book,chapter,number)=>({number,text:'FIXTURE '+book+' '+chapter+' '+number+'. '+('Synthetic reading text with several words for reliable page measurement. ').repeat(3)});
+ const identity=async()=>verifyFragmentWords(await renderedVerseFragments(page),lookupVerse);
  await identity();assert(requests.length>0,'Production-delivery fixture was not exercised');
  await page.screenshot({path:join(output,'bible-reader-desktop.png')});
  const before=requests.length;
@@ -70,11 +69,11 @@ try{
  for(let turn=0;turn<35;turn++){
   await identity();
   const ids=await verses().evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-verse-id')));
-  for(const id of ids){const[,book,ch,v]=id.split(':');if(book==='Jhn'&&ch==='3')collected.push(Number(v))}
+  collected.push(...(await renderedVerseFragments(page)).filter(row=>row.id.includes(':Jhn:3:')));
   if(ids.some(id=>id.includes(':Jhn:4:')))break;
   await page.getByRole('button',{name:'Next page',exact:true}).first().click();await page.waitForTimeout(450);
  }
- assert.deepEqual(collected,Array.from({length:42},(_,i)=>i+1),'A full chapter was duplicated, omitted, or out of order across page turns');record('Every synthetic verse occurs exactly once in order across paged Scripture and artwork');
+ assert.deepEqual(verifyConsecutiveFragments(collected,lookupVerse,{complete:true}).map(id=>Number(id.split(':').at(-1))),Array.from({length:42},(_,i)=>i+1),'A full chapter was duplicated, omitted, or out of order across page turns');record('Every synthetic verse occurs exactly once in order across paged Scripture and artwork');
  delayChapter=8;await page.evaluate(()=>window.__navigate('/read/Jhn/8'));await page.waitForTimeout(100);await identity();
  await page.evaluate(()=>window.__navigate('/read/Jhn/10'));await page.waitForFunction(()=>window.__path==='/read/Jhn/10');await page.waitForTimeout(1000);await verses().first().waitFor();await identity();record('Delayed chapter responses never relabel earlier Scripture');
  await page.setViewportSize({width:390,height:844});

@@ -1,3 +1,4 @@
+import { appendReaderStreamVerse, type ReaderTextRange } from "./readerVerseFragments";
 import type { PassageHeading, PassageVerse, PoetryBlock } from "@/lib/bible/api";
 import { inlinePlatesForChapter } from "@/lib/bible/biblePlates";
 import type { BiblePlate } from "@/lib/bible/biblePlates";
@@ -24,7 +25,7 @@ export type ReaderStreamUnit =
       chapter: number;
       plate: BiblePlate;
     }
-  | { kind: "verse"; bookAbbr: string; bookName: string; chapter: number; verse: PassageVerse };
+  | { kind: "verse"; bookAbbr: string; bookName: string; chapter: number; verse: PassageVerse; verseRange?: ReaderTextRange };
 
 export function chapterStreamKey(bookAbbr: string, chapter: number): string {
   return `${bookAbbr}|${chapter}`;
@@ -114,7 +115,7 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 20;
+export const READER_PAGINATOR_SPLIT_REVISION = 21;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
@@ -569,7 +570,7 @@ export function sliceReaderStreamRange(
       };
       verseGroups.push(current);
     }
-    current.verses.push(unit.verse);
+    appendReaderStreamVerse(current.verses, unit);
   }
 
   const plateUnit = stream.slice(start, end).find((u) => u.kind === "plate");
@@ -694,7 +695,7 @@ export function verseGroupsFromStreamRange(
       };
       verseGroups.push(current);
     }
-    current.verses.push(unit.verse);
+    appendReaderStreamVerse(current.verses, unit);
   }
   return verseGroups;
 }
