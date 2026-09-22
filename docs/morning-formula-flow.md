@@ -27,3 +27,5 @@ Migration `20260921154857_morning_formula_single_journal.sql` adds the missing r
 The application source at `c1027c61fa65b8058bc360c775409aa67da0e39f` passed full lint, 1,897 tests across 375 files, production build, and a no-new-TypeScript-diagnostics comparison with `9ec47d8305da3cb5811fa81f24d1a615039ea315`. The repository has pre-existing type diagnostics; this is a regression check, not a claim of a clean full typecheck. Actual outcomes and the reviewed diff are preserved in GitHub Actions run `35623552936`, artifact `morning-formula-validation`.
 
 Before treating the experience as browser-verified, confirm a successful production deployment and perform a signed-in device test of real microphone permission, external music playback, video recording, and the Bible pop-out/return flow.
+
+<!-- production redeploy: 2026-09-21 environment variables restored -->
