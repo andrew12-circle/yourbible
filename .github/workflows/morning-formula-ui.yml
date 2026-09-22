@@ -1,0 +1,52 @@
+name: Morning Formula UI
+on:
+  push:
+    branches: ['feat/morning-formula-calm-session']
+  pull_request:
+    paths:
+      - 'src/components/living-hope/**'
+      - 'src/pages/living-hope/**'
+      - 'src/hooks/useMorning*'
+      - 'src/lib/livingHope/**'
+      - 'scripts/*morning-formula*'
+      - '.github/workflows/morning-formula-ui.yml'
+permissions:
+  contents: read
+concurrency:
+  group: morning-formula-ui-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: morning-formula-test-placeholder
+  VITE_SUPABASE_ANON_KEY: morning-formula-test-placeholder
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Package tracked source for isolated review
+        run: |
+          git ls-files -z | python3 -c 'import sys; paths=sys.stdin.buffer.read().split(b"\0"); sys.stdout.buffer.write(b"\0".join(p for p in paths if p and (b"/" not in p or p.startswith((b"src/", b"scripts/", b".cursor/", b".github/")))) + b"\0")' | tar --null -T - -czf "$RUNNER_TEMP/morning-formula-source.tgz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: morning-formula-source
+          path: ${{ runner.temp }}/morning-formula-source.tgz
+          retention-days: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Repository lint
+        run: npm run lint
+      - name: Repository tests
+        if: ${{ !cancelled() }}
+        run: npm test
+      - name: Production build
+        if: ${{ !cancelled() }}
+        run: npm run build
+      - name: File size limits
+        if: ${{ !cancelled() }}
+        run: npm run check:file-size
