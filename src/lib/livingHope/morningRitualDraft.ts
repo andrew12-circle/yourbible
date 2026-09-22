@@ -85,7 +85,14 @@ function writeAll(data: Record<string, MorningRitualDraft>): void {
 export function loadMorningRitualDraft(userId: string): MorningRitualDraft | null {
   const draft = readAll()[userId];
   if (!draft || draft.reviewDate !== localDateISO()) return null;
-  return draft;
+  return {
+    ...draft,
+    guidedMode: draft.guidedMode ?? true,
+    dailyAssignment: {
+      ...emptyDailyAssignment(),
+      ...(draft.dailyAssignment ?? {}),
+    },
+  };
 }
 
 export function saveMorningRitualDraft(userId: string, input: MorningRitualDraftInput): void {
