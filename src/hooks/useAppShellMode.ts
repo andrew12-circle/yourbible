@@ -16,10 +16,11 @@ export function useAppShellMode() {
   const inMiniPhone = useMiniPhoneEmbed();
   const homeMode: HomeMode = parseHomeMode(profile?.layout);
   const nativeApp = Capacitor.isNativePlatform();
+  const formulaPopout = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("formulaPopout") === "1";
 
   return {
     homeMode,
     /** Native phones always use the app launcher and mobile page shells. */
-    showHubShell: shouldShowHubShell({ homeMode, inMiniPhone, nativeApp }),
+    showHubShell: !formulaPopout && shouldShowHubShell({ homeMode, inMiniPhone, nativeApp }),
   };
 }
