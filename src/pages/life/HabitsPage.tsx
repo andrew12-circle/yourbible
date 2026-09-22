@@ -83,7 +83,7 @@ export default function HabitsPage() {
     if (!user?.id) return;
     setBusy(true);
     try {
-      await syncHabitFrameworkTemplate().catch(() => undefined);
+      void syncHabitFrameworkTemplate().catch(() => undefined);
       const [habitList, completions, badges] = await Promise.all([
         listHabits(user.id),
         listCompletionsForMonth(user.id, yearMonth),
