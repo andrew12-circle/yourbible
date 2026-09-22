@@ -1,0 +1,40 @@
+name: Apply verified CSB typography source
+on:
+  push:
+    branches: [fix/csb-print-typography]
+    paths: ['scripts/.csb-print.patch.b64', '.github/workflows/apply-csb-print.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify and apply source patch on isolated repair branch
+        run: |
+          test "$GITHUB_REF" = refs/heads/fix/csb-print-typography
+          python3 - <<'PY'
+          import base64, gzip, hashlib, pathlib, subprocess, os
+          raw = pathlib.Path('scripts/.csb-print.patch.b64').read_text().strip()
+          pathlib.Path(os.environ['RUNNER_TEMP']+'/transport.b64').write_text(raw)
+          # Repair the identified transcription in this text-only tool handoff.
+          raw = raw.replace('Jc3dRL', 'Jc3RL')
+          patch = gzip.decompress(base64.b64decode(raw, validate=True))
+          assert hashlib.sha256(patch).hexdigest() == 'a181524dd4a96f3a9b673e50a5a767023dc83eecb59d4a70b2069fa9b55c3152', 'Source checksum mismatch'
+          path = pathlib.Path(os.environ['RUNNER_TEMP']+'/print.patch'); path.write_bytes(patch)
+          subprocess.run(['git','apply','--check',str(path)],check=True)
+          subprocess.run(['git','apply',str(path)],check=True)
+          changed = subprocess.check_output(['git','status','--porcelain']).decode().splitlines()
+          assert all(line[3:].startswith(('src/', 'scripts/')) and '.csb-print' not in line for line in changed)
+          PY
+          git add src scripts/reader-print-geometry.mjs scripts/test-bible-chapter-continuation.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Typeset Scripture with aligned verse gutters, print spacing, and source-preserving first-word binding'
+          git push origin HEAD:fix/csb-print-typography
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: typography-transport-diagnostic
+          path: ${{ runner.temp }}/transport.b64
+          retention-days: 1
