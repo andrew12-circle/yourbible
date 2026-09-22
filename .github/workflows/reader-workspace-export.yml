@@ -1,0 +1,27 @@
+name: Reader workspace export
+on:
+  push:
+    branches: [fix/reader-short-chapter-continuation]
+    paths: [.github/workflows/reader-workspace-export.yml]
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Archive only tracked application sources and reader fixtures
+        shell: bash
+        run: |
+          git ls-files -z -- src scripts supabase docs .github public/bibles public/bible-plates public/fonts '*.json' '*.ts' '*.js' '*.mjs' '*.html' '.gitignore' '.gitattributes' | tar --null -T - -czf "$RUNNER_TEMP/reader-current.tar.gz"
+          git rev-parse HEAD > "$RUNNER_TEMP/reader-source-sha.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reader-current-source
+          path: |
+            ${{ runner.temp }}/reader-current.tar.gz
+            ${{ runner.temp }}/reader-source-sha.txt
+          retention-days: 1
