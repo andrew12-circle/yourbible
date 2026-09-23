@@ -2,7 +2,7 @@ import { DictateButton } from "@/components/journal/DictateButton";
 import { JournalAiPrivacy } from "@/components/journal/JournalAiPrivacy";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, ExternalLink, Image, Link2, Loader2, Pause, Pencil, Play, Plus, Upload, Volume2, X } from "lucide-react";
+import { BookOpen, ExternalLink, FileAudio, Image, Link2, Loader2, Pause, Pencil, Play, Plus, Trash2, Upload, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
@@ -58,6 +58,8 @@ And I go live my life.`;
 
 type AceSceneSettings = {
   storagePath: string;
+  audioStoragePath: string;
+  audioFileName: string;
   chatgptUrl: string;
   text: string;
 };
@@ -69,6 +71,7 @@ type Props = {
   onSelectedIndexChange: (index: number) => void;
   onAddStory: (text: string) => void;
   onUpdateStory?: (index: number, patch: Partial<WorkbookStory>) => void;
+  onDeleteStory?: (index: number) => void;
   storyRecall: string;
   onStoryRecallChange: (value: string) => void;
 };
@@ -82,6 +85,24 @@ async function uploadSceneCover(userId: string, sceneId: string, file: File): Pr
     .upload(path, file, { upsert: false, contentType: file.type || `image/${safeExt}` });
   if (error) throw error;
   return path;
+}
+
+async function uploadSceneAudio(userId: string, sceneId: string, file: File): Promise<string> {
+  const ext = (file.name.split(".").pop() || "mp3").toLowerCase();
+  const safeExt = /^(mp3|wav|m4a)$/i.test(ext) ? ext : "mp3";
+  const path = `${userId}/morning-scenes/manual/${sceneId}-${Date.now()}.${safeExt}`;
+  const { error } = await supabase.storage
+    .from("voice-memos")
+    .upload(path, file, { upsert: false, contentType: file.type || "audio/mpeg" });
+  if (error) throw error;
+  return path;
+}
+
+async function getSceneAudioUrl(storagePath: string): Promise<string> {
+  if (!storagePath) return "";
+  const { data, error } = await supabase.storage.from("voice-memos").createSignedUrl(storagePath, 3600);
+  if (error) return "";
+  return data?.signedUrl ?? "";
 }
 
 function SceneReader({ title, text, onClose }: { title: string; text: string; onClose: () => void }) {
@@ -112,6 +133,7 @@ export function MorningStoryPanel({
   onSelectedIndexChange,
   onAddStory,
   onUpdateStory,
+  onDeleteStory,
 }: Props) {
   const { user, profile } = useAuth();
   const [adding, setAdding] = useState(false);
@@ -122,19 +144,27 @@ export function MorningStoryPanel({
   const [editingAce, setEditingAce] = useState(false);
   const [ace, setAce] = useState<AceSceneSettings>({
     storagePath: "",
+    audioStoragePath: "",
+    audioFileName: "",
     chatgptUrl: ACE_SCENE_URL,
     text: DEFAULT_ACE_SCENE_TEXT,
   });
   const [aceCoverUrl, setAceCoverUrl] = useState("");
+  const [aceAudioUrl, setAceAudioUrl] = useState("");
   const [storyCoverUrls, setStoryCoverUrls] = useState<Record<string, string>>({});
+  const [storyAudioUrls, setStoryAudioUrls] = useState<Record<string, string>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [uploadingAudioKey, setUploadingAudioKey] = useState<string | null>(null);
+  const [deletingStoryId, setDeletingStoryId] = useState<string | null>(null);
   const [narratingKey, setNarratingKey] = useState<string | null>(null);
   const [audio, setAudio] = useState<{ key: string; title: string; url: string } | null>(null);
   const [playing, setPlaying] = useState(false);
   const [audioError, setAudioError] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTarget, setUploadTarget] = useState<"ace" | number | null>(null);
+  const [audioUploadTarget, setAudioUploadTarget] = useState<"ace" | number | null>(null);
 
   useEffect(() => {
     try {
@@ -143,6 +173,8 @@ export function MorningStoryPanel({
       const parsed = JSON.parse(raw) as Partial<AceSceneSettings>;
       setAce({
         storagePath: typeof parsed.storagePath === "string" ? parsed.storagePath : "",
+        audioStoragePath: typeof parsed.audioStoragePath === "string" ? parsed.audioStoragePath : "",
+        audioFileName: typeof parsed.audioFileName === "string" ? parsed.audioFileName : "",
         chatgptUrl: typeof parsed.chatgptUrl === "string" && parsed.chatgptUrl.trim() ? parsed.chatgptUrl : ACE_SCENE_URL,
         text: typeof parsed.text === "string" && parsed.text.trim() ? parsed.text : DEFAULT_ACE_SCENE_TEXT,
       });
@@ -177,6 +209,31 @@ export function MorningStoryPanel({
         }),
       );
       if (!cancelled) setStoryCoverUrls(Object.fromEntries(entries));
+    })();
+    return () => { cancelled = true; };
+  }, [stories]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getSceneAudioUrl(ace.audioStoragePath).then((url) => {
+      if (!cancelled) setAceAudioUrl(url);
+    });
+    return () => { cancelled = true; };
+  }, [ace.audioStoragePath]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        stories.map(async (story) => {
+          if (story.narration_storage_path) {
+            const signed = await getSceneAudioUrl(story.narration_storage_path);
+            return [story.id, signed || story.narration_audio_url || ""] as const;
+          }
+          return [story.id, story.narration_audio_url || ""] as const;
+        }),
+      );
+      if (!cancelled) setStoryAudioUrls(Object.fromEntries(entries));
     })();
     return () => { cancelled = true; };
   }, [stories]);
@@ -228,6 +285,11 @@ export function MorningStoryPanel({
     fileInputRef.current?.click();
   }, []);
 
+  const requestAudioUpload = useCallback((target: "ace" | number) => {
+    setAudioUploadTarget(target);
+    audioFileInputRef.current?.click();
+  }, []);
+
   const handleCoverFile = useCallback(async (files: FileList | null) => {
     const file = files?.[0];
     const target = uploadTarget;
@@ -253,8 +315,135 @@ export function MorningStoryPanel({
     }
   }, [ace, onUpdateStory, saveAce, stories, uploadTarget, user?.id]);
 
-  const listenToScene = useCallback(async (key: string, title: string, text: string) => {
+  const handleAudioFile = useCallback(async (files: FileList | null) => {
+    const file = files?.[0];
+    const target = audioUploadTarget;
+    if (!file || target == null || !user?.id) return;
+    const key = target === "ace" ? "ace" : stories[target]?.id;
+    if (!key) return;
+    setUploadingAudioKey(key);
     setAudioError("");
+    try {
+      const path = await uploadSceneAudio(user.id, key, file);
+      const signed = await getSceneAudioUrl(path);
+      if (target === "ace") {
+        if (ace.audioStoragePath) {
+          await supabase.storage.from("voice-memos").remove([ace.audioStoragePath]).catch(() => undefined);
+        }
+        const next = { ...ace, audioStoragePath: path, audioFileName: file.name };
+        setAce(next);
+        window.localStorage.setItem(ACE_STORAGE_KEY, JSON.stringify(next));
+        setAceAudioUrl(signed);
+      } else if (onUpdateStory) {
+        const previous = stories[target]?.narration_storage_path;
+        if (previous) await supabase.storage.from("voice-memos").remove([previous]).catch(() => undefined);
+        onUpdateStory(target, {
+          narration_storage_path: path,
+          narration_file_name: file.name,
+          narration_audio_url: undefined,
+          narration_provider: "elevenlabs",
+        });
+        setStoryAudioUrls((prev) => ({ ...prev, [key]: signed }));
+      }
+      if (audio?.key === key) {
+        audioRef.current?.pause();
+        setAudio(null);
+        setPlaying(false);
+      }
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "Could not upload recording");
+    } finally {
+      setUploadingAudioKey(null);
+      setAudioUploadTarget(null);
+      if (audioFileInputRef.current) audioFileInputRef.current.value = "";
+    }
+  }, [ace, audio?.key, audioUploadTarget, onUpdateStory, stories, user?.id]);
+
+  const removeUploadedAudio = useCallback(async (target: "ace" | number) => {
+    const key = target === "ace" ? "ace" : stories[target]?.id;
+    if (!key) return;
+    setUploadingAudioKey(key);
+    try {
+      if (target === "ace") {
+        if (ace.audioStoragePath) await supabase.storage.from("voice-memos").remove([ace.audioStoragePath]);
+        const next = { ...ace, audioStoragePath: "", audioFileName: "" };
+        setAce(next);
+        window.localStorage.setItem(ACE_STORAGE_KEY, JSON.stringify(next));
+        setAceAudioUrl("");
+      } else if (onUpdateStory) {
+        const story = stories[target];
+        if (story?.narration_storage_path) await supabase.storage.from("voice-memos").remove([story.narration_storage_path]);
+        onUpdateStory(target, {
+          narration_storage_path: undefined,
+          narration_file_name: undefined,
+          narration_audio_url: undefined,
+          narration_provider: undefined,
+        });
+        setStoryAudioUrls((prev) => ({ ...prev, [key]: "" }));
+      }
+      if (audio?.key === key) {
+        audioRef.current?.pause();
+        setAudio(null);
+        setPlaying(false);
+      }
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "Could not remove recording");
+    } finally {
+      setUploadingAudioKey(null);
+    }
+  }, [ace, audio?.key, onUpdateStory, stories]);
+
+  const handleDeleteStory = useCallback(async (index: number) => {
+    const story = stories[index];
+    if (!story || !onDeleteStory) return;
+    if (!window.confirm("Delete this scene? This cannot be undone.")) return;
+    setDeletingStoryId(story.id);
+    try {
+      if (story.cover_storage_path) {
+        await supabase.storage.from("journal-photos").remove([story.cover_storage_path]).catch(() => undefined);
+      }
+      if (story.narration_storage_path) {
+        await supabase.storage.from("voice-memos").remove([story.narration_storage_path]).catch(() => undefined);
+      }
+      if (user?.id) {
+        const folder = `${user.id}/morning-scenes/audio/${story.id}`;
+        const { data: cached } = await supabase.storage.from("voice-memos").list(folder, { limit: 100 });
+        if (cached?.length) {
+          await supabase.storage.from("voice-memos").remove(cached.map((item) => `${folder}/${item.name}`)).catch(() => undefined);
+        }
+      }
+      if (audio?.key === story.id) {
+        audioRef.current?.pause();
+        setAudio(null);
+        setPlaying(false);
+      }
+      setOpenStory(null);
+      setEditingStoryIndex(null);
+      onDeleteStory(index);
+    } finally {
+      setDeletingStoryId(null);
+    }
+  }, [audio?.key, onDeleteStory, stories, user?.id]);
+
+  const listenToScene = useCallback(async (key: string, title: string, text: string, uploadedUrl?: string) => {
+    setAudioError("");
+    if (uploadedUrl) {
+      if (audio?.key === key && audio.url === uploadedUrl) {
+        const el = audioRef.current;
+        if (!el) return;
+        if (el.paused) {
+          await el.play();
+          setPlaying(true);
+        } else {
+          el.pause();
+          setPlaying(false);
+        }
+      } else {
+        setAudio({ key, title, url: uploadedUrl });
+      }
+      return;
+    }
+
     if (audio?.key === key && audio.url) {
       const el = audioRef.current;
       if (!el) return;
@@ -341,7 +530,25 @@ export function MorningStoryPanel({
                   <MorningVoiceField value={ace.text} onChange={(text) => setAce((v) => ({ ...v, text }))} multiline rows={8} label="Scene text" />
                   <label className={lh.footnote}>Optional ChatGPT reference link</label>
                   <div className="flex items-center gap-2"><Link2 className="h-4 w-4 shrink-0" /><Input value={ace.chatgptUrl} onChange={(e) => setAce((v) => ({ ...v, chatgptUrl: e.target.value }))} placeholder="Paste ChatGPT link" /></div>
-                  <p className={lh.footnote}>Changing the scene text automatically creates a new ElevenLabs recording the next time you press Listen.</p>
+                  <div className="rounded-lg border border-border/60 p-3 space-y-2">
+                    <div className="flex items-center gap-2"><FileAudio className="h-4 w-4" /><p className="text-sm font-semibold">ElevenLabs recording</p></div>
+                    {ace.audioStoragePath ? (
+                      <>
+                        <p className={cn(lh.footnote, "truncate")}>{ace.audioFileName || "Uploaded recording"}</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button type="button" variant="outline" disabled={!aceAudioUrl} onClick={() => void listenToScene("ace", "ACE Is Working", ace.text, aceAudioUrl)}>Play</Button>
+                          <Button type="button" variant="outline" disabled={uploadingAudioKey === "ace"} onClick={() => requestAudioUpload("ace")}>Replace</Button>
+                          <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" disabled={uploadingAudioKey === "ace"} onClick={() => void removeUploadedAudio("ace")}>Remove</Button>
+                        </div>
+                      </>
+                    ) : (
+                      <Button type="button" variant="outline" className="w-full gap-2" disabled={uploadingAudioKey === "ace"} onClick={() => requestAudioUpload("ace")}>
+                        {uploadingAudioKey === "ace" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                        Upload ElevenLabs recording
+                      </Button>
+                    )}
+                  </div>
+                  <p className={lh.footnote}>{ace.audioStoragePath ? "Your uploaded recording is used when you press Listen." : "Without an upload, Listen creates and caches an ElevenLabs narration automatically."}</p>
                   <Button type="button" className={cn(lh.btnPrimary, "w-full")} onClick={() => saveAce(ace)}>Save scene</Button>
                 </div>
               ) : (
@@ -351,7 +558,7 @@ export function MorningStoryPanel({
                     <Button type="button" variant="outline" className={cn(lh.btnSecondary, "gap-2")} onClick={() => setOpenStory(openStory === "ace" ? null : "ace")}>
                       <BookOpen className="h-4 w-4" /> Read scene
                     </Button>
-                    <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === "ace"} onClick={() => void listenToScene("ace", "ACE Is Working", ace.text)}>
+                    <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === "ace"} onClick={() => void listenToScene("ace", "ACE Is Working", ace.text, aceAudioUrl)}>
                       {narratingKey === "ace" ? <Loader2 className="h-4 w-4 animate-spin" /> : audio?.key === "ace" && playing ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                       {listenLabel("ace")}
                     </Button>
@@ -376,6 +583,9 @@ export function MorningStoryPanel({
                 <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-muted via-background to-primary/10 bg-cover bg-center" style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
                   {suggested ? <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm">Suggested today</span> : null}
+                  <button type="button" className="absolute right-12 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-700/80 text-white backdrop-blur hover:bg-red-700" onClick={() => void handleDeleteStory(index)} aria-label="Delete scene" disabled={deletingStoryId === story.id}>
+                    {deletingStoryId === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </button>
                   <button type="button" className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => editing ? setEditingStoryIndex(null) : startStoryEdit(index)} aria-label="Edit scene">
                     {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                   </button>
@@ -392,11 +602,33 @@ export function MorningStoryPanel({
                       </Button>
                       <MorningVoiceField value={storyDraft.text} onChange={(text) => setStoryDraft((v) => ({ ...v, text }))} multiline rows={7} label="Scene text" />
                       <div className="flex items-center gap-2"><Link2 className="h-4 w-4 shrink-0" /><Input value={storyDraft.chatgptUrl} onChange={(e) => setStoryDraft((v) => ({ ...v, chatgptUrl: e.target.value }))} placeholder="Optional ChatGPT link" /></div>
-                      <p className={lh.footnote}>Edit the words anytime. The changed text gets a new recording automatically; unchanged text reuses the saved audio.</p>
+                      <div className="rounded-lg border border-border/60 p-3 space-y-2">
+                        <div className="flex items-center gap-2"><FileAudio className="h-4 w-4" /><p className="text-sm font-semibold">ElevenLabs recording</p></div>
+                        {story.narration_storage_path ? (
+                          <>
+                            <p className={cn(lh.footnote, "truncate")}>{story.narration_file_name || "Uploaded recording"}</p>
+                            <div className="grid grid-cols-3 gap-2">
+                              <Button type="button" variant="outline" disabled={!storyAudioUrls[story.id]} onClick={() => void listenToScene(story.id, title, story.text, storyAudioUrls[story.id])}>Play</Button>
+                              <Button type="button" variant="outline" disabled={uploadingAudioKey === story.id} onClick={() => requestAudioUpload(index)}>Replace</Button>
+                              <Button type="button" variant="ghost" className="text-destructive hover:text-destructive" disabled={uploadingAudioKey === story.id} onClick={() => void removeUploadedAudio(index)}>Remove</Button>
+                            </div>
+                          </>
+                        ) : (
+                          <Button type="button" variant="outline" className="w-full gap-2" disabled={uploadingAudioKey === story.id} onClick={() => requestAudioUpload(index)}>
+                            {uploadingAudioKey === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                            Upload ElevenLabs recording
+                          </Button>
+                        )}
+                      </div>
+                      <p className={lh.footnote}>{story.narration_storage_path ? "Your uploaded recording stays attached until you replace or remove it." : "Without an upload, Listen creates and caches an ElevenLabs narration from the scene text."}</p>
                       <div className="flex gap-2">
                         <Button type="button" className={cn(lh.btnPrimary, "flex-1")} onClick={saveStoryEdit}>Save</Button>
                         <Button type="button" variant="outline" className="flex-1" onClick={() => setEditingStoryIndex(null)}>Cancel</Button>
                       </div>
+                      <Button type="button" variant="destructive" className="w-full gap-2" disabled={deletingStoryId === story.id} onClick={() => void handleDeleteStory(index)}>
+                        {deletingStoryId === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        Delete scene
+                      </Button>
                     </div>
                   ) : (
                     <>
@@ -405,7 +637,7 @@ export function MorningStoryPanel({
                         <Button type="button" variant="outline" className={cn(lh.btnSecondary, "gap-2")} onClick={() => { onSelectedIndexChange(index); setOpenStory(openStory === index ? null : index); }}>
                           <BookOpen className="h-4 w-4" /> Read scene
                         </Button>
-                        <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === story.id} onClick={() => void listenToScene(story.id, title, story.text)}>
+                        <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === story.id} onClick={() => void listenToScene(story.id, title, story.text, storyAudioUrls[story.id])}>
                           {narratingKey === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : audio?.key === story.id && playing ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                           {listenLabel(story.id)}
                         </Button>
@@ -442,6 +674,7 @@ export function MorningStoryPanel({
       )}
 
       <input ref={fileInputRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={(e) => void handleCoverFile(e.target.files)} />
+      <input ref={audioFileInputRef} type="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,.mp3,.wav,.m4a" className="hidden" onChange={(e) => void handleAudioFile(e.target.files)} />
     </div>
   );
 }

@@ -18,8 +18,12 @@ export interface WorkbookStory {
   cover_storage_path?: string;
   /** Optional external narration destination, currently a dedicated ChatGPT conversation. */
   chatgpt_url?: string;
-  /** Reserved for native generated narration (for example ElevenLabs) without changing the card model later. */
+  /** Reserved for native/generated narration URLs. */
   narration_audio_url?: string;
+  /** Private user-uploaded narration stored in the voice-memos bucket. */
+  narration_storage_path?: string;
+  /** Original filename shown in the scene editor. */
+  narration_file_name?: string;
   narration_provider?: "chatgpt" | "elevenlabs";
 }
 
@@ -254,6 +258,8 @@ function parseStories(raw: unknown): WorkbookStory[] {
       cover_storage_path: x.cover_storage_path ? String(x.cover_storage_path) : undefined,
       chatgpt_url: x.chatgpt_url ? String(x.chatgpt_url) : undefined,
       narration_audio_url: x.narration_audio_url ? String(x.narration_audio_url) : undefined,
+      narration_storage_path: x.narration_storage_path ? String(x.narration_storage_path) : undefined,
+      narration_file_name: x.narration_file_name ? String(x.narration_file_name) : undefined,
       narration_provider: x.narration_provider === "elevenlabs" ? "elevenlabs" : x.narration_provider === "chatgpt" ? "chatgpt" : undefined,
     }));
 }
