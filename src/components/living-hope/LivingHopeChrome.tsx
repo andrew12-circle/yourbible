@@ -105,14 +105,14 @@ export function LivingHopeChrome({
       <main ref={content}
         className={cn(
           "relative z-10 flex-1 flex flex-col w-full min-w-0 min-h-0",
-          session ? "mx-auto max-w-3xl px-5 sm:px-8 pb-6 overflow-y-auto overscroll-contain" : showHubShell
+          session ? "mx-auto w-full max-w-3xl px-5 sm:px-8 lg:max-w-[92rem] lg:px-10 xl:px-12 2xl:px-14 pb-6 overflow-y-auto overscroll-contain" : showHubShell
             ? "max-w-none mx-0 px-4 md:px-6 lg:px-8 pb-6 overflow-y-auto scrollbar-hide"
             : "max-w-lg mx-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
         )}
       >
         {children}
       </main>
-      {session && footer && <footer className="shrink-0 border-t border-border/40 bg-background px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><div className="mx-auto max-w-[42rem]">{footer}</div></footer>}
+      {session && footer && <footer className="shrink-0 border-t border-border/40 bg-background px-5 lg:px-10 xl:px-12 2xl:px-14 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><div className="mx-auto w-full max-w-3xl lg:max-w-[92rem]">{footer}</div></footer>}
     </div>
   );
 }
