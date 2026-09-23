@@ -254,7 +254,6 @@ export function MorningStoryPanel({
   }, [ace, onUpdateStory, saveAce, stories, uploadTarget, user?.id]);
 
   const listenToScene = useCallback(async (key: string, title: string, text: string) => {
-    if (!text.trim()) return;
     setAudioError("");
     if (audio?.key === key && audio.url) {
       const el = audioRef.current;
@@ -269,6 +268,7 @@ export function MorningStoryPanel({
       return;
     }
 
+    if (!text.trim()) return;
     setNarratingKey(key);
     try {
       const result = await getOrCreateSceneNarration({ sceneId: key, text });
