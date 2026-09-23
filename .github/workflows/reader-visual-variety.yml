@@ -34,10 +34,14 @@ jobs:
         run: npm run lint 2>&1 | tee "$RUNNER_TEMP/variety-lint.log"
       - name: Full tests
         run: npm test 2>&1 | tee "$RUNNER_TEMP/variety-tests.log"
-      - name: Production build and source image acquisition
+      - name: Production build with Vercel offline image verification
+        env:
+          VERCEL: '1'
         run: npm run build 2>&1 | tee "$RUNNER_TEMP/variety-build.log"
-      - name: Verify all acquired image hashes
-        run: node scripts/acquire-visual-bible.mjs --verify
+      - name: Verify acquired and actually distributed image hashes
+        run: |
+          node scripts/acquire-visual-bible.mjs --verify
+          node scripts/verify-visual-bible-dist.mjs
       - name: No new TypeScript diagnostics versus the starting main
         run: node scripts/check-journal-type-regressions.mjs c74a3ed19bf497e668805c11c8b8e6365b2e48f6 2>&1 | tee "$RUNNER_TEMP/variety-types.log"
       - name: Browser dependencies
