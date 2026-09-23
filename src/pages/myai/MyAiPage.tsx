@@ -414,7 +414,7 @@ export default function MyAiPage() {
       setChats([]);
     } else {
       const resolved = await resolveUntitledChats(supabase, user.id, rows);
-      setChats(resolved);
+      setChats(resolved as any);
     }
     setLoadingChats(false);
   }, [user]);

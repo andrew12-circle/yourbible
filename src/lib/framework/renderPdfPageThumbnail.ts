@@ -17,7 +17,7 @@ export async function renderPdfBytesPageToObjectUrl(
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas is unavailable.");
 
-    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+    await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(

@@ -113,7 +113,7 @@ export type PraiseReportPeriod = "month" | "year" | "lifetime";
 
 export function parseScriptureRefs(raw: Json | null | undefined): ScriptureRef[] {
   if (!Array.isArray(raw)) return [];
-  return raw
+  return (raw as any[])
     .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
     .map((item) => ({
       ref: String(item.ref ?? "").trim(),

@@ -1178,7 +1178,7 @@ export default function EntryEditorPane({
       {/* Body scrolls inside the card; header/toolbar stay fixed like the list pane. */}
       <div className={cn("flex min-h-0 flex-1 flex-col overflow-hidden", !plainWriteLayout && "min-h-0")}>
       <div
-        ref={paneScrollRef}
+        ref={paneScrollRef as any}
         data-journal-editor-scroll
         className={cn(
           "journal-pane-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]",

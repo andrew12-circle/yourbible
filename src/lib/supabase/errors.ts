@@ -106,7 +106,7 @@ export function formatSupabaseError(error: unknown): string {
 }
 
 export function throwSupabaseError(error: PostgrestError): never {
-  throw new Error(formatSupabaseError(error), { cause: error });
+  throw Object.assign(new Error(formatSupabaseError(error)), { cause: error });
 }
 
 /** @deprecated Use formatSupabaseError */

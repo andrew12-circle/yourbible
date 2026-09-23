@@ -737,7 +737,7 @@ export async function transcribeJournalVideo(
       } else if (result.ok) {
         recordError("Empty transcript returned for the captured audio.");
       } else if (!result.ok) {
-        recordError(result.error);
+        recordError((result as { error?: string }).error ?? "");
       }
     } catch (e) {
       recordError(e instanceof Error ? e.message : String(e));
@@ -768,7 +768,7 @@ export async function transcribeJournalVideo(
       } else if (result.ok) {
         recordError("Empty transcript returned for the captured video.");
       } else if (!result.ok) {
-        recordError(result.error);
+        recordError((result as { error?: string }).error ?? "");
       }
     } catch (e) {
       recordError(e instanceof Error ? e.message : String(e));

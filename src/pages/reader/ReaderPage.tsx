@@ -1820,7 +1820,7 @@ export default function ReaderPage() {
         upsertNote={upsertNote}
         deleteNote={deleteNote}
         bmDialog={bmDialog}
-        setBmDialog={setBmDialog}
+        setBmDialog={setBmDialog as any}
         bookmarkVerse={bookmarkVerse}
         bookmarks={bookmarks}
         setBookmark={setBookmark}

@@ -36,7 +36,7 @@ export default function ReadingPlansPage() {
           setProgress((data ?? []) as ProgressRow[]);
         }
       })
-      .finally(() => setBusy(false));
+      .then(() => setBusy(false), () => setBusy(false));
   }, [user]);
 
   const completedByPlan = useMemo(() => {

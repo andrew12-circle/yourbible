@@ -3683,42 +3683,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      ensure_morning_formula_entry: {
-        Args: { p_review_date: string; p_journal_id: string | null; p_title: string; p_body: string; p_context?: Json }
-        Returns: { entry_id: string; created: boolean }[]
-      }
-
-      journal_entry_list_page: {
-        Args: {
-          p_journal_id?: string | null
-          p_exclude_journal_ids?: string[]
-          p_entry_kind?: string | null
-          p_search?: string | null
-          p_limit?: number
-          p_offset?: number
-          p_include_encrypted?: boolean
-          p_sort_updated?: boolean
-        }
-        Returns: {
-          id: string
-          user_id: string
-          title: string | null
-          body: string
-          summary: string | null
-          entry_at_ts: string
-          updated_at: string
-          mood: number | null
-          location_name: string | null
-          weather: string | null
-          weather_temp_c: number | null
-          weather_icon: string | null
-          pinned: boolean
-          analyze_for_mirror: boolean
-          journal_id: string | null
-          entry_kind: string | null
-          e2e_encrypted: boolean
-        }[]
-      }
       accept_partner_invite: { Args: { p_token: string }; Returns: string }
       enqueue_embedding_job: {
         Args: { p_row_id: string; p_table: string; p_user_id: string }
@@ -3726,6 +3690,19 @@ export type Database = {
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
       ensure_default_todo_lists: { Args: never; Returns: undefined }
+      ensure_morning_formula_entry: {
+        Args: {
+          p_body: string
+          p_context?: Json
+          p_journal_id: string
+          p_review_date: string
+          p_title: string
+        }
+        Returns: {
+          created: boolean
+          entry_id: string
+        }[]
+      }
       get_ai_usage_by_function: {
         Args: { p_days?: number }
         Returns: {
@@ -3768,6 +3745,37 @@ export type Database = {
         }[]
       }
       get_my_storage_usage: { Args: never; Returns: Json }
+      journal_entry_list_page: {
+        Args: {
+          p_entry_kind?: string
+          p_exclude_journal_ids?: string[]
+          p_include_encrypted?: boolean
+          p_journal_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort_updated?: boolean
+        }
+        Returns: {
+          analyze_for_mirror: boolean
+          body: string
+          e2e_encrypted: boolean
+          entry_at_ts: string
+          entry_kind: string
+          id: string
+          journal_id: string
+          location_name: string
+          mood: number
+          pinned: boolean
+          summary: string
+          title: string
+          updated_at: string
+          user_id: string
+          weather: string
+          weather_icon: string
+          weather_temp_c: number
+        }[]
+      }
       list_user_storage_objects_for_backup: {
         Args: { p_user_id: string }
         Returns: {

@@ -315,7 +315,7 @@ export async function updateItem(
   if (patch.status === "done") {
     next.done = true;
     next.completed_at = new Date().toISOString();
-  } else if (patch.status && patch.status !== "done") {
+  } else if (patch.status && (patch.status as string) !== "done") {
     next.done = false;
     next.completed_at = null;
   }

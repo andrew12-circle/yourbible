@@ -235,12 +235,12 @@ export function localSaveMorningReview(
 ): LivingHopeReviewRow {
   const today = localDateISO();
   const b = bundleFor(userId);
-  const row: LivingHopeReviewRow = {
+  const row: LivingHopeReviewRow = <LivingHopeReviewRow>{
     id: newId(),
     user_id: userId,
     review_date: today,
     surrender_note: input.surrender_note,
-    goal_touches: input.goal_touches,
+    goal_touches: input.goal_touches as any,
     vision_recall: input.vision_recall ?? null,
     story_index: input.story_index ?? null,
     manifesto_index: input.manifesto_index ?? null,

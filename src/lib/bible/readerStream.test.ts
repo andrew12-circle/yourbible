@@ -14,7 +14,6 @@ import {
   sliceReaderStreamRange,
   spreadPaneStreamRanges,
   interimSpreadDisplaySplits,
-  repairSpreadPagePairSplits,
   spreadSplitsAlreadyPaired,
   spreadPageForChapterStart,
   spreadPageForChapterStartLeftPane,

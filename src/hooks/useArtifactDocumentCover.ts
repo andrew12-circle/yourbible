@@ -80,7 +80,7 @@ export function useArtifactDocumentCover({
           setStoredCoverUrl(null);
           return;
         }
-        objectUrl = URL.createObjectURL(new Blob([bytes], { type: "image/jpeg" }));
+        objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "image/jpeg" }));
         storedCoverCache.set(storedCoverPath, objectUrl);
         setStoredCoverUrl(objectUrl);
       } catch {

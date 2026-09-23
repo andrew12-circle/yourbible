@@ -39,7 +39,7 @@ export default function SleepPage() {
   const { user, loading } = useAuth();
   const { showHubShell } = useAppShellMode();
   const [voice, setVoice] = useState(DEFAULT_SLEEP_VOICE_ID);
-  const [setId, setSetId] = useState(SETS[0].id);
+  const [setId, setSetId] = useState<string>(SETS[0].id);
   const [playAll, setPlayAll] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const fallbackToastShown = useRef(false);

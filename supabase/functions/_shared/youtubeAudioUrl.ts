@@ -114,7 +114,7 @@ async function audioFromInnertubePlayer(videoId: string, client: InnertubeClient
  * Best-effort direct audio URL for Deepgram. Returns null when only ciphered streams exist.
  */
 export async function resolveYouTubeAudioUrl(videoId: string): Promise<string | null> {
-  const override = Deno.env.get("DEEPGRAM_AUDIO_URL")?.trim();
+  const override = (globalThis as any).Deno?.env?.get("DEEPGRAM_AUDIO_URL")?.trim();
   if (override) return override;
 
   const fromWatch = await audioFromWatchPage(videoId).catch(() => null);

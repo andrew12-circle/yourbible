@@ -41,13 +41,13 @@ export async function encryptJournalPayload<T extends Record<string, unknown>>(
   const out = { ...payload } as T & { e2e_encrypted: true; analyze_for_mirror: false; embedding: null };
 
   if ("title" in payload) {
-    (out as JournalTextFields).title = await encryptTextField(dek, (payload.title as string | null) ?? null);
+    (out as unknown as JournalTextFields).title = await encryptTextField(dek, (payload.title as string | null) ?? null);
   }
   if ("body" in payload && typeof payload.body === "string") {
-    (out as JournalTextFields).body = (await encryptTextField(dek, payload.body as string)) ?? "";
+    (out as unknown as JournalTextFields).body = (await encryptTextField(dek, payload.body as string)) ?? "";
   }
   if ("summary" in payload) {
-    (out as JournalTextFields).summary = await encryptTextField(
+    (out as unknown as JournalTextFields).summary = await encryptTextField(
       dek,
       (payload.summary as string | null) ?? null,
     );

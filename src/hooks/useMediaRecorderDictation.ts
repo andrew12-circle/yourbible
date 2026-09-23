@@ -116,7 +116,7 @@ export function useMediaRecorderDictation(
           if (!valid()) return;
           onInterimRef.current?.("");
           if (!result.ok) {
-            setError(result.error);
+            setError((result as { error?: string }).error ?? "");
             return;
           }
           const text = result.text.trim();

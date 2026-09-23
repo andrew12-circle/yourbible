@@ -30,7 +30,7 @@ function normalizeMessages(raw: unknown): ChatJournalMessage[] {
   if (!raw || typeof raw !== "object") return [];
   const msgs = (raw as { messages?: unknown }).messages;
   if (!Array.isArray(msgs)) return [];
-  return msgs
+  return (msgs as any[] as any)
     .filter(
       (m): m is { role: string; content: string } =>
         !!m &&

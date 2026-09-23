@@ -1,5 +1,7 @@
 import * as React from "react";
-import { Input, type InputProps } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+
+type InputProps = React.ComponentProps<"input">;
 import { cn } from "@/lib/utils";
 import { mergeFieldRefs, privacyBlurMirrorClass, usePrivacyBlurField } from "@/hooks/usePrivacyBlurField";
 import { PrivacyBlurOverlay } from "@/components/writing/PrivacyBlurOverlay";

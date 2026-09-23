@@ -169,7 +169,7 @@ export function buildJournalVideoSalvageBlob(
   mimeType: string | undefined,
 ): Blob | null {
   if (latchedBlob?.size) return latchedBlob;
-  const blob = new Blob(chunks, mimeType ? { type: mimeType } : undefined);
+  const blob = new Blob(chunks as BlobPart[], mimeType ? { type: mimeType } : undefined);
   return blob.size > 0 ? blob : null;
 }
 

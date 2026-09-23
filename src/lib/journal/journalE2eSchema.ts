@@ -31,5 +31,5 @@ export function formatJournalLoadError(error: unknown): string {
 }
 
 export function throwJournalLoadError(error: PostgrestError): never {
-  throw new Error(formatJournalLoadError(error), { cause: error });
+  throw Object.assign(new Error(formatJournalLoadError(error)), { cause: error });
 }

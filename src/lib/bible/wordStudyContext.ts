@@ -1,5 +1,5 @@
 import type { Passage } from "@/lib/bible/api";
-import type { Book } from "@/data/books";
+import type { BibleBook as Book } from "@/data/books";
 
 export type WordStudyContext = {
   word: string;

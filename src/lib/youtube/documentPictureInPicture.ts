@@ -85,7 +85,7 @@ export async function openYouTubeDocumentPip(options: {
     onActivate,
     onPopoutMessage,
   } = options;
-  const docPip = window.documentPictureInPicture;
+  const docPip = (window as any).documentPictureInPicture;
   if (!docPip) return null;
 
   const w = Math.max(200, Math.round(width));

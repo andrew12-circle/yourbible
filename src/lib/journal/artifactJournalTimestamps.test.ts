@@ -12,9 +12,9 @@ import {
 import type { TranscriptSegment } from "@/lib/transcriptSplit";
 
 const segments: TranscriptSegment[] = [
-  { id: "a", text: "Hello world", startSeconds: 0, isParagraphBreak: false },
-  { id: "b", text: "Second line", startSeconds: 30, isParagraphBreak: false },
-  { id: "c", text: "Third line", startSeconds: 60, isParagraphBreak: false },
+  { id: "a", text: "Hello world", startSeconds: 0, isParagraphBreak: false, label: "" },
+  { id: "b", text: "Second line", startSeconds: 30, isParagraphBreak: false, label: "" },
+  { id: "c", text: "Third line", startSeconds: 60, isParagraphBreak: false, label: "" },
 ];
 
 describe("artifactJournalTimestamps", () => {

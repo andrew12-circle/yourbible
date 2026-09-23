@@ -140,7 +140,7 @@ function loadFallback(key: string): File | null {
     };
     if (typeof parsed.fileName !== "string" || typeof parsed.base64 !== "string") return null;
     const type = typeof parsed.type === "string" ? parsed.type : "image/png";
-    return new File([base64ToBytes(parsed.base64)], parsed.fileName, { type });
+    return new File([base64ToBytes(parsed.base64) as BlobPart], parsed.fileName, { type });
   } catch {
     return null;
   }

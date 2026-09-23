@@ -507,7 +507,7 @@ export default function SketchPad({
   useEffect(() => {
     if (!open) return;
     const draft = draftKey ? loadSketchDraft(draftKey) : null;
-    strokesRef.current = draft?.strokes ?? [];
+    strokesRef.current = (draft?.strokes ?? []) as any;
     redoStackRef.current = [];
     activeStrokeRef.current = null;
     activePointerIdRef.current = null;

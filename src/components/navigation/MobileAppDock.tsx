@@ -82,7 +82,7 @@ export default function MobileAppDock({
       className={className}
       layoutRootSelector={layoutRootSelector}
       layoutHeightVar="--artifact-mobile-dock-h"
-      layoutHeightFallbackPx={ARTIFACT_MOBILE_DOCK_H}
+      layoutHeightFallbackPx={parseFloat(String(ARTIFACT_MOBILE_DOCK_H)) * 16 || 96}
     />
   );
 }

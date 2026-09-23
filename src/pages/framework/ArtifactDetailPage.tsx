@@ -1368,7 +1368,7 @@ export default function ArtifactDetailPage() {
         >
         <ArtifactDetailPrimaryMedia
           artifact={a}
-          artifactMetadata={artifactMetadata}
+          artifactMetadata={artifactMetadata as any}
           mergedVideoMeta={mergedVideoMeta}
           displayTitle={displayTitle}
           youTubeVideoId={youTubeVideoId}
@@ -1384,7 +1384,7 @@ export default function ArtifactDetailPage() {
           documentBlockRef={documentBlockRef}
           videoPlayback={videoPlayback}
           pipEnabled={pipEnabled}
-          moments={moments}
+          moments={moments as any}
           bookmarkLabel={bookmarkLabel}
           noteBody={noteBody}
           canCaptureMoments={canCaptureMoments}
@@ -1511,7 +1511,7 @@ export default function ArtifactDetailPage() {
       {a.kind === "youtube" && !youTubeVideoId ? (
         <ArtifactYoutubeMissingVideoCard
           artifact={a}
-          artifactMetadata={artifactMetadata}
+          artifactMetadata={artifactMetadata as any}
           liveMeta={liveMeta}
           refreshingMeta={refreshingMeta}
           setRefreshingMeta={setRefreshingMeta}
@@ -1574,7 +1574,7 @@ export default function ArtifactDetailPage() {
           }
           claimCardContext={claimCardContext}
           claimsIndexStorageKey={a.id ? `artifact-claims-index:${a.id}` : undefined}
-          getClaimSeekSeconds={resolveClaimSeekSeconds}
+          getClaimSeekSeconds={resolveClaimSeekSeconds as any}
           playerReady={videoPlayback.playerReady}
           isPlaying={videoPlayback.isPlaying}
           getPlaybackSeconds={getCurrentPlaybackSeconds}
@@ -1834,7 +1834,7 @@ export default function ArtifactDetailPage() {
             }
             mobileClaimsRail={mobilePinnedPane && isReadableDocument}
             claimsIndexStorageKey={a.id ? `artifact-claims-index:${a.id}` : undefined}
-            getClaimSeekSeconds={resolveClaimSeekSeconds}
+            getClaimSeekSeconds={resolveClaimSeekSeconds as any}
             playerReady={videoPlayback.playerReady}
             isPlaying={videoPlayback.isPlaying}
             getPlaybackSeconds={getCurrentPlaybackSeconds}

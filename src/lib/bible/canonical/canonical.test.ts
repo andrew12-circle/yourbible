@@ -48,7 +48,7 @@ describe("passageToCanonicalChapter", () => {
     expect(record.verses[0]?.verseId).toBe("csb-test:Jhn:3:1");
     expect(record.layout.headings[0]?.text).toBe("The Love of God");
     expect(record.layout.studyByVerse?.[0]?.footnotes).toHaveLength(1);
-    expect(record.verses[1]?.parts).toBeUndefined();
+    expect((record.verses[1] as any)?.parts).toBeUndefined();
   });
 
   it("shims back to Passage for existing reader", () => {

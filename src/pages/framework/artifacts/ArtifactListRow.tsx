@@ -50,7 +50,7 @@ interface ArtifactListRowProps {
 export function ArtifactListRow({ r, deletingId, onDelete, isUnwatched = false }: ArtifactListRowProps) {
   const displayTitle = artifactDisplayTitle(r);
   const tip = linkFullTitle(r);
-  const primeNavigation = () => prepareArtifactNavigation(r);
+  const primeNavigation = () => prepareArtifactNavigation(r as any);
   return (
     <li>
       <div className="flex items-start gap-4 rounded-2xl border border-border bg-card/30 p-3 pr-2 shadow-sm transition-colors hover:bg-muted/25">

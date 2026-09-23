@@ -1,10 +1,6 @@
-type YTNamespace = {
-  Player: unknown;
-};
 
 declare global {
   interface Window {
-    YT?: YTNamespace;
     onYouTubeIframeAPIReady?: () => void;
   }
 }
