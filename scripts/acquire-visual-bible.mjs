@@ -106,7 +106,9 @@ async function verifyEntry(root, asset, entry) {
   }
 }
 export async function ensureVisualBibleAssets({ root = ROOT, verify = false } = {}) {
-  const assets = JSON.parse(await readFile(join(root, "src/data/visualBible/seed.json"), "utf8"));
+  const assets = (await Promise.all(["seed.json", "readerExpansion.json"].map(async (name) =>
+    JSON.parse(await readFile(join(root, "src/data/visualBible", name), "utf8")),
+  ))).flat();
   validateSeed(assets);
   const manifestPath = join(root, "public/visual-bible/v1/manifest.json");
   let previous;
@@ -133,7 +135,6 @@ export async function ensureVisualBibleAssets({ root = ROOT, verify = false } = 
       record.sourceBytes = downloaded.bytes.length;
       record.originalUrl = asset.imageUrl;
       record.resolvedUrl = downloaded.resolvedUrl;
-      // Keep downloaded originals outside public/dist; never AI-upscale or crop.
       await writeAtomic(join(root, ".visual-bible-cache", `${asset.id}-${asset.revision}.original`), downloaded.bytes);
       for (const [name, size, quality] of [["thumb", 640, 78], ["detail", 2400, 88]]) {
         const { data, info } = await sharp(downloaded.bytes, { limitInputPixels: 100_000_000 }).rotate().resize({ width: size, height: size, fit: "inside", withoutEnlargement: true }).webp({ quality }).toBuffer({ resolveWithObject: true });

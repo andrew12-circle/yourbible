@@ -11,7 +11,7 @@ import { assertImageUrl, downloadImage, validateSeed } from "../../../scripts/ac
 describe("visual Bible catalog", () => {
   it("validates the curated seed and every canonical chapter association", () => {
     expect(() => validateSeed(VISUAL_SEED)).not.toThrow();
-    expect(VISUAL_SEED).toHaveLength(12);
+    expect(VISUAL_SEED).toHaveLength(21);
     for (const asset of VISUAL_CATALOGUE) {
       expect(asset.thumbnailUrl).toMatch(/^\/(bible-plates|visual-bible)\//);
       expect(asset.detailUrl).toMatch(/^\/(bible-plates|visual-bible)\//);
@@ -24,13 +24,13 @@ describe("visual Bible catalog", () => {
     }
     expect(new Set(VISUAL_CATALOGUE.map((a) => a.kind))).toEqual(new Set(VISUAL_KINDS));
   });
-  it("retains all maps and does not modify the inline plate catalog", () => {
+  it("retains all maps and does not modify the legacy plate catalog", () => {
     expect(BIBLE_PLATES).toHaveLength(527);
     expect(VISUAL_CATALOGUE.filter((a) => a.id.startsWith("map-"))).toHaveLength(STUDY_MAPS.length);
     for (const map of STUDY_MAPS) {
       expect(VISUAL_CATALOGUE.find((a) => a.id === `map-${map.id}`)?.source.license).toBe(map.license);
     }
-    expect(VISUAL_CATALOGUE.filter((a) => a.review === "source-checked")).toHaveLength(11);
+    expect(VISUAL_CATALOGUE.filter((a) => a.review === "source-checked")).toHaveLength(20);
     expect(VISUAL_CATALOGUE.filter((a) => a.id.startsWith("plate-")).every((a) => a.review === "legacy")).toBe(true);
   });
   it("supports accents, artists, periods and Scripture search", () => {
@@ -68,7 +68,6 @@ describe("visual Bible catalog", () => {
     expect(visualPage([], -1)).toEqual({ page: 1, pageCount: 1, items: [] });
   });
 });
-
 describe("acquisition safety", () => {
   it("rejects duplicates, missing credits and unsupported rights", () => {
     const asset = VISUAL_SEED[0];
@@ -79,9 +78,7 @@ describe("acquisition safety", () => {
     expect(() => validateSeed([{ ...asset, review: "legacy" }])).toThrow();
   });
   it("rejects insecure URLs and off-allowlist redirect targets", async () => {
-    for (const url of ["http://collectionapi.metmuseum.org/image", "https://127.0.0.1/image", "https://collectionapi.metmuseum.org.evil.example/image", "https://user:password@collectionapi.metmuseum.org/image"]) {
-      expect(() => assertImageUrl(url)).toThrow();
-    }
+    for (const url of ["http://collectionapi.metmuseum.org/image", "https://127.0.0.1/image", "https://collectionapi.metmuseum.org.evil.example/image", "https://user:password@collectionapi.metmuseum.org/image"]) expect(() => assertImageUrl(url)).toThrow();
     const redirect = async () => new Response(null, { status: 302, headers: { location: "http://127.0.0.1/private" } });
     await expect(downloadImage(VISUAL_SEED[0].imageUrl, redirect)).rejects.toThrow();
   });

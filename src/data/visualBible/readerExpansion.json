@@ -1,0 +1,74 @@
+[
+  {
+    "id":"met-437820","revision":1,"kind":"artwork","title":"The Finding of Moses","creator":"Jacopo Tintoretto (Jacopo Robusti)","date":"1560s?","culture":"Italian","medium":"Oil on canvas",
+    "description":"A Venetian interpretation of the rescue of the infant Moses. The figures and landscape offer a different visual treatment from nineteenth-century Bible illustrations.",
+    "caution":"The date is uncertain. Dress and landscape belong to the artist’s interpretation, not an archaeological reconstruction of Egypt.","tags":["Moses","Egypt","Nile","Renaissance"],
+    "passages":[{"book":"Exo","chapter":2,"verse":5,"endVerse":10,"relationship":"depiction","note":"Pharaoh’s daughter finds Moses, and his mother becomes his nurse."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"39.55","url":"https://www.metmuseum.org/art/collection/search/437820","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gwynne Andrews Fund, 1939.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/437820/801163/main-image","alt":"The infant Moses being received by women beside a river, painted by Tintoretto"
+  },
+  {
+    "id":"met-435962","revision":1,"kind":"artwork","title":"Hagar in the Wilderness","creator":"Camille Corot","date":"1835","culture":"French","medium":"Oil on canvas",
+    "description":"Hagar and Ishmael appear in a wide, arid landscape beneath a distant angel. The scale of the setting emphasizes their isolation.",
+    "caution":"The museum notes that the landscape draws partly on studies in France. This is biblical narrative painting, not a photograph of Beersheba.","tags":["Hagar","Ishmael","wilderness","Genesis","landscape"],
+    "passages":[{"book":"Gen","chapter":21,"verse":14,"endVerse":19,"relationship":"depiction","note":"An interpretation of Hagar and Ishmael in the wilderness and the promise of help."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"38.64","url":"https://www.metmuseum.org/art/collection/search/435962","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Rogers Fund, 1938.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/435962/796243/main-image","alt":"Hagar and Ishmael in a broad rocky landscape with an angel above, painted by Corot"
+  },
+  {
+    "id":"met-435680","revision":1,"kind":"artwork","title":"Moses Striking the Rock","creator":"Abraham Bloemaert","date":"1596","culture":"Netherlandish","medium":"Oil on canvas",
+    "description":"A crowded scene of people and vessels around the gift of water. Moses appears farther back rather than dominating the foreground.",
+    "caution":"Includes artistic nudity and later allegorical imagery. The composition is an interpretation of water in the wilderness, not a reconstruction of the event.","tags":["Moses","water","wilderness","Exodus","Mannerism"],
+    "passages":[{"book":"Exo","chapter":17,"verse":1,"endVerse":7,"relationship":"depiction","note":"An editorial connection to the account of water from the rock; the painting adds figures and symbolism."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"1972.171","url":"https://www.metmuseum.org/art/collection/search/435680","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Purchase, Gift of Mary V. T. Eberstadt, by exchange, 1972.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/435680/795760/main-image","alt":"People carrying vessels around water in the wilderness, painted by Abraham Bloemaert"
+  },
+  {
+    "id":"met-436913","revision":1,"kind":"artwork","title":"Moses","creator":"Lorenzo Monaco (Piero di Giovanni)","date":"ca. 1408–10","culture":"Italian","medium":"Tempera on wood, gold ground",
+    "description":"A gold-ground panel presents Moses holding two tablets. The luminous surface offers a different visual language from naturalistic narrative painting.",
+    "caution":"The tablets contain pseudo-Hebrew lettering, not a reliable transcription of the Ten Commandments. This is a later symbolic portrait.","tags":["Moses","commandments","tablets","Gothic","gold ground"],
+    "passages":[{"book":"Exo","chapter":20,"relationship":"depiction","note":"A symbolic portrait accompanying the Ten Commandments; not a depiction of the exact moment of their delivery."},{"book":"Deu","chapter":5,"relationship":"depiction","note":"Moses and the tablets as a later artistic interpretation alongside the commandments."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"65.14.3","url":"https://www.metmuseum.org/art/collection/search/436913","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gwynne Andrews Fund, and Bequest of Mabel Choate, in memory of her father, Joseph Hodges Choate, by exchange, 1965.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/436913/2004243/main-image","alt":"Moses holding tablets against a gold background, painted by Lorenzo Monaco"
+  },
+  {
+    "id":"met-459016","revision":1,"kind":"artwork","title":"The Annunciation","creator":"Botticelli (Alessandro di Mariano Filipepi)","date":"ca. 1490","culture":"Italian","medium":"Tempera and gold on wood",
+    "description":"Gabriel and Mary face one another across an architectural interior. Receding columns and floor lines give the small panel a sense of depth.",
+    "caution":"The architecture is an imagined Renaissance interior, not evidence for the appearance of Mary’s home.","tags":["Gabriel","Mary","Annunciation","Renaissance"],
+    "passages":[{"book":"Luk","chapter":1,"verse":26,"endVerse":38,"relationship":"depiction","note":"An interpretation of Gabriel’s announcement to Mary."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"1975.1.74","url":"https://www.metmuseum.org/art/collection/search/459016","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Robert Lehman Collection, 1975.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/459016/917581/main-image","alt":"Gabriel approaching Mary through a columned room in Botticelli’s Annunciation"
+  },
+  {
+    "id":"met-437986","revision":1,"kind":"artwork","title":"The Denial of Saint Peter","creator":"Caravaggio (Michelangelo Merisi)","date":"1610","culture":"Italian","medium":"Oil on canvas",
+    "description":"A few illuminated faces and gestures emerge from a dark setting. The concentrated composition gives Peter’s denial a strikingly intimate treatment.",
+    "caution":"The figures and lighting are artistic interpretation; the painting is not an eyewitness image of the courtyard.","tags":["Peter","denial","Passion","Baroque"],
+    "passages":[{"book":"Mat","chapter":26,"verse":69,"endVerse":75,"relationship":"depiction","note":"Peter is accused of following Jesus and denies knowing him."},{"book":"Mrk","chapter":14,"verse":66,"endVerse":72,"relationship":"depiction","note":"An artistic interpretation of Peter’s denial."},{"book":"Luk","chapter":22,"verse":54,"endVerse":62,"relationship":"depiction","note":"An artistic interpretation of Peter’s denial."},{"book":"Jhn","chapter":18,"verse":15,"endVerse":18,"relationship":"depiction","note":"A related account of the questioning and denial of Peter; the painting condenses the story."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"1997.167","url":"https://www.metmuseum.org/art/collection/search/437986","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Gift of Herman and Lila Shickman, and Purchase, Lila Acheson Wallace Gift, 1997.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/437986/1641164/main-image","alt":"Three figures lit against a dark background in Caravaggio’s Denial of Saint Peter"
+  },
+  {
+    "id":"met-459087","revision":1,"kind":"artwork","title":"Christ Carrying the Cross","creator":"El Greco (Domenikos Theotokopoulos)","date":"ca. 1577–87","culture":"Greek; made in Spain","medium":"Oil on canvas",
+    "description":"Christ embraces the cross and looks upward. The museum describes a devotional image rather than a complete narrative scene.",
+    "caution":"A devotional interpretation without a recognizable setting. Do not treat it as a reconstruction of the route to the crucifixion.","tags":["Jesus","cross","Passion","devotional"],
+    "passages":[{"book":"Jhn","chapter":19,"verse":17,"relationship":"depiction","note":"A devotional interpretation accompanying the reference to Jesus carrying the cross."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"1975.1.145","url":"https://www.metmuseum.org/art/collection/search/459087","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Robert Lehman Collection, 1975.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/459087/1456237/main-image","alt":"Christ holding the cross and looking upward, painted by El Greco"
+  },
+  {
+    "id":"met-437871","revision":1,"kind":"artwork","title":"The Supper at Emmaus","creator":"Velázquez (Diego Rodríguez de Silva y Velázquez)","date":"1622–23","culture":"Spanish","medium":"Oil on canvas",
+    "description":"Two disciples react to Christ at a table. Light, gesture and closely observed tableware draw attention to the moment of recognition.",
+    "caution":"A seventeenth-century interpretation of the meal, not a reconstruction of the room or the disciples’ appearance.","tags":["Emmaus","resurrection","Jesus","meal","Baroque"],
+    "passages":[{"book":"Luk","chapter":24,"verse":28,"endVerse":35,"relationship":"depiction","note":"The disciples recognize Jesus in the breaking of bread."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"14.40.631","url":"https://www.metmuseum.org/art/collection/search/437871","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Bequest of Benjamin Altman, 1913.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/437871/794425/main-image","alt":"Christ and two disciples at a table in Velázquez’s Supper at Emmaus"
+  },
+  {
+    "id":"met-437789","revision":1,"kind":"artwork","title":"The Adoration of the Magi","creator":"Giovanni Battista Tiepolo","date":"late 1750s","culture":"Italian","medium":"Oil on canvas",
+    "description":"An animated oil sketch places the visitors and Holy Family among monumental architectural forms. Compare it with Giotto’s treatment of the same subject.",
+    "caution":"The number, appearance and architectural setting of the visitors reflect later artistic tradition rather than details supplied by Matthew.","tags":["Magi","Jesus","Nativity","Rococo"],
+    "passages":[{"book":"Mat","chapter":2,"verse":11,"relationship":"depiction","note":"A different artist’s interpretation of the visitors offering gifts."}],
+    "source":{"name":"The Metropolitan Museum of Art","objectId":"37.165.1","url":"https://www.metmuseum.org/art/collection/search/437789","license":"CC0 / public domain","licenseUrl":"https://creativecommons.org/publicdomain/zero/1.0/","credit":"The Metropolitan Museum of Art. Rogers Fund, 1937.","checkedOn":"2026-09-23"},
+    "review":"source-checked","imageUrl":"https://collectionapi.metmuseum.org/api/collection/v1/iiif/437789/795957/main-image","alt":"The Magi approaching the Holy Family beneath monumental ruins, painted by Tiepolo"
+  }
+]

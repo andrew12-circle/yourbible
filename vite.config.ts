@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     youtubeCaptionsDevPlugin(),
-    !process.env.VERCEL && visualBibleAssetsPlugin(),
+    visualBibleAssetsPlugin(),
     VitePWA({
       registerType: "prompt",
       includeAssets: ["app-icon-192.png", "app-icon-512.png", "site.webmanifest"],
@@ -30,7 +30,7 @@ export default defineConfig(({ mode }) => ({
           urlPattern: ({ url, sameOrigin, request }) => sameOrigin && request.destination === "image" && url.pathname.startsWith("/visual-bible/v1/"),
           handler: "CacheFirst",
           options: {
-            cacheName: "visual-bible-v1",
+            cacheName: "visual-bible-v2",
             cacheableResponse: { statuses: [200] },
             expiration: { maxEntries: 64, maxAgeSeconds: 30 * 24 * 60 * 60, purgeOnQuotaError: true },
           },
