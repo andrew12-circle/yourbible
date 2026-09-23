@@ -1,12 +1,5 @@
-export type BiblePlateKind = "artwork" | "artifact" | "map" | "architecture";
-export type BiblePlateSource =
-  | "wikimedia"
-  | "brooklyn"
-  | "met"
-  | "rijksmuseum"
-  | "nga"
-  | "loc"
-  | "panorama";
+export type BiblePlateKind = "artwork" | "artifact" | "map" | "architecture" | "place-photo" | "manuscript" | "timeline";
+export type BiblePlateSource = "wikimedia" | "brooklyn" | "met" | "rijksmuseum" | "nga" | "loc" | "panorama";
 export type BiblePlateLicense = "pd" | "cc0" | "cc-by";
 
 export interface BiblePlate {
@@ -26,15 +19,19 @@ export interface BiblePlate {
   license?: BiblePlateLicense;
   /** Lower = shown first when multiple plates share a verse slot. */
   priority?: number;
+  /** Validated, first-party derivative for visuals outside the legacy plate bundle. */
+  assetPath?: string;
+  visualAssetId?: string;
+  context?: {
+    label: string;
+    note: string;
+    credit: string;
+    licenseLabel: string;
+    licenseUrl?: string;
+  };
 }
 
-export interface ChapterTimelineEvent {
-  id: string;
-  label: string;
-  approxYear: string;
-  empire?: string;
-}
-
+export interface ChapterTimelineEvent { id: string; label: string; approxYear: string; empire?: string; }
 export interface ChapterContextBundle {
   bookAbbr: string;
   chapter: number;

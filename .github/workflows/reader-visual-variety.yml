@@ -1,0 +1,61 @@
+name: Reader visual variety
+on:
+  push:
+    branches: [fix/reader-visual-variety]
+  pull_request:
+    paths: ['src/lib/bible/readerVisuals*', 'src/data/visualBible/readerExpansion.json', 'scripts/test-reader-visual-variety.mjs', '.github/workflows/reader-visual-variety.yml']
+permissions:
+  contents: read
+concurrency:
+  group: reader-variety-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
+  VITE_SUPABASE_ANON_KEY: reader-test-placeholder
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Lint
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/variety-lint.log"
+      - name: Full tests
+        run: npm test 2>&1 | tee "$RUNNER_TEMP/variety-tests.log"
+      - name: Production build and source image acquisition
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/variety-build.log"
+      - name: Verify all acquired image hashes
+        run: node scripts/acquire-visual-bible.mjs --verify
+      - name: No new TypeScript diagnostics versus the starting main
+        run: node scripts/check-journal-type-regressions.mjs c74a3ed19bf497e668805c11c8b8e6365b2e48f6 2>&1 | tee "$RUNNER_TEMP/variety-types.log"
+      - name: Browser dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/variety-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/variety-playwright/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Existing and real page-turn visual regressions
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/variety-playwright/node_modules/playwright/index.mjs
+        run: |
+          node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/variety-reader.log"
+          node scripts/test-reader-visual-variety.mjs 2>&1 | tee "$RUNNER_TEMP/variety-browser.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-visual-variety
+          path: |
+            ${{ runner.temp }}/variety-*.log
+            ${{ runner.temp }}/reader-variety-*.png
+            ${{ runner.temp }}/reader-variety-results.json
+            public/visual-bible/v1/manifest.json

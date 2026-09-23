@@ -1,9 +1,10 @@
 import rawSeed from "@/data/visualBible/seed.json";
+import readerExpansion from "@/data/visualBible/readerExpansion.json";
 import type { VisualAsset, VisualSeed } from "@/data/visualBible/types";
 import { passageMatches } from "./query";
 
-// Source records are validated by acquisition and by the catalog regression tests.
-export const VISUAL_SEED = rawSeed as VisualSeed[];
+// Acquisition reads these same two files; neither gallery nor reader calls museum APIs.
+export const VISUAL_SEED = [...rawSeed, ...readerExpansion] as VisualSeed[];
 export const SEED_VISUALS: VisualAsset[] = VISUAL_SEED.map((asset) => ({
   ...asset,
   thumbnailUrl: asset.imageUrl.startsWith("/") ? asset.imageUrl : `/visual-bible/v1/${asset.id}-${asset.revision}-thumb.webp`,

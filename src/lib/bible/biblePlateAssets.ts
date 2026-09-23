@@ -1,23 +1,17 @@
 import type { BiblePlate } from "@/data/biblePlates/types";
 
-/**
- * Public, versioned reader artwork. The download script writes WebP files here
- * so the reader never needs an image CDN to render a plate or study map.
- */
 export const BIBLE_PLATE_ASSET_ROOT = "/bible-plates";
+type IdentifiedAsset = Pick<BiblePlate, "id" | "assetPath">;
 
-type IdentifiedAsset = Pick<BiblePlate, "id">;
-
-function localAssetUrl(path: string): string {
-  return `${BIBLE_PLATE_ASSET_ROOT}/${path}.webp`;
+/** Never let reader artwork introduce third-party requests or traversal paths. */
+export function isReaderAssetPath(path: string): boolean {
+  return /^\/visual-bible\/v\d+\/[a-z0-9-]+\.(?:webp|svg)$/i.test(path)
+    || /^\/bible-plates\/(?:maps\/)?[a-z0-9-]+\.webp$/i.test(path);
 }
-
-/** Stable local URL for a chapter-linked artwork plate. */
 export function biblePlateAssetUrl(plate: IdentifiedAsset): string {
-  return localAssetUrl(encodeURIComponent(plate.id));
+  if (plate.assetPath && isReaderAssetPath(plate.assetPath)) return plate.assetPath;
+  return `${BIBLE_PLATE_ASSET_ROOT}/${encodeURIComponent(plate.id)}.webp`;
 }
-
-/** Stable local URL for a study map. */
-export function studyMapAssetUrl(map: IdentifiedAsset): string {
-  return localAssetUrl(`maps/${encodeURIComponent(map.id)}`);
+export function studyMapAssetUrl(map: Pick<BiblePlate, "id">): string {
+  return `${BIBLE_PLATE_ASSET_ROOT}/maps/${encodeURIComponent(map.id)}.webp`;
 }
