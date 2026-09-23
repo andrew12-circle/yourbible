@@ -1,0 +1,47 @@
+name: Reader resize baseline evidence
+on:
+  push:
+    branches: [diagnostic/reader-resize-baseline]
+    paths: ['.github/workflows/reader-resize-baseline.yml']
+permissions:
+  contents: read
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: reader-test-placeholder
+  VITE_SUPABASE_ANON_KEY: reader-test-placeholder
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c74a3ed19bf497e668805c11c8b8e6365b2e48f6
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Browser dependencies
+        run: |
+          npm install --prefix "$RUNNER_TEMP/reader-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/reader-playwright/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Unmodified pre-repair reader and test
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/reader-playwright/node_modules/playwright/index.mjs
+        run: |
+          git rev-parse HEAD | tee "$RUNNER_TEMP/baseline-sha.txt"
+          node scripts/diagnose-bible-book-flow.mjs 2>&1 | tee "$RUNNER_TEMP/book-flow.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-resize-pre-repair-evidence
+          path: |
+            ${{ runner.temp }}/baseline-sha.txt
+            ${{ runner.temp }}/book-flow.log
+            ${{ runner.temp }}/book-flow-*.json
+            ${{ runner.temp }}/book-flow-*.png
