@@ -12,10 +12,15 @@ export interface WorkbookStory {
   text: string;
   /** Short label shown on the visual scene card. */
   title?: string;
-  /** Optional cover art. Kept separate from the scene text so art can be regenerated later. */
+  /** Optional external cover art URL. */
   cover_image_url?: string;
+  /** Private uploaded cover art stored in journal-photos. */
+  cover_storage_path?: string;
   /** Optional external narration destination, currently a dedicated ChatGPT conversation. */
   chatgpt_url?: string;
+  /** Reserved for native generated narration (for example ElevenLabs) without changing the card model later. */
+  narration_audio_url?: string;
+  narration_provider?: "chatgpt" | "elevenlabs";
 }
 
 export interface WorkbookManifestoItem {
@@ -246,7 +251,10 @@ function parseStories(raw: unknown): WorkbookStory[] {
       text: String(x.text ?? ""),
       title: x.title ? String(x.title) : undefined,
       cover_image_url: x.cover_image_url ? String(x.cover_image_url) : undefined,
+      cover_storage_path: x.cover_storage_path ? String(x.cover_storage_path) : undefined,
       chatgpt_url: x.chatgpt_url ? String(x.chatgpt_url) : undefined,
+      narration_audio_url: x.narration_audio_url ? String(x.narration_audio_url) : undefined,
+      narration_provider: x.narration_provider === "elevenlabs" ? "elevenlabs" : x.narration_provider === "chatgpt" ? "chatgpt" : undefined,
     }));
 }
 
