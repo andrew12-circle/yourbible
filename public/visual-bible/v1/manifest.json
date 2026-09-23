@@ -1,0 +1,707 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "met-436453",
+      "recordSha256": "747bd3ec8798485717697ad8e7dfa33ec4edf1ffed38a75ca1546861e0aeda92",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "69.281",
+        "url": "https://www.metmuseum.org/art/collection/search/436453",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gift of Elinor Dorrance Ingersoll, 1969.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:14.418Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-436453-1-thumb.webp",
+          "bytes": 29200,
+          "sha256": "7b014b13b13f05f3d6fa1c017d0f8934890d6553b9a96d9fd1cf918406b52c1d",
+          "width": 640,
+          "height": 490
+        },
+        {
+          "path": "/visual-bible/v1/met-436453-1-detail.webp",
+          "bytes": 147660,
+          "sha256": "adf0aaf14ecf90cf5c0c174532cd1af98427bac716751949585dae67cd1fccc8",
+          "width": 1200,
+          "height": 918
+        }
+      ],
+      "sourceSha256": "84fc558ee2a2f03521ca788410a04e4b26f515146652601d4ae0ab9ae688da58",
+      "sourceBytes": 183889,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/436453/2016369/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/436453/2016369/main-image"
+    },
+    {
+      "id": "met-371732",
+      "recordSha256": "eb9689ebcec0b84a11780ce13fb60c6034b48f666ce7420d66cfbdc6f3c53377",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "29.107.35",
+        "url": "https://www.metmuseum.org/art/collection/search/371732",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. H. O. Havemeyer Collection, Bequest of Mrs. H. O. Havemeyer, 1929.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:14.695Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-371732-1-thumb.webp",
+          "bytes": 49670,
+          "sha256": "d2f80670ec375743d0d40e1274d0a5d927d78fa2e54bc98480ddfd97045dfe58",
+          "width": 640,
+          "height": 459
+        },
+        {
+          "path": "/visual-bible/v1/met-371732-1-detail.webp",
+          "bytes": 303088,
+          "sha256": "aea6b5e5dbf81e3662d1d1ff3d512a3f287ffc0dfdb2981fdda6532e95d97637",
+          "width": 1200,
+          "height": 861
+        }
+      ],
+      "sourceSha256": "0b5604c4e1a5266053f553f2dffccefee6cb1e8222265867fe7e6c411bec3b0c",
+      "sourceBytes": 246854,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/371732/758309/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/371732/758309/main-image"
+    },
+    {
+      "id": "met-336222",
+      "recordSha256": "897d67ef64a2f0a73c200d025dea7fc03ca1b16951256ca8a09b95f059654243",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "19.73.1",
+        "url": "https://www.metmuseum.org/art/collection/search/336222",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Fletcher Fund, 1919.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:14.944Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-336222-1-thumb.webp",
+          "bytes": 78780,
+          "sha256": "70c1e37f0af4a7dfe1c38137467a7247a9025cd88501eb293aefc2f42a396cf6",
+          "width": 506,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-336222-1-detail.webp",
+          "bytes": 417186,
+          "sha256": "d0d228fc94fa1a6acb724b993d7c8acc673338f3e89e7d3d1c467665ee700bd4",
+          "width": 948,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "c3d5bb2de1d4dfa08abf4ae9ef47f9157d8c1cebad73a07be2e8cd01cc87cb05",
+      "sourceBytes": 334665,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/336222/766616/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/336222/766616/main-image"
+    },
+    {
+      "id": "met-436504",
+      "recordSha256": "f028e1e5a934c526c2fae92642ae21dd02a477922576472026698ea6ed9b3de4",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "11.126.1",
+        "url": "https://www.metmuseum.org/art/collection/search/436504",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. John Stewart Kennedy Fund, 1911.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:15.237Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-436504-1-thumb.webp",
+          "bytes": 80084,
+          "sha256": "51145f39ee6ab80c56b97ab0b68939bd46932ef3781d935ff1001f96e3ab766f",
+          "width": 622,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-436504-1-detail.webp",
+          "bytes": 445886,
+          "sha256": "64c3bdd9d43df2f17d693980f598cab535ba4660459817669146fe1df01679ae",
+          "width": 1166,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "3ebc78804d137ff6ead5848d926a37a39db0dc1635303748806f20aa20bc8fa5",
+      "sourceBytes": 449592,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/436504/2216475/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/436504/2216475/main-image"
+    },
+    {
+      "id": "met-328905",
+      "recordSha256": "b0fc4d0112681265eb1f6d408aedc057e253c8720ed787ef8e4c7ab9bf87f931",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "66.245.5b",
+        "url": "https://www.metmuseum.org/art/collection/search/328905",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gift of Mr. and Mrs. J. J. Klejman, 1966.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:15.551Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-328905-1-thumb.webp",
+          "bytes": 33178,
+          "sha256": "658c16cdffe245d68a522de431bcc738df5b24d90f419b4810579a37c23f5d3d",
+          "width": 480,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-328905-1-detail.webp",
+          "bytes": 166804,
+          "sha256": "2547b109fdd6c9b56f871b7fd4d0bf740c99721d5e1db93cc20fd3e92c645faf",
+          "width": 900,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "4d489d13151b422bf019d2fbfa47dfb0d698339e8ecb8a6ce400700a6aec8a97",
+      "sourceBytes": 148999,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/328905/713230/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/328905/713230/main-image"
+    },
+    {
+      "id": "met-322443",
+      "recordSha256": "6eb578732165753bea2930fee3fd78e9fea7f3286f948ce25d683534519d84d8",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "11.166.1",
+        "url": "https://www.metmuseum.org/art/collection/search/322443",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gift of J. Pierpont Morgan, 1911.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:15.826Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-322443-1-thumb.webp",
+          "bytes": 6862,
+          "sha256": "fc762aa07bcb9d072a9ca982b16533828ec2675db4f869b6dc1cec551bef2b14",
+          "width": 640,
+          "height": 479
+        },
+        {
+          "path": "/visual-bible/v1/met-322443-1-detail.webp",
+          "bytes": 30880,
+          "sha256": "257bdba839cd0419df56e0c39d3b4fa8ef6223299a065e562f69b0663e71de73",
+          "width": 1200,
+          "height": 899
+        }
+      ],
+      "sourceSha256": "169d3d5c4d5f6396285b5868203950e5b20c9f78793e011551c1d7166402d5f9",
+      "sourceBytes": 40336,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/322443/715647/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/322443/715647/main-image"
+    },
+    {
+      "id": "met-245196",
+      "recordSha256": "73dd8691b6b275906a3552b2b78a4f270b37b339d1eee24121f736fe2ddb64d5",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "81.10.39",
+        "url": "https://www.metmuseum.org/art/collection/search/245196",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gift of Henry G. Marquand, 1881.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:15.971Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-245196-1-thumb.webp",
+          "bytes": 7082,
+          "sha256": "a18faab9f96a3ad0d46f1529d0067bcec07725eb8097d3b4bda605e7bd1fc5d2",
+          "width": 640,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-245196-1-detail.webp",
+          "bytes": 30536,
+          "sha256": "29fe9202dde80143fdf39c7c10c8414d7a65e905c928aaa76fbc0f4f186c2554",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "99ed5081bbc2dd568b59c00c8377e4c9761e81a2e46f23115bdc5dec4951c8b7",
+      "sourceBytes": 54543,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/245196/530723/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/245196/530723/main-image"
+    },
+    {
+      "id": "met-547804",
+      "recordSha256": "c97cc402dd139f7e976f011c96f5321db5bb48b88f7681b0d9ca52318f406f4f",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "26.7.1428",
+        "url": "https://www.metmuseum.org/art/collection/search/547804",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gift of Edward S. Harkness, 1926.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:16.350Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-547804-1-thumb.webp",
+          "bytes": 12214,
+          "sha256": "b01bd7e435e49b6420ff43d8fde15525f104a0c2273bcdc5f5cc38e8d44f96e5",
+          "width": 481,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-547804-1-detail.webp",
+          "bytes": 56364,
+          "sha256": "ff6fa5bbc13ffc1687b78ef1d3048cf7ed532f6090fc5f73ecb0b514fd4788e1",
+          "width": 901,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "74ad9413080f9fb704d8c725a6d662e462658a50fe80062c70639020fc71a51e",
+      "sourceBytes": 65112,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/547804/1216926/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/547804/1216926/main-image"
+    },
+    {
+      "id": "met-249528",
+      "recordSha256": "c6cfc638f05b8ea4c10afa67e513dd41dee8c650aae561c3e93e9196d5c9b411",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "17.194.286a, b",
+        "url": "https://www.metmuseum.org/art/collection/search/249528",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gift of J. Pierpont Morgan, 1917.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:16.510Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-249528-1-thumb.webp",
+          "bytes": 8606,
+          "sha256": "e4ea4329b84130a1b70d1f45e827725551f170573e0d36aea9dbfadf48b16db0",
+          "width": 640,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-249528-1-detail.webp",
+          "bytes": 39398,
+          "sha256": "2863cb7b99c40c03d845f8d921f6d5d161d70ec84acf9bead989f9fcdda9218b",
+          "width": 1200,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "2d48fd173d9d08683ff76817c5184cc2bdbac91b08e91478a8bc969a22e4bfff",
+      "sourceBytes": 49492,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/249528/530898/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/249528/530898/main-image"
+    },
+    {
+      "id": "walters-w839-recto",
+      "recordSha256": "d92eab851045b402e9bea35af0a9c5b5f6a9016bb369db336e58bebb3759c216",
+      "source": {
+        "name": "The Walters Art Museum",
+        "objectId": "W.839, recto",
+        "url": "https://art.thewalters.org/object/W.839/",
+        "license": "CC0",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Walters Art Museum. Gift of Mr. and Mrs. Joseph Knopfelmacher, 1996.",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:16.669Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/walters-w839-recto-1-thumb.webp",
+          "bytes": 42210,
+          "sha256": "1093f9524c1ead36987897aa69e19fdcd9758b6dc2b8bb80a6fae90dc84ea97e",
+          "width": 446,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/walters-w839-recto-1-detail.webp",
+          "bytes": 429700,
+          "sha256": "25b63ea7b2367164d2a337b121ae3ef58767543cc0c268b36d85f7fff3a91951",
+          "width": 1255,
+          "height": 1800
+        }
+      ],
+      "sourceSha256": "bb961e4913c56b8b72db6b3a9d5c7be6cf2e6a88b42451e77e6b8e31b19a4a55",
+      "sourceBytes": 411892,
+      "originalUrl": "https://art.thewalters.org/object/W.839/?download=CPS_W.839.R_Fp_DD_ED22-tms.jpg",
+      "resolvedUrl": "https://art.thewalters.org/object/W.839/?download=CPS_W.839.R_Fp_DD_ED22-tms.jpg"
+    },
+    {
+      "id": "kinneret-2021",
+      "recordSha256": "cc98617353803a176e26ac44ea67e699f11552148f5de405acf5cd3ba67e2967",
+      "source": {
+        "name": "Wikimedia Commons / PikiWiki",
+        "objectId": "117291",
+        "url": "https://commons.wikimedia.org/wiki/File:117291_the_kinneret_area_PikiWiki_Israel.jpg",
+        "license": "CC BY 2.5",
+        "licenseUrl": "https://creativecommons.org/licenses/by/2.5/",
+        "credit": "Davidi Vardi Pikiwiki Israel",
+        "checkedOn": "2026-09-20"
+      },
+      "acquiredAt": "2026-09-23T22:11:19.153Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/kinneret-2021-1-thumb.webp",
+          "bytes": 45028,
+          "sha256": "9b8d926eeff0d7e0813d7a0ab5027d80276a2445f420b7ffa24a390142887ea1",
+          "width": 640,
+          "height": 427
+        },
+        {
+          "path": "/visual-bible/v1/kinneret-2021-1-detail.webp",
+          "bytes": 843702,
+          "sha256": "c4696bd5478de95f0933e94c61e4b957b5597ebbc25bfd6b92885ff199f36e71",
+          "width": 2400,
+          "height": 1600
+        }
+      ],
+      "sourceSha256": "bae264494ee2eb91d0e20f1d00c366324a6fc1770e2be0774204620515c2c2ad",
+      "sourceBytes": 2942312,
+      "originalUrl": "https://upload.wikimedia.org/wikipedia/commons/7/74/117291_the_kinneret_area_PikiWiki_Israel.jpg",
+      "resolvedUrl": "https://upload.wikimedia.org/wikipedia/commons/7/74/117291_the_kinneret_area_PikiWiki_Israel.jpg"
+    },
+    {
+      "id": "acts-overview",
+      "recordSha256": "4b73c4b77b31626855f8f9522f595aef0e441a16bd846573421c55fac612068b",
+      "source": {
+        "name": "YourBible",
+        "objectId": "acts-overview-v1",
+        "url": "/read/study/artwork",
+        "license": "YourBible original",
+        "credit": "YourBible. Original study diagram; Scripture references supplied for comparison."
+      },
+      "acquiredAt": "2026-09-23T22:11:20.402Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/acts-overview.svg",
+          "bytes": 2680,
+          "sha256": "457da3984d4f5fd3230792b4c42b946f38f922a6777544a2bf0de62b9663e56d",
+          "width": 1400,
+          "height": 1040
+        }
+      ],
+      "sourceSha256": "457da3984d4f5fd3230792b4c42b946f38f922a6777544a2bf0de62b9663e56d"
+    },
+    {
+      "id": "met-437820",
+      "recordSha256": "a1691ae3133fafd48d1cff8ee85cf81d11ef1d89e51d3a7bf4fe85fa92db3382",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "39.55",
+        "url": "https://www.metmuseum.org/art/collection/search/437820",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gwynne Andrews Fund, 1939.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:20.405Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-437820-1-thumb.webp",
+          "bytes": 30546,
+          "sha256": "d2ffa19ea2846270d5b179d38912f30f6f1b7f3276761f8716532308587e3aee",
+          "width": 640,
+          "height": 373
+        },
+        {
+          "path": "/visual-bible/v1/met-437820-1-detail.webp",
+          "bytes": 159716,
+          "sha256": "8ad780df1a5beab8a61378c31b041793ad84724ad495933a2d6831fcea81eb45",
+          "width": 1200,
+          "height": 699
+        }
+      ],
+      "sourceSha256": "3b0a3379f8d367a74a9c5e494912532de2de483f4b9b685594303b5874fd05cd",
+      "sourceBytes": 145026,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437820/801163/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437820/801163/main-image"
+    },
+    {
+      "id": "met-435962",
+      "recordSha256": "2609de63ef9c637a4ac32522f099fe116259ca66d2bdbaa203e3f92268e73950",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "38.64",
+        "url": "https://www.metmuseum.org/art/collection/search/435962",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Rogers Fund, 1938.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:21.359Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-435962-1-thumb.webp",
+          "bytes": 38816,
+          "sha256": "70b035603e99df1c0c05f77328908e8bfa518bb1ccabed33c84788e800bad590",
+          "width": 640,
+          "height": 473
+        },
+        {
+          "path": "/visual-bible/v1/met-435962-1-detail.webp",
+          "bytes": 183662,
+          "sha256": "a5c6450c4efed8dae8f17d2e49277c259711327ee49f4acd46fc88878c7bdda5",
+          "width": 1200,
+          "height": 887
+        }
+      ],
+      "sourceSha256": "5ce84f1c98caad44fbeed5a65c7464b0b8c4500a5d67822c4e3c82b1647c30b8",
+      "sourceBytes": 175533,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/435962/796243/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/435962/796243/main-image"
+    },
+    {
+      "id": "met-435680",
+      "recordSha256": "b0fad243df9c893e903709ac2d644e2978ba996207f32846b17ce14051ebbbd0",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "1972.171",
+        "url": "https://www.metmuseum.org/art/collection/search/435680",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Purchase, Gift of Mary V. T. Eberstadt, by exchange, 1972.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:21.592Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-435680-1-thumb.webp",
+          "bytes": 37828,
+          "sha256": "dfa848ad084ff2169c64d46678e7fa466cf652e9c857b8faf4d204654b44c2cd",
+          "width": 640,
+          "height": 474
+        },
+        {
+          "path": "/visual-bible/v1/met-435680-1-detail.webp",
+          "bytes": 184102,
+          "sha256": "03a47e34118347ff63c11fdd0a39707733697ac3732d3191f23c5f68c07bad99",
+          "width": 1200,
+          "height": 888
+        }
+      ],
+      "sourceSha256": "2d7b2f47710a03f28be6a09130c1e50b1d43b3b72ce1a40f815073e01d6d1011",
+      "sourceBytes": 210885,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/435680/795760/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/435680/795760/main-image"
+    },
+    {
+      "id": "met-436913",
+      "recordSha256": "9860e4624beb00ff1b4d6df0ec3cb706aaf9890655cb158205e2db700c334730",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "65.14.3",
+        "url": "https://www.metmuseum.org/art/collection/search/436913",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gwynne Andrews Fund, and Bequest of Mabel Choate, in memory of her father, Joseph Hodges Choate, by exchange, 1965.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:21.848Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-436913-1-thumb.webp",
+          "bytes": 51410,
+          "sha256": "85a94e8e1e901f27ab6c870f5d911bb11f2edad4433c9b5c7aa45fd62f9330ca",
+          "width": 468,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-436913-1-detail.webp",
+          "bytes": 301414,
+          "sha256": "b041395cf6e7be393f86767fe1c445064f51331191399d34a693d3e98d97d821",
+          "width": 878,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "0dcd1460576a74c4bc3e0b42d532b1bad9f77ea98ccaf5f3e26891668e330869",
+      "sourceBytes": 318911,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/436913/2004243/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/436913/2004243/main-image"
+    },
+    {
+      "id": "met-459016",
+      "recordSha256": "704c3b31595a29fbe59442ff33bcf925e6554b72fea233517137ae7f643fe199",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "1975.1.74",
+        "url": "https://www.metmuseum.org/art/collection/search/459016",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Robert Lehman Collection, 1975.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:22.585Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-459016-1-thumb.webp",
+          "bytes": 39950,
+          "sha256": "78cc7ff469cf7dd6ff4abf10b2188f2cfce33b0e3e8bedf753cd37a154d487b7",
+          "width": 640,
+          "height": 420
+        },
+        {
+          "path": "/visual-bible/v1/met-459016-1-detail.webp",
+          "bytes": 215550,
+          "sha256": "f6985881b280bfd81cac1d633e93859f4eeccce56acf540f44fa0d9325234744",
+          "width": 1200,
+          "height": 788
+        }
+      ],
+      "sourceSha256": "ebe34711ac35474a7f4cc4427ffe1795703d0fd402147fb7f4931a2ba71e78cb",
+      "sourceBytes": 189363,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/459016/917581/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/459016/917581/main-image"
+    },
+    {
+      "id": "met-437986",
+      "recordSha256": "c1732cf79fe11d5f3d4e751035ba554d752eaa0f519e8b06bf0b9ce56a211dce",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "1997.167",
+        "url": "https://www.metmuseum.org/art/collection/search/437986",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Gift of Herman and Lila Shickman, and Purchase, Lila Acheson Wallace Gift, 1997.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:22.904Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-437986-1-thumb.webp",
+          "bytes": 10974,
+          "sha256": "fac2250bfacf8823f47483fa180cc09a4ec0574e3d7eee24a0c3be91cb173b65",
+          "width": 640,
+          "height": 476
+        },
+        {
+          "path": "/visual-bible/v1/met-437986-1-detail.webp",
+          "bytes": 59018,
+          "sha256": "063ea9717fbaea681f060abd08946fd76b8f2a1157340acf786fa99b845b2650",
+          "width": 1200,
+          "height": 893
+        }
+      ],
+      "sourceSha256": "ffa3e938e1d452e04b0372db46fa2c9227436563f76c976fab92b042b6f2635b",
+      "sourceBytes": 85819,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437986/1641164/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437986/1641164/main-image"
+    },
+    {
+      "id": "met-459087",
+      "recordSha256": "37eb529ba9ffe9d0297ff75b5829509372958e10ee552b56132347c48caa4871",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "1975.1.145",
+        "url": "https://www.metmuseum.org/art/collection/search/459087",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Robert Lehman Collection, 1975.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:23.050Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-459087-1-thumb.webp",
+          "bytes": 18862,
+          "sha256": "a2ee149ab05aacdcb79ba61b5d8b9c05fdef9b702faf1f61a6e70c5f7dee7a5e",
+          "width": 463,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-459087-1-detail.webp",
+          "bytes": 95534,
+          "sha256": "c0095cf26b9254f7cca616e4626eba87400c474e1741198d3e4e239a1967b81e",
+          "width": 868,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "10701c0fd22548e6c5bd1889d44c2bf9a4fdf16758361688bd8c4bb20a0631b9",
+      "sourceBytes": 110451,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/459087/1456237/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/459087/1456237/main-image"
+    },
+    {
+      "id": "met-437871",
+      "recordSha256": "8a6ac8159106496d6a1bc6723e1f10c892e77f88d11604c3b42be2675eacaa7c",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "14.40.631",
+        "url": "https://www.metmuseum.org/art/collection/search/437871",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Bequest of Benjamin Altman, 1913.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:23.683Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-437871-1-thumb.webp",
+          "bytes": 18332,
+          "sha256": "916d132ff22f54e867bba2c80887ebdd60ba2afa150b18dd59452fe5d218f745",
+          "width": 640,
+          "height": 597
+        },
+        {
+          "path": "/visual-bible/v1/met-437871-1-detail.webp",
+          "bytes": 103240,
+          "sha256": "c71f1ea0bd9c55710cf9294f31e9f786523b73eab70e7d092848c755ed3fca18",
+          "width": 1200,
+          "height": 1120
+        }
+      ],
+      "sourceSha256": "e51b2973d33d6985f8221d70ae1c6ab13d982a36f99fc3c19361ba9e98253140",
+      "sourceBytes": 129858,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437871/794425/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437871/794425/main-image"
+    },
+    {
+      "id": "met-437789",
+      "recordSha256": "002e79c344ff386f91f485d9bfd25ff0b188b1b0de9e885c2efe315c22c06346",
+      "source": {
+        "name": "The Metropolitan Museum of Art",
+        "objectId": "37.165.1",
+        "url": "https://www.metmuseum.org/art/collection/search/437789",
+        "license": "CC0 / public domain",
+        "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+        "credit": "The Metropolitan Museum of Art. Rogers Fund, 1937.",
+        "checkedOn": "2026-09-23"
+      },
+      "acquiredAt": "2026-09-23T22:11:23.902Z",
+      "files": [
+        {
+          "path": "/visual-bible/v1/met-437789-1-thumb.webp",
+          "bytes": 53020,
+          "sha256": "843911508088e1f7609afd4656e477e92811a2642aee4fd71cc948ee0c4eb4ba",
+          "width": 515,
+          "height": 640
+        },
+        {
+          "path": "/visual-bible/v1/met-437789-1-detail.webp",
+          "bytes": 268818,
+          "sha256": "8673265fa9729f2c64f3494902b6e504bb9adfd50c1d8fbcae6340bd222e1a5e",
+          "width": 966,
+          "height": 1200
+        }
+      ],
+      "sourceSha256": "9daf0f6058315a61459d87224a2242e4a6613245685ca0f2bc044003b1b55ee8",
+      "sourceBytes": 233755,
+      "originalUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437789/795957/main-image",
+      "resolvedUrl": "https://collectionapi.metmuseum.org/api/collection/v1/iiif/437789/795957/main-image"
+    }
+  ]
+}
