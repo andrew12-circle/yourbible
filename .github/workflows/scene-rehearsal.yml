@@ -1,0 +1,46 @@
+name: Scene rehearsal regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/livingHope/sceneRehearsal*'
+      - 'src/hooks/useSceneRehearsalPlayback*'
+      - 'src/components/living-hope/SceneRehearsalPlayer.tsx'
+      - 'src/components/living-hope/VisionEmbodimentWalkthrough.tsx'
+      - 'src/components/living-hope/TodayAssignmentPanel.tsx'
+      - '.github/workflows/scene-rehearsal.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: scene-rehearsal-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            src
+            scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Isolated regression configuration
+        run: |
+          cat > scene-regression.config.mjs <<'CONFIG'
+          import { fileURLToPath } from 'node:url';
+          export default {
+            resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+            test: { environment: 'node' }
+          };
+          CONFIG
+      - name: Rehearsal and playback regressions
+        run: npx vitest run src/lib/livingHope/sceneRehearsal.test.ts src/hooks/useSceneRehearsalPlayback.test.tsx --config scene-regression.config.mjs
+      - name: Changed-file lint
+        run: npx eslint src/lib/livingHope/sceneRehearsal.ts src/hooks/useSceneRehearsalPlayback.ts src/components/living-hope/SceneRehearsalPlayer.tsx src/components/living-hope/VisionEmbodimentWalkthrough.tsx src/components/living-hope/TodayAssignmentPanel.tsx
