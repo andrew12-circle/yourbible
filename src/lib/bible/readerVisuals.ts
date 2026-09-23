@@ -91,8 +91,10 @@ export function selectReaderVisuals(book: string, chapter: number, legacy: reado
     break;
   }
   if (selected.filter((p) => (p.kind ?? "artwork") === "artwork").length < 2) {
-    const eligible = fallback.filter((p) => !selected.some((s) => s.beforeVerse === p.beforeVerse || s.imageUrl === p.imageUrl));
-    add(eligible.find((p) => p.artist !== selected[0]?.artist) ?? eligible[0]);
+    // Preserve the next catalogued narrative scene instead of skipping ahead solely
+    // for a different artist. Artist variety is selected within the same verse slot.
+    const next = fallback.find((p) => !selected.some((s) => s.beforeVerse === p.beforeVerse || s.imageUrl === p.imageUrl));
+    add(next);
   }
   // Context may replace a legacy opener, never a source-checked painting. No invented verse.
   if (!selected.some((p) => p.kind && p.kind !== "artwork") && contexts.length) {

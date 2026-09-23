@@ -28,27 +28,19 @@ describe("spread pagination invariants", () => {
     const wholeStream = [0, stream.length];
     const normalized = ensureSpreadPageSplits(wholeStream, stream);
     expect(isSpreadDoubleColumnSplitsReady(normalized, stream.length)).toBe(true);
-
     const left = sliceReaderSpreadPane(stream, normalized, 0, "left", stream.length);
     const right = sliceReaderSpreadPane(stream, normalized, 0, "right", stream.length);
     expect(left?.verseGroups.length).toBeGreaterThan(0);
     expect(right?.verseGroups.length).toBeGreaterThan(0);
     expect(left?.verseGroups[0]?.verses[0]?.number).toBe(1);
-    expect(right?.verseGroups[0]?.verses[0]?.number).toBeGreaterThan(
-      left!.verseGroups.at(-1)!.verses.at(-1)!.number,
-    );
+    expect(right?.verseGroups[0]?.verses[0]?.number).toBeGreaterThan(left!.verseGroups.at(-1)!.verses.at(-1)!.number);
   });
-
   it("paired splits always give rightEnd greater than leftEnd on spread 0", () => {
     const stream = buildReaderStream([
       {
-        bookAbbr: "Jos",
-        bookName: "Joshua",
-        chapter: 11,
+        bookAbbr: "Jos", bookName: "Joshua", chapter: 11,
         verses: verses(Array.from({ length: 23 }, (_, i) => i + 1)),
-        paragraphStarts: [1],
-        headings: [],
-        poetryBlocks: [],
+        paragraphStarts: [1], headings: [], poetryBlocks: [],
       },
     ]);
     const paired = [0, 8, 18, stream.length];
@@ -57,17 +49,12 @@ describe("spread pagination invariants", () => {
     const right = sliceReaderSpreadPane(stream, normalized, 0, "right", stream.length);
     expect(right?.verseGroups.length).toBeGreaterThan(0);
   });
-
   it("multi-spread splits continue mid-chapter on spread 1 and spread 2", () => {
     const stream = buildReaderStream([
       {
-        bookAbbr: "Jos",
-        bookName: "Joshua",
-        chapter: 4,
+        bookAbbr: "Jos", bookName: "Joshua", chapter: 4,
         verses: verses(Array.from({ length: 40 }, (_, i) => i + 1)),
-        paragraphStarts: [1],
-        headings: [],
-        poetryBlocks: [],
+        paragraphStarts: [1], headings: [], poetryBlocks: [],
       },
     ]);
     const splits = [0, 10, 20, 30, 40, stream.length];
@@ -80,20 +67,20 @@ describe("spread pagination invariants", () => {
     expect(spread1Left?.startsWithChapterHeader).toBeNull();
     expect(spread2Left?.verseGroups[0]?.verses[0]?.number).toBeGreaterThan(1);
   });
-
   it("right pane first verse follows left pane last verse in Joshua 13 spread", () => {
     const stream = buildReaderStream([
       {
-        bookAbbr: "Jos",
-        bookName: "Joshua",
-        chapter: 13,
+        bookAbbr: "Jos", bookName: "Joshua", chapter: 13,
         verses: verses(Array.from({ length: 33 }, (_, i) => i + 1)),
-        paragraphStarts: [1],
-        headings: [{ beforeVerse: 1, text: "Unconquered Lands" }],
-        poetryBlocks: [],
+        paragraphStarts: [1], headings: [{ beforeVerse: 1, text: "Unconquered Lands" }], poetryBlocks: [],
       },
     ]);
-    const splits = [0, 15, 29, stream.length];
+    // The map is now a real stream unit. Anchor the fixture to verses, not the old
+    // assumption that every unit except the chapter header is Scripture text.
+    const verse15 = stream.findIndex((unit) => unit.kind === "verse" && unit.verse.number === 15);
+    const verse29 = stream.findIndex((unit) => unit.kind === "verse" && unit.verse.number === 29);
+    expect(stream.some((unit) => unit.kind === "plate" && unit.plate.kind === "map")).toBe(true);
+    const splits = [0, verse15, verse29, stream.length];
     const left = sliceReaderSpreadPane(stream, splits, 0, "left", stream.length);
     const right = sliceReaderSpreadPane(stream, splits, 0, "right", stream.length);
     const leftLast = left!.verseGroups.at(-1)!.verses.at(-1)!.number;
@@ -101,17 +88,12 @@ describe("spread pagination invariants", () => {
     expect(leftLast).toBe(14);
     expect(rightFirst).toBe(15);
   });
-
   it("Joshua 14 spread continues 14:13 on left to 14:14 on right", () => {
     const stream = buildReaderStream([
       {
-        bookAbbr: "Jos",
-        bookName: "Joshua",
-        chapter: 14,
+        bookAbbr: "Jos", bookName: "Joshua", chapter: 14,
         verses: verses(Array.from({ length: 15 }, (_, i) => i + 1)),
-        paragraphStarts: [1],
-        headings: [{ beforeVerse: 1, text: "Hebron Given to Caleb" }],
-        poetryBlocks: [],
+        paragraphStarts: [1], headings: [{ beforeVerse: 1, text: "Hebron Given to Caleb" }], poetryBlocks: [],
       },
     ]);
     const splits = [0, 14, stream.length];
@@ -121,17 +103,12 @@ describe("spread pagination invariants", () => {
     expect(right?.verseGroups[0]?.verses[0]?.number).toBe(14);
     expect(right?.verseGroups[0]?.chapter).toBe(14);
   });
-
   it("multi-spread Joshua 14 continues on spread 1 left after spread 0 right ends", () => {
     const stream = buildReaderStream([
       {
-        bookAbbr: "Jos",
-        bookName: "Joshua",
-        chapter: 14,
+        bookAbbr: "Jos", bookName: "Joshua", chapter: 14,
         verses: verses(Array.from({ length: 38 }, (_, i) => i + 1)),
-        paragraphStarts: [1],
-        headings: [],
-        poetryBlocks: [],
+        paragraphStarts: [1], headings: [], poetryBlocks: [],
       },
     ]);
     const splits = [0, 14, 28, 35, stream.length];
