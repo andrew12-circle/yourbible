@@ -1,0 +1,50 @@
+name: Bundle reader visual assets
+on:
+  push:
+    branches: [fix/reader-visual-variety]
+    paths: ['.github/workflows/bundle-reader-visuals.yml']
+permissions:
+  contents: read
+jobs:
+  bundle:
+    if: github.ref == 'refs/heads/fix/reader-visual-variety'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Acquire and independently verify the approved catalog images
+        run: |
+          node scripts/acquire-visual-bible.mjs
+          node scripts/acquire-visual-bible.mjs --verify
+      - name: Commit only the public visual bundle to the repair branch
+        env:
+          BUNDLE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/fix/reader-visual-variety'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f -- public/visual-bible/v1/manifest.json public/visual-bible/v1/*-thumb.webp public/visual-bible/v1/*-detail.webp
+          if git diff --cached --quiet; then exit 0; fi
+          git diff --cached --name-only | while IFS= read -r path; do
+            case "$path" in public/visual-bible/v1/*.webp|public/visual-bible/v1/manifest.json) ;; *) echo 'Unexpected staged file'; exit 1;; esac
+          done
+          git commit -m 'Bundle verified visual images for reliable first-party deployment'
+          auth="$(printf 'x-access-token:%s' "$BUNDLE_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin HEAD:refs/heads/fix/reader-visual-variety
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-visual-acquisition
+          path: public/visual-bible/v1/manifest.json
