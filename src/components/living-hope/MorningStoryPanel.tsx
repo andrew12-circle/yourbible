@@ -2,7 +2,7 @@ import { DictateButton } from "@/components/journal/DictateButton";
 import { JournalAiPrivacy } from "@/components/journal/JournalAiPrivacy";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ExternalLink, Play, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import type { WorkbookStory } from "@/lib/livingHope/workbookTypes";
@@ -17,6 +17,16 @@ import {
 } from "@/lib/livingHope/storyPlaythrough";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
+
+const ACE_SCENE_URL =
+  "https://chatgpt.com/g/g-p-6868a9d4590481918f3bfd31e01c3abe-god/c/6ab3ed65-d60c-83ea-a731-279c06afe97c";
+
+const ACE_SCENE = {
+  title: "ACE Is Working",
+  description:
+    "Eight appointments. Six conversations. Three applications. Two deals. Work feels ordered, useful, and light — then the laptop closes and life continues.",
+  url: ACE_SCENE_URL,
+};
 
 type Props = {
   stories: WorkbookStory[];
@@ -111,50 +121,102 @@ export function MorningStoryPanel({
       <p className={cn(lh.bodySm, "leading-relaxed")}>{STORY_PLAYTHROUGH_INTRO}</p>
 
       <section>
-        <h2 className={cn(lh.labelUpper, "mb-2")}>Your scenes</h2>
-        {stories.length === 0 ? (
-          <p className={cn(lh.footnote, "mb-3")}>
-            No scenes yet — add one below or in your workbook. Each morning, pick one to play through.
-          </p>
-        ) : (
-          <ul className="space-y-2 list-none p-0 m-0">
-            {stories.map((story, index) => {
-              const selected = selectedIndex === index;
-              const suggested = index === suggestedIndex % Math.max(1, stories.length);
-              return (
-                <li key={story.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectStory(index)}
-                    className={cn(
-                      lh.cardFlat,
-                      "w-full text-left px-4 py-3 transition-colors",
-                      selected ? "border-primary/50 bg-primary/5 ring-1 ring-primary/30" : "hover:bg-muted/50",
-                    )}
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <div>
+            <h2 className={cn(lh.labelUpper, "mb-1")}>Play a scene</h2>
+            <p className={lh.footnote}>Choose a scene, open it, then use ChatGPT Read Aloud and close your eyes.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <article className={cn(lh.cardFlat, "overflow-hidden")}>
+            <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-700 to-amber-100">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.24),transparent_38%)]" />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-12 text-white">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">Business · provision · margin</p>
+                <h3 className="text-lg font-semibold leading-tight">{ACE_SCENE.title}</h3>
+              </div>
+            </div>
+            <div className="space-y-3 p-4">
+              <p className={cn(lh.bodySm, "line-clamp-3 leading-relaxed")}>{ACE_SCENE.description}</p>
+              <Button asChild className={cn(lh.btnPrimary, "w-full gap-2")}>
+                <a href={ACE_SCENE.url} target="_blank" rel="noopener noreferrer">
+                  <Play className="h-4 w-4" />
+                  Play scene
+                  <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                </a>
+              </Button>
+            </div>
+          </article>
+
+          {stories.map((story, index) => {
+            const selected = selectedIndex === index;
+            const suggested = index === suggestedIndex % Math.max(1, stories.length);
+            const title = story.title?.trim() || `Scene ${index + 1}`;
+            return (
+              <article
+                key={story.id}
+                className={cn(
+                  lh.cardFlat,
+                  "overflow-hidden transition-shadow",
+                  selected ? "border-primary/50 ring-1 ring-primary/30" : "",
+                )}
+              >
+                <button type="button" onClick={() => handleSelectStory(index)} className="block w-full text-left">
+                  <div
+                    className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-muted via-background to-primary/10 bg-cover bg-center"
+                    style={story.cover_image_url ? { backgroundImage: `url("${story.cover_image_url}")` } : undefined}
                   >
-                    <div className="flex items-start gap-3">
-                      <span
-                        className={cn(
-                          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                          selected ? "border-primary bg-primary text-primary-foreground" : "border-border",
-                        )}
-                        aria-hidden
-                      >
-                        {selected ? <Check className="h-3 w-3" /> : null}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className={cn(lh.bodySm, "leading-snug")}>{story.text}</p>
-                        {suggested ? (
-                          <p className={cn(lh.footnote, "mt-1", lh.accentMuted)}>Suggested today</p>
-                        ) : null}
-                      </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent" />
+                    <div className="absolute left-3 top-3 flex items-center gap-2">
+                      {suggested ? (
+                        <span className="rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm">
+                          Suggested today
+                        </span>
+                      ) : null}
+                      {selected ? (
+                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                          <Check className="h-3.5 w-3.5" />
+                        </span>
+                      ) : null}
                     </div>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                    <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                      <h3 className="text-base font-semibold leading-tight">{title}</h3>
+                    </div>
+                  </div>
+                </button>
+                <div className="space-y-3 p-4">
+                  <p className={cn(lh.bodySm, "line-clamp-3 leading-relaxed")}>{story.text}</p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(lh.btnSecondary, "flex-1 gap-2")}
+                      onClick={() => handleSelectStory(index)}
+                    >
+                      <Play className="h-4 w-4" />
+                      Play here
+                    </Button>
+                    {story.chatgpt_url ? (
+                      <Button asChild className={cn(lh.btnPrimary, "flex-1 gap-2")}>
+                        <a href={story.chatgpt_url} target="_blank" rel="noopener noreferrer">
+                          Listen
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {stories.length === 0 ? (
+          <p className={cn(lh.footnote, "mt-3")}>
+            Your saved scene library is empty. Add scenes below; each one can later have its own cover image and narration link.
+          </p>
+        ) : null}
       </section>
 
       {adding ? (
