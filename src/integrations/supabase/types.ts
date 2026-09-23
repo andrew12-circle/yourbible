@@ -3690,6 +3690,19 @@ export type Database = {
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
       ensure_default_todo_lists: { Args: never; Returns: undefined }
+      ensure_morning_formula_entry: {
+        Args: {
+          p_body: string
+          p_context?: Json
+          p_journal_id: string
+          p_review_date: string
+          p_title: string
+        }
+        Returns: {
+          created: boolean
+          entry_id: string
+        }[]
+      }
       get_ai_usage_by_function: {
         Args: { p_days?: number }
         Returns: {
@@ -3732,6 +3745,37 @@ export type Database = {
         }[]
       }
       get_my_storage_usage: { Args: never; Returns: Json }
+      journal_entry_list_page: {
+        Args: {
+          p_entry_kind?: string
+          p_exclude_journal_ids?: string[]
+          p_include_encrypted?: boolean
+          p_journal_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort_updated?: boolean
+        }
+        Returns: {
+          analyze_for_mirror: boolean
+          body: string
+          e2e_encrypted: boolean
+          entry_at_ts: string
+          entry_kind: string
+          id: string
+          journal_id: string
+          location_name: string
+          mood: number
+          pinned: boolean
+          summary: string
+          title: string
+          updated_at: string
+          user_id: string
+          weather: string
+          weather_icon: string
+          weather_temp_c: number
+        }[]
+      }
       list_user_storage_objects_for_backup: {
         Args: { p_user_id: string }
         Returns: {
