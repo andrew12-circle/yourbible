@@ -43,6 +43,7 @@ import {
 import { LS_BIBLE_KEY, persistBibleSelection } from "@/lib/bible/storedBibleId";
 import { isSupportedReaderBibleId } from "@/lib/bible/bibleEditions";
 import { splitJesusSpeechForChapter, type Segment as JesusSegment } from "@/lib/bible/redLetter";
+import { readerRunningHead } from "@/lib/bible/readerRunningHead";
 import { ReaderPageHeader, ReaderPageFooter, ReaderPageBodyPlaceholder } from "@/pages/reader/ReaderPageChrome";
 import { renderReaderPageScripture } from "@/pages/reader/renderReaderPageScripture";
 import { Ribbons, type RibbonData } from "@/components/bible/Ribbons";
@@ -1336,7 +1337,7 @@ export default function ReaderPage() {
             compactChrome={compactChrome}
             effectiveSpread={effectiveSpread}
             globalPage={globalPage}
-            pageBookName={pageBookName}
+            pageReference={ready ? readerRunningHead(streamSlice, { bookAbbr: pageBookAbbr, bookName: pageBookName, chapter: pageChapter }) : null}
             onOpenSettings={openReaderSettings}
           />
         </div>
@@ -1440,10 +1441,10 @@ export default function ReaderPage() {
         {!focusMode && !scrollMode && !compactChrome ? (
           <ReaderPageFooter
             inkMode={inkMode}
-            pageBookName={pageBookName}
-            globalPage={globalPage}
-            currentBible={currentBible}
-            onOpenSettings={openReaderSettings}
+            side={side}
+            effectiveSpread={effectiveSpread}
+            canGoBack={canGoBackMobile}
+            canGoForward={canGoForwardMobile}
             onPrevPage={() => goPage(-1)}
             onNextPage={() => goPage(1)}
           />
@@ -1476,7 +1477,7 @@ export default function ReaderPage() {
   };
   const spreadNudgeRight = compactChrome && !scrollMode && activePageIdx > 0;
   const showReaderDock = !showHubShell && compactChrome && !focusMode;
-  const showMobileChapterBar = compactChrome && !focusMode;
+  const showMobileChapterBar = !effectiveSpread && compactChrome && !focusMode;
   const mobileChromeBottom = readerMobileSceneBottomClass(showReaderDock);
   const mobilePageTurnBottom = readerMobilePageTurnBottomClass(showReaderDock, compactChrome);
 
@@ -1791,14 +1792,12 @@ export default function ReaderPage() {
 
       {showMobileChapterBar ? (
         <ReaderMobileChapterBar
-          bookName={book.name}
-          chapter={chapter}
           scrollMode={scrollMode}
+          disabled={inkMode}
           canGoBack={canGoBackMobile}
           canGoForward={canGoForwardMobile}
           onBack={handleMobileNavBack}
           onForward={handleMobileNavForward}
-          onOpenSettings={openReaderSettings}
           dockVisible={showReaderDock}
           position={overlayPos}
         />
