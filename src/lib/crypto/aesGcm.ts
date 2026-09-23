@@ -39,7 +39,7 @@ export async function aesGcmDecrypt(key: CryptoKey, envelope: AesGcmEnvelopeV1):
   const plain = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: base64ToBytes(envelope.iv) as BufferSource },
     key,
-    base64ToBytes(envelope.ct),
+    base64ToBytes(envelope.ct) as BufferSource,
   );
   return new TextDecoder().decode(plain);
 }
