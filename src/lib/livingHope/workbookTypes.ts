@@ -10,6 +10,12 @@ export interface IncomeLine {
 export interface WorkbookStory {
   id: string;
   text: string;
+  /** Short label shown on the visual scene card. */
+  title?: string;
+  /** Optional cover art. Kept separate from the scene text so art can be regenerated later. */
+  cover_image_url?: string;
+  /** Optional external narration destination, currently a dedicated ChatGPT conversation. */
+  chatgpt_url?: string;
 }
 
 export interface WorkbookManifestoItem {
@@ -165,7 +171,7 @@ export function mergeWorkbook(raw: unknown): LivingHopeWorkbookContent {
     vision_tagline: String(o.vision_tagline ?? base.vision_tagline),
     income_total_label: String(o.income_total_label ?? base.income_total_label),
     income_lines: parseIncomeLines(o.income_lines),
-    stories: parseTextItems(o.stories, "text"),
+    stories: parseStories(o.stories),
     manifesto: parseTextItems(o.manifesto, "text"),
     quotes: parseTextItems(o.quotes, "text"),
     lifestyle: parseStringList(o.lifestyle),
@@ -228,6 +234,19 @@ function parseIncomeLines(raw: unknown): IncomeLine[] {
       label: String(x.label ?? ""),
       amount: String(x.amount ?? ""),
       priority: typeof x.priority === "number" ? x.priority : undefined,
+    }));
+}
+
+function parseStories(raw: unknown): WorkbookStory[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null)
+    .map((x) => ({
+      id: String(x.id ?? newId()),
+      text: String(x.text ?? ""),
+      title: x.title ? String(x.title) : undefined,
+      cover_image_url: x.cover_image_url ? String(x.cover_image_url) : undefined,
+      chatgpt_url: x.chatgpt_url ? String(x.chatgpt_url) : undefined,
     }));
 }
 
