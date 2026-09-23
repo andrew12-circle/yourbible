@@ -1,8 +1,7 @@
 import type { CSSProperties, Ref } from "react";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { readerEditionAbbreviation } from "@/lib/bible/readerEditionAttribution";
-import type { BibleEntry } from "@/lib/bible/api";
+import { pageHorizontalPadding } from "@/lib/bible/readerPageMargins";
 
 type HeaderProps = {
   side: "left" | "right";
@@ -10,7 +9,8 @@ type HeaderProps = {
   compactChrome: boolean;
   effectiveSpread: boolean;
   globalPage: number;
-  pageBookName: string;
+  /** Actual chapter range on this physical page, never the route alone. */
+  pageReference: string | null;
   onOpenSettings: () => void;
 };
 
@@ -20,44 +20,51 @@ export function ReaderPageHeader({
   compactChrome,
   effectiveSpread,
   globalPage,
-  pageBookName,
+  pageReference,
   onOpenSettings,
 }: HeaderProps) {
-  const showRightNumber = side === "right" && !scrollMode && !compactChrome;
-  const showLeftNumber = side === "left" && !scrollMode && !compactChrome;
+  const padding = pageHorizontalPadding(side, !effectiveSpread, compactChrome);
+  const left = String(padding.paddingLeft);
+  const right = String(padding.paddingRight);
+  const labelOnRight = effectiveSpread && side === "right";
+  const showNumber = !scrollMode && pageReference != null && Number.isSafeInteger(globalPage) && globalPage > 0;
   return (
-    <>
-      {showRightNumber ? (
-        <span className="reader-page-number pt-0.5 shrink-0" aria-hidden>
-          {globalPage}
-        </span>
-      ) : (
-        <span className="w-0 shrink-0" aria-hidden />
-      )}
-      <div
-        className={cn(
-          "min-w-0 flex-1",
-          !effectiveSpread || side === "left" ? "text-left" : "text-right",
-        )}
-      >
+    <div
+      data-reader-running-head
+      className="relative h-5 min-w-0 shrink-0 text-[10px] font-display leading-5 text-muted-foreground/70"
+      // The text margins are asymmetric near the spine. Bleed only the header
+      // back to the physical page edges so its number is truly centered.
+      style={{
+        width: `calc(100% + ${left} + ${right})`,
+        marginLeft: `calc(-1 * ${left})`,
+        marginRight: `calc(-1 * ${right})`,
+      }}
+    >
+      {pageReference != null ? (
         <button
           type="button"
+          data-reader-running-reference
           onClick={onOpenSettings}
-          className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60 font-medium hover:text-muted-foreground transition-colors"
-          aria-label={`${pageBookName} — open reader settings`}
+          className="absolute top-0 truncate text-[10px] font-medium uppercase tracking-[0.12em] transition-colors hover:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+          style={{
+            ...(labelOnRight ? { right, textAlign: "right" as const } : { left, textAlign: "left" as const }),
+            maxWidth: `calc(50% - ${labelOnRight ? right : left} - 1.25rem)`,
+          }}
+          aria-label={`${pageReference} — open reader settings`}
         >
-          {pageBookName}
+          {pageReference}
         </button>
-
-      </div>
-      {showLeftNumber ? (
-        <span className="reader-page-number pt-0.5 shrink-0" aria-hidden>
+      ) : null}
+      {showNumber ? (
+        <span
+          data-reader-running-page-number
+          className="reader-page-number pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 tabular-nums"
+          aria-label={`Page ${globalPage}`}
+        >
           {globalPage}
         </span>
-      ) : (
-        <span className="w-0 shrink-0" aria-hidden />
-      )}
-    </>
+      ) : null}
+    </div>
   );
 }
 
@@ -106,65 +113,53 @@ export function ReaderPageBodyPlaceholder({
 
 type FooterProps = {
   inkMode: boolean;
-  pageBookName: string;
-  globalPage: number;
-  currentBible: BibleEntry | undefined;
-  onOpenSettings: () => void;
+  side: "left" | "right";
+  effectiveSpread: boolean;
+  canGoBack: boolean;
+  canGoForward: boolean;
   onPrevPage: () => void;
   onNextPage: () => void;
 };
 
+/** Preserve the measured footer band; remove its visual chrome, not its tap target. */
 export function ReaderPageFooter({
   inkMode,
-  pageBookName,
-  globalPage,
-  currentBible,
-  onOpenSettings,
+  side,
+  effectiveSpread,
+  canGoBack,
+  canGoForward,
   onPrevPage,
   onNextPage,
 }: FooterProps) {
-  const editionAbbr = readerEditionAbbreviation(currentBible);
+  const previous = side === "left";
+  const buttonClass = "flex h-full min-w-11 items-center justify-center rounded-sm bg-transparent text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] disabled:pointer-events-none disabled:opacity-25";
   return (
     <div
       data-page-footer
+      data-reader-footer-mode={effectiveSpread ? "tap-area" : "corner-arrows"}
       className={cn(
-        "flex-shrink-0 h-10 flex items-center justify-center gap-2 border-t border-border/25 text-[10px] text-muted-foreground/60 font-display tracking-widest",
-        inkMode && "relative z-[21] pointer-events-none opacity-60",
+        "relative z-[8] flex h-10 shrink-0 items-center justify-between",
+        inkMode && "pointer-events-none",
       )}
     >
-      <button
-        onClick={onPrevPage}
-        aria-label="Previous page"
-        className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-      >
-        <ChevronLeft className="w-3.5 h-3.5" />
-      </button>
-      <span className="inline-flex items-center gap-1 flex-wrap justify-center">
+      {effectiveSpread ? (
         <button
           type="button"
-          onClick={onOpenSettings}
-          className="hover:text-muted-foreground transition-colors"
-          aria-label={`${pageBookName} — open reader settings`}
-        >
-          {pageBookName}
-        </button>
-        {editionAbbr ? (
-          <>
-            <span aria-hidden>·</span>
-            <span title={currentBible?.name}>{editionAbbr}</span>
-          </>
-        ) : null}
-        <span aria-hidden className="reader-page-number">
-          · p. {globalPage}
-        </span>
-      </span>
-      <button
-        onClick={onNextPage}
-        aria-label="Next page"
-        className="p-0.5 rounded-sm text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-      >
-        <ChevronRight className="w-3.5 h-3.5" />
-      </button>
+          aria-label={previous ? "Previous page" : "Next page"}
+          disabled={inkMode || !(previous ? canGoBack : canGoForward)}
+          onClick={previous ? onPrevPage : onNextPage}
+          className={cn(buttonClass, "w-full")}
+        />
+      ) : (
+        <>
+          <button type="button" onClick={onPrevPage} disabled={inkMode || !canGoBack} aria-label="Previous page" className={buttonClass}>
+            <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+          <button type="button" onClick={onNextPage} disabled={inkMode || !canGoForward} aria-label="Next page" className={buttonClass}>
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </>
+      )}
     </div>
   );
 }

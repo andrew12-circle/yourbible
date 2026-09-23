@@ -1,3 +1,4 @@
+import { verifyReaderChromeGeometry } from "./reader-chrome-geometry.mjs";
 import { verifyReaderPrintGeometry } from "./reader-print-geometry.mjs";
 import { waitForReaderLayout } from "./reader-browser-settled.mjs";
 import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords } from "./reader-browser-text.mjs";
@@ -71,6 +72,7 @@ async function settled() {
   await waitForReaderLayout(page);
 }
 async function inspect() {
+  await verifyReaderChromeGeometry(page);
   // This deliberately does not import the production fit helper: independent
   // line rectangles catch hidden words even when verse nodes still exist.
   return page.evaluate(() => {
