@@ -504,23 +504,23 @@ export function MorningStoryPanel({
 
         {audioError ? <p className="mb-3 text-sm text-destructive">{audioError}</p> : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <article className={cn(lh.cardFlat, "overflow-hidden")}>
+        <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <article className={cn(lh.cardFlat, "min-w-0 overflow-hidden", editingAce && "col-span-2 md:col-span-2")}>
             <div
-              className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-700 to-amber-100 bg-cover bg-center"
+              className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-700 to-amber-100 bg-cover bg-center"
               style={aceCoverUrl ? { backgroundImage: `url("${aceCoverUrl}")` } : undefined}
             >
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent" />
-              <button type="button" className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => setEditingAce((v) => !v)} aria-label="Edit ACE scene">
+              <button type="button" className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => setEditingAce((v) => !v)} aria-label="Edit ACE scene">
                 {editingAce ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
               </button>
-              <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">Business · provision · margin</p>
-                <h3 className="text-lg font-semibold leading-tight">ACE Is Working</h3>
+              <div className="absolute inset-x-0 bottom-0 p-2.5 text-white">
+                <p className="hidden text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70 sm:block">Business · provision · margin</p>
+                <h3 className="line-clamp-2 text-sm font-semibold leading-tight sm:text-[15px]">ACE Is Working</h3>
               </div>
             </div>
 
-            <div className="space-y-3 p-4">
+            <div className="space-y-2.5 p-2.5 sm:p-3">
               {editingAce ? (
                 <div className="space-y-3">
                   <Button type="button" variant="outline" className="w-full gap-2" disabled={uploadingKey === "ace"} onClick={() => requestCoverUpload("ace")}>
@@ -553,13 +553,13 @@ export function MorningStoryPanel({
                 </div>
               ) : (
                 <>
-                  <p className={cn(lh.bodySm, "line-clamp-3 leading-relaxed")}>{ace.text}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button type="button" variant="outline" className={cn(lh.btnSecondary, "gap-2")} onClick={() => setOpenStory(openStory === "ace" ? null : "ace")}>
-                      <BookOpen className="h-4 w-4" /> Read scene
+                  <p className={cn(lh.bodySm, "line-clamp-2 text-xs leading-relaxed text-muted-foreground")}>{ace.text}</p>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <Button type="button" variant="outline" className={cn(lh.btnSecondary, "h-9 min-w-0 gap-1 px-2 text-xs")} onClick={() => setOpenStory(openStory === "ace" ? null : "ace")}>
+                      <BookOpen className="h-3.5 w-3.5 shrink-0" /> <span>Read</span>
                     </Button>
-                    <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === "ace"} onClick={() => void listenToScene("ace", "ACE Is Working", ace.text, aceAudioUrl)}>
-                      {narratingKey === "ace" ? <Loader2 className="h-4 w-4 animate-spin" /> : audio?.key === "ace" && playing ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                    <Button type="button" className={cn(lh.btnPrimary, "h-9 min-w-0 gap-1 px-2 text-xs")} disabled={narratingKey === "ace"} onClick={() => void listenToScene("ace", "ACE Is Working", ace.text, aceAudioUrl)}>
+                      {narratingKey === "ace" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : audio?.key === "ace" && playing ? <Pause className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
                       {listenLabel("ace")}
                     </Button>
                   </div>
@@ -579,20 +579,20 @@ export function MorningStoryPanel({
             const title = story.title?.trim() || `Scene ${index + 1}`;
             const cover = storyCoverUrls[story.id] || "";
             return (
-              <article key={story.id} className={cn(lh.cardFlat, "overflow-hidden")}>
-                <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-muted via-background to-primary/10 bg-cover bg-center" style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
+              <article key={story.id} className={cn(lh.cardFlat, "min-w-0 overflow-hidden", editing && "col-span-2 md:col-span-2")}>
+                <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-muted via-background to-primary/10 bg-cover bg-center" style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
-                  {suggested ? <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm">Suggested today</span> : null}
-                  <button type="button" className="absolute right-12 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-700/80 text-white backdrop-blur hover:bg-red-700" onClick={() => void handleDeleteStory(index)} aria-label="Delete scene" disabled={deletingStoryId === story.id}>
+                  {suggested ? <span className="absolute left-1.5 top-1.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-foreground shadow-sm sm:text-[9px]">Suggested today</span> : null}
+                  <button type="button" className="absolute right-10 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-red-700/80 text-white backdrop-blur hover:bg-red-700" onClick={() => void handleDeleteStory(index)} aria-label="Delete scene" disabled={deletingStoryId === story.id}>
                     {deletingStoryId === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </button>
-                  <button type="button" className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => editing ? setEditingStoryIndex(null) : startStoryEdit(index)} aria-label="Edit scene">
+                  <button type="button" className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => editing ? setEditingStoryIndex(null) : startStoryEdit(index)} aria-label="Edit scene">
                     {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                   </button>
-                  <div className="absolute inset-x-0 bottom-0 p-4 text-white"><h3 className="text-base font-semibold leading-tight">{title}</h3></div>
+                  <div className="absolute inset-x-0 bottom-0 p-2.5 text-white"><h3 className="line-clamp-2 text-sm font-semibold leading-tight sm:text-[15px]">{title}</h3></div>
                 </div>
 
-                <div className="space-y-3 p-4">
+                <div className="space-y-2.5 p-2.5 sm:p-3">
                   {editing ? (
                     <div className="space-y-3">
                       <Input value={storyDraft.title} onChange={(e) => setStoryDraft((v) => ({ ...v, title: e.target.value }))} placeholder="Scene title" />
@@ -632,13 +632,13 @@ export function MorningStoryPanel({
                     </div>
                   ) : (
                     <>
-                      <p className={cn(lh.bodySm, "line-clamp-3 leading-relaxed")}>{story.text}</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant="outline" className={cn(lh.btnSecondary, "gap-2")} onClick={() => { onSelectedIndexChange(index); setOpenStory(openStory === index ? null : index); }}>
-                          <BookOpen className="h-4 w-4" /> Read scene
+                      <p className={cn(lh.bodySm, "line-clamp-2 text-xs leading-relaxed text-muted-foreground")}>{story.text}</p>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <Button type="button" variant="outline" className={cn(lh.btnSecondary, "h-9 min-w-0 gap-1 px-2 text-xs")} onClick={() => { onSelectedIndexChange(index); setOpenStory(openStory === index ? null : index); }}>
+                          <BookOpen className="h-3.5 w-3.5 shrink-0" /> <span>Read</span>
                         </Button>
-                        <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === story.id} onClick={() => void listenToScene(story.id, title, story.text, storyAudioUrls[story.id])}>
-                          {narratingKey === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : audio?.key === story.id && playing ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                        <Button type="button" className={cn(lh.btnPrimary, "h-9 min-w-0 gap-1 px-2 text-xs")} disabled={narratingKey === story.id} onClick={() => void listenToScene(story.id, title, story.text, storyAudioUrls[story.id])}>
+                          {narratingKey === story.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : audio?.key === story.id && playing ? <Pause className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
                           {listenLabel(story.id)}
                         </Button>
                       </div>
