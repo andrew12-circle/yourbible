@@ -234,7 +234,7 @@ export const PolishedTextarea = React.forwardRef<HTMLTextAreaElement, PolishedTe
         requestGeneration.current += 1;
         requestAbort.current?.abort();
         setPolishing(false);
-        onChange(e);
+        onChange(e as React.ChangeEvent<HTMLTextAreaElement>);
         const next = e.target.value;
         valueRef.current = next;
         const pos = e.target.selectionStart ?? next.length;

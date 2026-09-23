@@ -89,16 +89,11 @@ export function useReaderAudio(reference: string, passage: Passage | null | unde
             stop();
             toast({ variant: "destructive", title: "Playback failed" });
           };
-          bindSleepMediaSession(audio, {
-            title: reference,
-            subtitle: `Part ${index + 1} of ${chunksRef.current.length}`,
-            setId: reference,
-          });
           await audio.play();
           usingBrowserRef.current = false;
           setStatusBoth("playing");
           updateSleepMediaSession(
-            { title: reference, subtitle: reference, setId: reference },
+            { title: reference, subtitle: reference },
             "playing",
           );
           return;
@@ -142,7 +137,7 @@ export function useReaderAudio(reference: string, passage: Passage | null | unde
       else audioRef.current?.pause();
       setStatusBoth("paused");
       updateSleepMediaSession(
-        { title: reference, subtitle: reference, setId: reference },
+        { title: reference, subtitle: reference },
         "paused",
       );
       return;
@@ -156,7 +151,7 @@ export function useReaderAudio(reference: string, passage: Passage | null | unde
       }
       setStatusBoth("playing");
       updateSleepMediaSession(
-        { title: reference, subtitle: reference, setId: reference },
+        { title: reference, subtitle: reference },
         "playing",
       );
       return;

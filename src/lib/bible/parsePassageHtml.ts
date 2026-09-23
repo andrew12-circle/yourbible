@@ -175,7 +175,7 @@ function crossRefPartFromCitation(id: string | undefined, labelRaw: string): Ext
   if (!label || /^[—–-]+$/.test(label)) return null;
   let parsed = id ? parseUsfmSpanId(id) : null;
   if (!parsed?.verse) {
-    parsed = parseBibleReference(label) ?? parsed;
+    parsed = (parseBibleReference(label) as any) ?? parsed;
   }
   if (!parsed?.verse) return null;
   return {

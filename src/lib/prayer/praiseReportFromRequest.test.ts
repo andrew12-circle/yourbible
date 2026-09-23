@@ -9,7 +9,7 @@ describe("buildPraiseReportTitle", () => {
 
 describe("buildPraiseReportBody", () => {
   it("formats celebration memorial text", () => {
-    const body = buildPraiseReportBody({
+    const body = buildPraiseReportBody(<any>{
       title: "CRM payroll",
       requested_at: "2026-07-02",
       answered_at: "2026-08-14",
@@ -23,7 +23,7 @@ describe("buildPraiseReportBody", () => {
   });
 
   it("notes different answer status", () => {
-    const body = buildPraiseReportBody({
+    const body = buildPraiseReportBody(<any>{
       title: "Job",
       requested_at: "2026-01-01",
       answered_at: "2026-02-01",

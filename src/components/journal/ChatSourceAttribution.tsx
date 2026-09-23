@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { BookOpen, ExternalLink, ShieldCheck } from "lucide-react";
-import type { JSONValue } from "@/integrations/supabase/types";
+import type { Json as JSONValue } from "@/integrations/supabase/types";
 import { CitationSourceIcon } from "@/components/journal/CitationSourceIcon";
 import { OpenAiMark } from "@/components/myai/OpenAiMark";
 import { useChatCitationArtifactUrls } from "@/hooks/useChatCitationArtifactUrls";

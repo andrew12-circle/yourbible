@@ -7,7 +7,7 @@ import { CompanionPane } from "@/components/reader/CompanionPane";
 import { ReaderFloatingTabBar } from "@/components/bible/ReaderFloatingTabBar";
 import type { ChapterContextBundle } from "@/data/biblePlates/types";
 import { ChapterContextSheet } from "@/components/bible/ChapterContextSheet";
-import type { Book } from "@/data/books";
+import type { BibleBook as Book } from "@/data/books";
 import type { PassageVerse } from "@/lib/bible/api";
 
 type NoteState = { verse: number } | null;
@@ -109,10 +109,10 @@ export function ReaderPageOverlays({
       {bmDialog ? (
         <BookmarkDialog
           open
-          position={bmDialog.position}
+          position={bmDialog.position as 1 | 2 | 3}
           defaultRef={{ book: book.abbr, bookName: book.name, chapter }}
           defaultLabel={bookmarks.find((b) => b.position === bmDialog.position)?.label}
-          defaultColor={bookmarks.find((b) => b.position === bmDialog.position)?.color}
+          defaultColor={bookmarks.find((b) => b.position === bmDialog.position)?.color as any}
           onClose={() => setBmDialog(null)}
           onSave={(label, color) => {
             setBookmark({

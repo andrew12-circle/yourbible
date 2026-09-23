@@ -478,7 +478,7 @@ export async function attachPeerArtifactTitles(
     .in("id", peerIds);
 
   const titleById = new Map(
-    (arts ?? []).map((a) => [a.id, { title: artifactDisplayTitle(a), kind: a.kind }]),
+    (arts ?? []).map((a) => [a.id, { title: artifactDisplayTitle(a as any), kind: a.kind }]),
   );
 
   return peers.map((p) => {

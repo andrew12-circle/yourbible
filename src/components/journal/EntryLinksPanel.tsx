@@ -24,7 +24,7 @@ function guessChapter(ref: string): number {
 
 function OutgoingChip({ link }: { link: EntryLink }) {
   const ref = link.target_ref as Record<string, unknown>;
-  const [label, setLabel] = useState(link.target_kind);
+  const [label, setLabel] = useState<string>(link.target_kind);
 
   useEffect(() => {
     let cancelled = false;

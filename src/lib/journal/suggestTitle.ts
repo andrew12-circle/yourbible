@@ -18,7 +18,7 @@ export async function suggestJournalEntryTitle(opts: {
   });
 
   if (error) {
-    return { ok: false, error: edgeFunctionErrorMessage(error) };
+    return { ok: false, error: await edgeFunctionErrorMessage("journal-suggest-title", error) };
   }
 
   const payload = data as {

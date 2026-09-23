@@ -35,7 +35,7 @@ describe("estimateUntimedPartSeekSeconds", () => {
 describe("getClaimSeekSeconds", () => {
   it("prefers transcript segment time over chapter", () => {
     expect(
-      getClaimSeekSeconds({ id: "a", chapter_start_seconds: 100 }, { startSeconds: 42 }),
+      getClaimSeekSeconds({ id: "a", chapter_start_seconds: 100 }, { startSeconds: 42 } as any),
     ).toBe(42);
   });
 

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { SelectionToolbar, type ToolbarSelection } from "@/components/bible/SelectionToolbar";
 import { WordStudySheet } from "@/components/bible/WordStudySheet";
 import type { Passage } from "@/lib/bible/api";
-import type { Book } from "@/data/books";
+import type { BibleBook as Book } from "@/data/books";
 import { buildWordStudyContext, wordFromSelection, type WordStudyContext } from "@/lib/bible/wordStudyContext";
 import { sharePassageSelection } from "@/lib/bible/shareVerse";
 import type { CompanionScope } from "@/lib/reader/companionStore";

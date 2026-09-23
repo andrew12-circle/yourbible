@@ -3,7 +3,7 @@ import { denormalizeStrokes, normalizeStrokes } from "@/lib/ink/strokeCoords";
 import type { InkStroke } from "@/lib/ink/types";
 
 const sampleStroke = (): InkStroke => ({
-  tool: "pen",
+  tool: "pen" as any,
   color: "#111827",
   size: 4,
   points: [

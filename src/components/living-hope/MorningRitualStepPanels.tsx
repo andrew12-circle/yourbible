@@ -54,6 +54,7 @@ type Props = {
   onStorySelectedIndexChange: (index: number) => void;
   onAddStory: (text: string) => void;
   onUpdateStory: (index: number, patch: Partial<import("@/lib/livingHope/workbookTypes").WorkbookStory>) => void;
+  onDeleteStory?: (index: number) => void;
   storyRecall: string;
   setStoryRecall: (v: string) => void;
   currentGoal: LivingHopeGoalRow | null | undefined;
@@ -108,6 +109,7 @@ export function MorningRitualStepPanels({
   onStorySelectedIndexChange,
   onAddStory,
   onUpdateStory,
+  onDeleteStory,
   storyRecall,
   setStoryRecall,
   currentGoal,
@@ -251,6 +253,7 @@ export function MorningRitualStepPanels({
           onSelectedIndexChange={onStorySelectedIndexChange}
           onAddStory={onAddStory}
           onUpdateStory={onUpdateStory}
+          onDeleteStory={onDeleteStory}
           storyRecall={storyRecall}
           onStoryRecallChange={setStoryRecall}
         />

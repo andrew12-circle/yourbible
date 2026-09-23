@@ -193,7 +193,7 @@ export function createReaderVerseRenderer({
       plain,
     );
     const hlMarks = hlsFor(v.number, verseBook, verseChapter);
-    const intervals = highlightIntervalsForVerse(plain.length, hlMarks);
+    const intervals = highlightIntervalsForVerse(plain.length, hlMarks as any);
     const hlSlices = sliceTextByHighlights(plain, intervals);
     const mv = markerVariant(verseBook, verseChapter, v.number);
     const parts = studyLayout === "holman" ? holmanPartsForVerse(v) : verseParts(v);

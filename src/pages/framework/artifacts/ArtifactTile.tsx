@@ -106,7 +106,7 @@ export const ArtifactTile = memo(function ArtifactTile({
   })();
 
   const primeNavigation = useCallback(() => {
-    prepareArtifactNavigation(r);
+    prepareArtifactNavigation(r as any);
   }, [r]);
 
   const open = () => {

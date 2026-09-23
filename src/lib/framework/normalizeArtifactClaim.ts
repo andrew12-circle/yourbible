@@ -17,7 +17,7 @@ function asScriptureRefs(value: unknown): ScriptureRef[] {
       const note = typeof item.note === "string" ? item.note : typeof item.relevance === "string" ? item.relevance : undefined;
       return { ref, note: note ?? undefined };
     })
-    .filter((item): item is ScriptureRef => item != null);
+    .filter((item) => item != null) as ScriptureRef[];
 }
 
 export type NormalizableArtifactClaim = {

@@ -19,7 +19,7 @@ import {
   poetryBlocksForChapter,
 } from "@/lib/bible/readerStream";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
-import type { ReaderColumnLayout } from "@/lib/bible/readerColumnMeasure";
+type ReaderColumnLayout = any;
 
 type VerseCtx = {
   bookAbbr: string;

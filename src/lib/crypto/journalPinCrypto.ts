@@ -30,7 +30,7 @@ async function deriveKeyFromPin(pin: string, salt: Uint8Array): Promise<CryptoKe
     ["deriveKey"],
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: PIN_PBKDF2_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: salt as BufferSource, iterations: PIN_PBKDF2_ITERATIONS, hash: "SHA-256" },
     base,
     { name: "AES-GCM", length: 256 },
     false,

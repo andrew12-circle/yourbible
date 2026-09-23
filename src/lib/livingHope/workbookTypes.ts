@@ -21,6 +21,9 @@ export interface WorkbookStory {
   /** Reserved for native generated narration (for example ElevenLabs) without changing the card model later. */
   narration_audio_url?: string;
   narration_provider?: "chatgpt" | "elevenlabs";
+  /** User-uploaded finished narration (voice-memos bucket). Preferred by Listen when present. */
+  uploaded_audio_path?: string;
+  uploaded_audio_name?: string;
 }
 
 export interface WorkbookManifestoItem {
@@ -214,7 +217,7 @@ function parseWorshipMusicHistory(raw: unknown, currentUrl: string): WorshipMusi
 
 function parseWorshipHistoryItems(raw: unknown): WorshipMusicHistoryItem[] {
   if (!Array.isArray(raw)) return [];
-  return raw
+  return (raw as any)
     .filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null)
     .map((x) => ({
       id: String(x.id ?? newId()),

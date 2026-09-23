@@ -37,7 +37,7 @@ describe("transcriptFollowScroll", () => {
     const container = document.createElement("div");
     const row = document.createElement("div");
     container.scrollTop = 100;
-    container.scrollTo = ({ top }) => {
+    container.scrollTo = ({ top }: any) => {
       container.scrollTop = top;
     };
     mockRect(container, { top: 200, height: 400 });
@@ -50,7 +50,7 @@ describe("transcriptFollowScroll", () => {
     const container = document.createElement("div");
     const row = document.createElement("div");
     container.scrollTop = 0;
-    container.scrollTo = ({ top }) => {
+    container.scrollTo = ({ top }: any) => {
       container.scrollTop = top;
     };
     mockRect(container, { top: 100, height: 400, bottom: 500 });

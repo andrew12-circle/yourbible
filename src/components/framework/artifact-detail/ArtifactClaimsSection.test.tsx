@@ -66,7 +66,7 @@ describe("ArtifactClaimsSection", () => {
     render(
       <TooltipProvider>
         <ArtifactClaimsSection
-          claims={claims}
+          claims={claims as any}
           claimChapterLayout={{ grouped: false, groups: [] }}
           glossaryEntries={claims.map((claim, index) => ({
             id: claim.id,
@@ -78,7 +78,7 @@ describe("ArtifactClaimsSection", () => {
           onJumpToClaim={vi.fn()}
           onSeekChapter={vi.fn()}
           claimCardContext={claimCardContext}
-          getClaimSeekSeconds={(claim) => claim.chapter_start_seconds}
+          getClaimSeekSeconds={(claim: any) => claim.chapter_start_seconds}
           playerReady
           isPlaying
           getPlaybackSeconds={() => 0}

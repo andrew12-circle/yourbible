@@ -33,7 +33,7 @@ type YTNamespace = {
       };
     },
   ) => YTPlayer;
-  PlayerState?: { PLAYING: number; PAUSED: number };
+  PlayerState?: { PLAYING: number; PAUSED: number; BUFFERING: number; ENDED: number; UNSTARTED: number; CUED: number };
 };
 
 declare global {
@@ -182,7 +182,7 @@ export function useYouTubeEmbedPlayer(options: {
     if (pointerIntentTimerRef.current != null) {
       window.clearTimeout(pointerIntentTimerRef.current);
     }
-    pointerIntentTimerRef.current = window.setTimeout(() => {
+    pointerIntentTimerRef.current = setTimeout(() => {
       recentPlayerPointerRef.current = false;
       pointerIntentTimerRef.current = null;
     }, EMBED_PLAYER_POINTER_INTENT_MS);
@@ -296,7 +296,7 @@ export function useYouTubeEmbedPlayer(options: {
         });
         iframeObserver.observe(mountRef.current, { childList: true, subtree: true });
       }
-      iframeFallbackTimer = window.setTimeout(() => {
+      iframeFallbackTimer = setTimeout(() => {
         if (!cancelled && playerRef.current) markReadyFromIframe(host);
       }, IFRAME_READY_FALLBACK_MS);
     };

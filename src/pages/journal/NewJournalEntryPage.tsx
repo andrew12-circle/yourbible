@@ -404,7 +404,7 @@ export default function NewJournalEntryPage() {
       ) : null}
 
       <div
-        ref={p.bottomDockRef}
+        ref={p.bottomDockRef as any}
         data-journal-compose-dock
         className={hubShellBottomDock(
           showHubShell,

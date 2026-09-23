@@ -253,6 +253,16 @@ export default function MorningReviewPage() {
     [workbook, updateWorkbook],
   );
 
+  const handleDeleteStory = useCallback(
+    (index: number) => {
+      if (!workbook?.stories[index]) return;
+      const stories = workbook.stories.filter((_, i) => i !== index);
+      updateWorkbook({ stories });
+      setStorySelectedIndex(null);
+    },
+    [workbook, updateWorkbook],
+  );
+
   const setTouch = useCallback((goalId: string, patch: Partial<GoalTouch>) => {
     setTouches((prev) => ({
       ...prev,
@@ -549,6 +559,7 @@ export default function MorningReviewPage() {
                   onStorySelectedIndexChange={setStorySelectedIndex}
                   onAddStory={handleAddStory}
                   onUpdateStory={handleUpdateStory}
+                  onDeleteStory={handleDeleteStory}
                   storyRecall={storyRecall}
                   setStoryRecall={setStoryRecall}
                   currentGoal={currentGoal}
@@ -618,6 +629,7 @@ export default function MorningReviewPage() {
                   onStorySelectedIndexChange={setStorySelectedIndex}
                   onAddStory={handleAddStory}
                   onUpdateStory={handleUpdateStory}
+                  onDeleteStory={handleDeleteStory}
                   storyRecall={storyRecall}
                   setStoryRecall={setStoryRecall}
                   currentGoal={currentGoal}

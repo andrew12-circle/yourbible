@@ -140,7 +140,7 @@ export function useLiveStreamCapture(userId?: string | null) {
         user_note: `Lifted from live stream at ${formatLiveClock(claim.startSeconds)}.`,
         chapter_start_seconds: Math.floor(claim.startSeconds),
       }));
-      const { error: claimError } = await supabase.from("artifact_claims").insert(rows);
+      const { error: claimError } = await supabase.from("artifact_claims").insert(rows as any);
       if (claimError) {
         toast({
           title: "Live transcript saved, claims need review",
@@ -212,7 +212,7 @@ export function useLiveStreamCapture(userId?: string | null) {
         user_note: `Lifted from live stream at ${formatLiveClock(claim.startSeconds)}.`,
         chapter_start_seconds: Math.floor(claim.startSeconds),
       }));
-      const { error: claimError } = await supabase.from("artifact_claims").insert(rows);
+      const { error: claimError } = await supabase.from("artifact_claims").insert(rows as any);
       if (claimError) {
         toast({
           title: "Live stream saved, claims need review",

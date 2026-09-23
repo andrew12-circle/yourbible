@@ -1,4 +1,4 @@
-import type { JSONValue } from "@/integrations/supabase/types";
+import type { Json as JSONValue } from "@/integrations/supabase/types";
 
 export type ChatCitationSourceType =
   | "belief"

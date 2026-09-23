@@ -3,7 +3,7 @@ import { base64ToBytes, bytesToBase64, randomBytes } from "@/lib/crypto/bytes";
 const AES_GCM_IV_BYTES = 12;
 
 export async function importAesGcmKey(rawKey: Uint8Array): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", rawKey, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", rawKey as BufferSource, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
 }
 
 export async function generateAesGcmKey(): Promise<CryptoKey> {
@@ -25,7 +25,7 @@ export type AesGcmEnvelopeV1 = {
 export async function aesGcmEncrypt(key: CryptoKey, plaintext: string): Promise<AesGcmEnvelopeV1> {
   const iv = randomBytes(AES_GCM_IV_BYTES);
   const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv: iv as BufferSource },
     key,
     new TextEncoder().encode(plaintext),
   );
@@ -37,7 +37,7 @@ export async function aesGcmDecrypt(key: CryptoKey, envelope: AesGcmEnvelopeV1):
     throw new Error("Unsupported encryption envelope");
   }
   const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: base64ToBytes(envelope.iv) },
+    { name: "AES-GCM", iv: base64ToBytes(envelope.iv) as BufferSource },
     key,
     base64ToBytes(envelope.ct),
   );

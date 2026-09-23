@@ -85,7 +85,7 @@ export async function unlockJournalWithBiometric(userId: string): Promise<Crypto
       challenge,
       allowCredentials: [
         {
-          id: base64ToBytes(record.bioCredentialId!),
+          id: base64ToBytes(record.bioCredentialId!) as BufferSource,
           type: "public-key",
         },
       ],

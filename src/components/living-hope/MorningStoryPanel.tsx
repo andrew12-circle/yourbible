@@ -2,13 +2,15 @@ import { DictateButton } from "@/components/journal/DictateButton";
 import { JournalAiPrivacy } from "@/components/journal/JournalAiPrivacy";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, ExternalLink, Image, Link2, Loader2, Pause, Pencil, Play, Plus, Upload, Volume2, X } from "lucide-react";
+import { BookOpen, ExternalLink, Link2, Loader2, Pause, Pencil, Play, Plus, Upload, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import { supabase } from "@/integrations/supabase/client";
 import { getSignedPhotoUrl } from "@/lib/journal/photos";
 import { getOrCreateSceneNarration } from "@/lib/livingHope/sceneNarration";
+import { getSceneAudioUrl, removeSceneAudioFile } from "@/lib/livingHope/sceneAudio";
+import { EditSceneDialog } from "@/components/living-hope/EditSceneDialog";
 import type { WorkbookStory } from "@/lib/livingHope/workbookTypes";
 import { newId } from "@/lib/livingHope/workbookTypes";
 import { lh } from "@/lib/livingHope/themeClasses";
@@ -69,6 +71,7 @@ type Props = {
   onSelectedIndexChange: (index: number) => void;
   onAddStory: (text: string) => void;
   onUpdateStory?: (index: number, patch: Partial<WorkbookStory>) => void;
+  onDeleteStory?: (index: number) => void;
   storyRecall: string;
   onStoryRecallChange: (value: string) => void;
 };
@@ -112,13 +115,13 @@ export function MorningStoryPanel({
   onSelectedIndexChange,
   onAddStory,
   onUpdateStory,
+  onDeleteStory,
 }: Props) {
   const { user, profile } = useAuth();
   const [adding, setAdding] = useState(false);
   const [newStoryText, setNewStoryText] = useState("");
   const [openStory, setOpenStory] = useState<"ace" | number | null>(null);
   const [editingStoryIndex, setEditingStoryIndex] = useState<number | null>(null);
-  const [storyDraft, setStoryDraft] = useState({ title: "", text: "", chatgptUrl: "" });
   const [editingAce, setEditingAce] = useState(false);
   const [ace, setAce] = useState<AceSceneSettings>({
     storagePath: "",
@@ -202,26 +205,24 @@ export function MorningStoryPanel({
   }, [newStoryText, onAddStory]);
 
   const startStoryEdit = useCallback((index: number) => {
-    const story = stories[index];
-    if (!story) return;
-    setEditingStoryIndex(index);
-    setStoryDraft({
-      title: story.title ?? "",
-      text: story.text,
-      chatgptUrl: story.chatgpt_url ?? "",
-    });
+    if (stories[index]) setEditingStoryIndex(index);
   }, [stories]);
 
-  const saveStoryEdit = useCallback(() => {
-    if (editingStoryIndex == null || !onUpdateStory) return;
-    onUpdateStory(editingStoryIndex, {
-      title: storyDraft.title.trim() || undefined,
-      text: storyDraft.text.trim(),
-      chatgpt_url: storyDraft.chatgptUrl.trim() || undefined,
-      narration_provider: "elevenlabs",
-    });
-    setEditingStoryIndex(null);
-  }, [editingStoryIndex, onUpdateStory, storyDraft]);
+  const deleteStory = useCallback(async (index: number) => {
+    const story = stories[index];
+    if (!story || !onDeleteStory) return;
+    if (audio?.key === story.id) {
+      audioRef.current?.pause();
+      setAudio(null);
+    }
+    if (story.uploaded_audio_path) await removeSceneAudioFile(story.uploaded_audio_path);
+    if (story.cover_storage_path) {
+      const { error } = await supabase.storage.from("journal-photos").remove([story.cover_storage_path]);
+      if (error) console.warn("Scene cover cleanup failed", error);
+    }
+    onDeleteStory(index);
+    setOpenStory(null);
+  }, [audio?.key, onDeleteStory, stories]);
 
   const requestCoverUpload = useCallback((target: "ace" | number) => {
     setUploadTarget(target);
@@ -253,7 +254,7 @@ export function MorningStoryPanel({
     }
   }, [ace, onUpdateStory, saveAce, stories, uploadTarget, user?.id]);
 
-  const listenToScene = useCallback(async (key: string, title: string, text: string) => {
+  const listenToScene = useCallback(async (key: string, title: string, text: string, uploadedPath?: string) => {
     setAudioError("");
     if (audio?.key === key && audio.url) {
       const el = audioRef.current;
@@ -268,6 +269,18 @@ export function MorningStoryPanel({
       return;
     }
 
+    if (uploadedPath) {
+      setNarratingKey(key);
+      try {
+        const url = await getSceneAudioUrl(uploadedPath);
+        setAudio({ key, title, url });
+      } catch (error) {
+        setAudioError(error instanceof Error ? error.message : "Could not play audio");
+      } finally {
+        setNarratingKey(null);
+      }
+      return;
+    }
     if (!text.trim()) return;
     setNarratingKey(key);
     try {
@@ -307,7 +320,7 @@ export function MorningStoryPanel({
             </button>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{audio.title}</p>
-              <p className={lh.footnote}>ElevenLabs narration · saved and reused</p>
+              <p className={lh.footnote}>Scene narration</p>
             </div>
             <audio ref={audioRef} src={audio.url} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
           </div>
@@ -368,7 +381,6 @@ export function MorningStoryPanel({
 
           {stories.map((story, index) => {
             const suggested = index === suggestedIndex % Math.max(1, stories.length);
-            const editing = editingStoryIndex === index;
             const title = story.title?.trim() || `Scene ${index + 1}`;
             const cover = storyCoverUrls[story.id] || "";
             return (
@@ -376,43 +388,26 @@ export function MorningStoryPanel({
                 <div className="relative aspect-[16/9] overflow-hidden bg-gradient-to-br from-muted via-background to-primary/10 bg-cover bg-center" style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
                   {suggested ? <span className="absolute left-3 top-3 rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm">Suggested today</span> : null}
-                  <button type="button" className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => editing ? setEditingStoryIndex(null) : startStoryEdit(index)} aria-label="Edit scene">
-                    {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
+                  <button type="button" className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => startStoryEdit(index)} aria-label="Edit scene">
+                    <Pencil className="h-4 w-4" />
                   </button>
                   <div className="absolute inset-x-0 bottom-0 p-4 text-white"><h3 className="text-base font-semibold leading-tight">{title}</h3></div>
                 </div>
 
                 <div className="space-y-3 p-4">
-                  {editing ? (
-                    <div className="space-y-3">
-                      <Input value={storyDraft.title} onChange={(e) => setStoryDraft((v) => ({ ...v, title: e.target.value }))} placeholder="Scene title" />
-                      <Button type="button" variant="outline" className="w-full gap-2" disabled={uploadingKey === story.id} onClick={() => requestCoverUpload(index)}>
-                        {uploadingKey === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Image className="h-4 w-4" />}
-                        {story.cover_storage_path || story.cover_image_url ? "Replace cover image" : "Upload cover image"}
-                      </Button>
-                      <MorningVoiceField value={storyDraft.text} onChange={(text) => setStoryDraft((v) => ({ ...v, text }))} multiline rows={7} label="Scene text" />
-                      <div className="flex items-center gap-2"><Link2 className="h-4 w-4 shrink-0" /><Input value={storyDraft.chatgptUrl} onChange={(e) => setStoryDraft((v) => ({ ...v, chatgptUrl: e.target.value }))} placeholder="Optional ChatGPT link" /></div>
-                      <p className={lh.footnote}>Edit the words anytime. The changed text gets a new recording automatically; unchanged text reuses the saved audio.</p>
-                      <div className="flex gap-2">
-                        <Button type="button" className={cn(lh.btnPrimary, "flex-1")} onClick={saveStoryEdit}>Save</Button>
-                        <Button type="button" variant="outline" className="flex-1" onClick={() => setEditingStoryIndex(null)}>Cancel</Button>
-                      </div>
-                    </div>
-                  ) : (
                     <>
                       <p className={cn(lh.bodySm, "line-clamp-3 leading-relaxed")}>{story.text}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <Button type="button" variant="outline" className={cn(lh.btnSecondary, "gap-2")} onClick={() => { onSelectedIndexChange(index); setOpenStory(openStory === index ? null : index); }}>
                           <BookOpen className="h-4 w-4" /> Read scene
                         </Button>
-                        <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === story.id} onClick={() => void listenToScene(story.id, title, story.text)}>
+                        <Button type="button" className={cn(lh.btnPrimary, "gap-2")} disabled={narratingKey === story.id} onClick={() => void listenToScene(story.id, title, story.text, story.uploaded_audio_path)}>
                           {narratingKey === story.id ? <Loader2 className="h-4 w-4 animate-spin" /> : audio?.key === story.id && playing ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                           {listenLabel(story.id)}
                         </Button>
                       </div>
                       {story.chatgpt_url ? <a href={story.chatgpt_url} target="_blank" rel="noopener noreferrer" className={cn(lh.footnote, "flex items-center justify-center gap-1 underline-offset-2 hover:underline")}>Open ChatGPT reference <ExternalLink className="h-3 w-3" /></a> : null}
                     </>
-                  )}
                 </div>
               </article>
             );
@@ -440,6 +435,26 @@ export function MorningStoryPanel({
           <Plus className="h-4 w-4" /> Add a scene
         </Button>
       )}
+
+      <EditSceneDialog
+        open={editingStoryIndex != null && Boolean(stories[editingStoryIndex])}
+        story={editingStoryIndex != null ? stories[editingStoryIndex] ?? null : null}
+        index={editingStoryIndex ?? 0}
+        userId={user?.id}
+        uploadingCover={editingStoryIndex != null && uploadingKey === stories[editingStoryIndex]?.id}
+        onClose={() => setEditingStoryIndex(null)}
+        onSave={(patch) => {
+          if (editingStoryIndex == null || !onUpdateStory) return;
+          const current = stories[editingStoryIndex];
+          if (current && audio?.key === current.id && ("uploaded_audio_path" in patch || (patch.text && patch.text !== current.text))) {
+            audioRef.current?.pause();
+            setAudio(null);
+          }
+          onUpdateStory(editingStoryIndex, patch);
+        }}
+        onUploadCover={() => editingStoryIndex != null && requestCoverUpload(editingStoryIndex)}
+        onDelete={() => editingStoryIndex != null ? deleteStory(editingStoryIndex) : undefined}
+      />
 
       <input ref={fileInputRef} type="file" accept="image/*,image/heic,image/heif,.heic,.heif" className="hidden" onChange={(e) => void handleCoverFile(e.target.files)} />
     </div>

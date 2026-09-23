@@ -50,8 +50,8 @@ export function prioritizeMobileHomeApps(apps: HomeAppIcon[]): HomeAppIcon[] {
   return apps
     .map((app, index) => ({ app, index }))
     .sort((a, b) => {
-      const aPriority = priority.get(a.app.label) ?? Number.POSITIVE_INFINITY;
-      const bPriority = priority.get(b.app.label) ?? Number.POSITIVE_INFINITY;
+      const aPriority = priority.get(a.app.label as any) ?? Number.POSITIVE_INFINITY;
+      const bPriority = priority.get(b.app.label as any) ?? Number.POSITIVE_INFINITY;
       return aPriority - bPriority || a.index - b.index;
     })
     .map(({ app }) => app);

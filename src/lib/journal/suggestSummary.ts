@@ -32,7 +32,7 @@ export async function suggestJournalEntrySummary(opts: {
   });
 
   if (error) {
-    return { ok: false, error: edgeFunctionErrorMessage(error) };
+    return { ok: false, error: await edgeFunctionErrorMessage("journal-suggest-summary", error) };
   }
 
   const payload = data as {

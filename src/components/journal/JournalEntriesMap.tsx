@@ -38,7 +38,7 @@ function FitBounds({ positions, worldView }: { positions: LatLng[]; worldView?: 
 
   useEffect(() => {
     if (!map || positions.length === 0) return;
-    const { google } = window;
+    const { google } = window as any;
     if (!google?.maps) return;
 
     if (positions.length === 1) {

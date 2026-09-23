@@ -66,7 +66,7 @@ describe("journal video upload queue coordination", () => {
         null,
       ),
     ).rejects.toThrow("stop before IndexedDB");
-    expect(request.mock.calls[0][1]).toEqual({ mode: "exclusive" });
+    expect((request.mock.calls[0] as any[])[1]).toEqual({ mode: "exclusive" });
   });
 
   it("detects only newly added queue ids across storage events", () => {

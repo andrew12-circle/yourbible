@@ -48,7 +48,7 @@ export async function attachArtifactSourcePdf(
 
   const { error: metaErr } = await supabase
     .from("artifacts")
-    .update({ metadata })
+    .update({ metadata: metadata as any })
     .eq("id", artifactId);
   if (metaErr) throw new Error(metaErr.message);
 

@@ -31,7 +31,7 @@ export async function ensureVoiceDictationSession(): Promise<{ ok: true } | { ok
 
 export async function uploadJournalVoiceMemo(userId: string, blob: Blob): Promise<string> {
   const auth = await ensureVoiceDictationSession();
-  if (!auth.ok) throw new Error(auth.error);
+  if (auth.ok === false) throw new Error((auth as { error: string }).error);
   const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
   const path = `${userId}/journal-dictation/${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from("voice-memos").upload(path, blob, {
@@ -55,7 +55,7 @@ export async function transcribeJournalVoiceMemo(
   entryId?: string,
 ): Promise<VoiceDictationResult> {
   const auth = await ensureVoiceDictationSession();
-  if (!auth.ok) return auth;
+  if (auth.ok === false) return auth as { ok: false; error: string };
 
   const { data, error } = await supabase.functions.invoke(JOURNAL_VOICE_FN, {
     body: { storage_path: storagePath, bucket, ...(entryId ? { entry_id: entryId } : {}) },
