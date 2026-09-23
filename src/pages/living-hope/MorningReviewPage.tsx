@@ -242,6 +242,17 @@ export default function MorningReviewPage() {
     [workbook, updateWorkbook],
   );
 
+  const handleUpdateStory = useCallback(
+    (index: number, patch: Partial<import("@/lib/livingHope/workbookTypes").WorkbookStory>) => {
+      if (!workbook?.stories[index]) return;
+      const stories = workbook.stories.map((story, storyIndex) =>
+        storyIndex === index ? { ...story, ...patch } : story,
+      );
+      updateWorkbook({ stories });
+    },
+    [workbook, updateWorkbook],
+  );
+
   const setTouch = useCallback((goalId: string, patch: Partial<GoalTouch>) => {
     setTouches((prev) => ({
       ...prev,
@@ -537,6 +548,7 @@ export default function MorningReviewPage() {
                   storySelectedIndex={storySelectedIndex}
                   onStorySelectedIndexChange={setStorySelectedIndex}
                   onAddStory={handleAddStory}
+                  onUpdateStory={handleUpdateStory}
                   storyRecall={storyRecall}
                   setStoryRecall={setStoryRecall}
                   currentGoal={currentGoal}
@@ -605,6 +617,7 @@ export default function MorningReviewPage() {
                   storySelectedIndex={storySelectedIndex}
                   onStorySelectedIndexChange={setStorySelectedIndex}
                   onAddStory={handleAddStory}
+                  onUpdateStory={handleUpdateStory}
                   storyRecall={storyRecall}
                   setStoryRecall={setStoryRecall}
                   currentGoal={currentGoal}
