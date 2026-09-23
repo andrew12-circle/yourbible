@@ -45,6 +45,7 @@ type Props = {
   onStorySelectedIndexChange: (index: number) => void;
   onAddStory: (text: string) => void;
   onUpdateStory: (index: number, patch: Partial<import("@/lib/livingHope/workbookTypes").WorkbookStory>) => void;
+  onDeleteStory: (index: number) => void;
   storyRecall: string;
   setStoryRecall: (v: string) => void;
   currentGoal: LivingHopeGoalRow | null | undefined;
@@ -106,6 +107,7 @@ export function MorningGuidedExperience({
   onStorySelectedIndexChange,
   onAddStory,
   onUpdateStory,
+  onDeleteStory,
   storyRecall,
   setStoryRecall,
   currentGoal,
@@ -218,6 +220,7 @@ export function MorningGuidedExperience({
           onSelectedIndexChange={onStorySelectedIndexChange}
           onAddStory={onAddStory}
           onUpdateStory={onUpdateStory}
+          onDeleteStory={onDeleteStory}
           storyRecall={storyRecall}
           onStoryRecallChange={setStoryRecall}
         />
