@@ -17,14 +17,14 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci
-      - name: Export tracked application and installed test dependencies
+      - name: Export application code and test dependencies, not large media libraries
         run: |
-          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/reader-source.tar.gz"
+          git archive --format=tar.gz HEAD src scripts .github supabase package.json package-lock.json index.html components.json eslint.config.js postcss.config.js tailwind.config.ts tsconfig.app.json tsconfig.json tsconfig.node.json vite.config.ts vitest.config.ts > "$RUNNER_TEMP/reader-source.tar.gz"
           tar -czf "$RUNNER_TEMP/reader-dependencies.tar.gz" node_modules
           git rev-parse HEAD > "$RUNNER_TEMP/source-sha.txt"
       - uses: actions/upload-artifact@v4
         with:
-          name: reader-fidelity-workspace
+          name: reader-fidelity-code
           retention-days: 2
           path: |
             ${{ runner.temp }}/reader-source.tar.gz
