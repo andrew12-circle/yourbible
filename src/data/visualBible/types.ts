@@ -69,6 +69,8 @@ export interface VisualAsset {
   /** Same physical artwork can have a full view and clearly identified panels. */
   workGroup?: string;
   iconic?: boolean;
+  /** Entire asset is for browsing rather than automatic inline placement. */
+  galleryOnly?: boolean;
   /** Lower values have higher editorial priority; never selected randomly. */
   readerRank?: number;
   sourceDimensions?: { width: number; height: number };

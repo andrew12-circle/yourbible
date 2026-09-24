@@ -1,4 +1,4 @@
-/** Actual ReaderPage and actual Next page controls; synthetic text, no production account. */
+/** Real ReaderPage: visual switching must not navigate or reallocate Scripture. */
 import assert from 'node:assert/strict';
 import {mkdtempSync,writeFileSync,mkdirSync,rmSync} from 'node:fs';
 import {basename,join} from 'node:path';
@@ -22,8 +22,23 @@ const client=new QueryClient({defaultOptions:{queries:{retry:false,refetchOnWind
 function Test(){window.__navigate=useNavigate();window.__path=useLocation().pathname;return <ReaderPage/>}
 createRoot(document.getElementById('root')!).render(<MemoryRouter initialEntries={['/read/Exo/2']}><QueryClientProvider client={client}><AuthContext.Provider value={auth as never}><TooltipProvider><Routes><Route path="/read/:book/:chapter" element={<Test/>}/></Routes></TooltipProvider></AuthContext.Provider></QueryClientProvider></MemoryRouter>);
 `);
-const server=await createServer({configFile:false,root,plugins:[react()],define:{'import.meta.env.PROD':'true'},optimizeDeps:{entries:[join(scratch,'index.html')]},resolve:{alias:[{find:'@/hooks/useUserData',replacement:join(scratch,'user-data.ts')},{find:'@/hooks/useAppShellMode',replacement:join(scratch,'shell.ts')},{find:'@/lib/auth/onboardingGate',replacement:join(scratch,'onboarding.ts')},{find:'@',replacement:join(root,'src')}]},server:{host:'127.0.0.1',port:0}});
-let browser,page;const errors=[],externalImages=[],reports=[];
+const server=await createServer({configFile:false,root,plugins:[react()],define:{'import.meta.env.PROD':'true','import.meta.env.VITE_GOOGLE_MAPS_API_KEY':'""'},optimizeDeps:{entries:[join(scratch,'index.html')]},resolve:{alias:[{find:'@/hooks/useUserData',replacement:join(scratch,'user-data.ts')},{find:'@/hooks/useAppShellMode',replacement:join(scratch,'shell.ts')},{find:'@/lib/auth/onboardingGate',replacement:join(scratch,'onboarding.ts')},{find:'@',replacement:join(root,'src')}]},server:{host:'127.0.0.1',port:0}});
+let browser,page;const errors=[],externalImages=[],googleRequests=[],reports=[];
+async function allocation(){return page.evaluate(()=>({path:window.__path,verses:[...document.querySelectorAll('[data-reader-page-side] [data-verse-id]')].map(n=>({id:n.dataset.verseId,text:n.textContent})),plates:[...document.querySelectorAll('[data-reader-page-side] [data-reader-plate]')].map(n=>n.dataset.readerPlate)}));}
+async function openVisualPage(book,chapter){
+ await page.evaluate(([b,c])=>window.__navigate('/read/'+b+'/'+c),[book,chapter]);
+ await page.waitForFunction(path=>window.__path===path,'/read/'+book+'/'+chapter);
+ for(let i=0;i<35;i++){
+  await page.waitForFunction(()=>document.querySelector('[data-bible-reader]')?.getAttribute('aria-busy')==='false',undefined,{timeout:45000});
+  await page.waitForTimeout(250);
+  const openers=page.locator('[data-reader-page-side] [data-reader-plate] button[aria-label="Explore this passage"]');
+  for(const button of await openers.all())if(await button.isVisible()){
+   await button.click();await page.getByRole('region',{name:'Passage visual explorer'}).waitFor();return;
+  }
+  await page.getByRole('button',{name:'Next page',exact:true}).first().click();
+ }
+ throw new Error('No visual page reached by real Next controls: '+book+' '+chapter);
+}
 try{
  await server.listen();const origin='http://127.0.0.1:'+server.httpServer.address().port;
  browser=await chromium.launch({headless:true});page=await browser.newPage({viewport:{width:1440,height:1000}});
@@ -37,47 +52,49 @@ try{
   }
   if(url.origin===origin)return route.continue();
   if(request.resourceType()==='image')externalImages.push(url.href);
+  if(/(^|\.)googleapis\.com$|(^|\.)gstatic\.com$|(^|\.)google\.com$/.test(url.hostname))googleRequests.push(url.href);
   if(url.hostname==='example.supabase.co')return route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:'[]'});
   return route.abort();
  });
- await page.goto(origin+'/'+basename(scratch)+'/index.html');
- await page.waitForFunction(()=>typeof window.__navigate==='function');
+ await page.goto(origin+'/'+basename(scratch)+'/index.html');await page.waitForFunction(()=>typeof window.__navigate==='function');
  for(const [book,chapter,ids] of [
   ['Exo',2,['met-437820']],['Luk',1,['met-459016']],['Mat',2,['met-436504','met-437789']],
   ['Gen',21,['met-435962']],['Exo',12,['map-exodus']],['Luk',2,['met-547804']],
   ['Exo',25,['map-tabernacle']],['Jhn',19,['met-459087','walters-w839-recto']],
   ['Luk',5,['kinneret-2021']],['Act',1,['acts-overview']],['Luk',24,['met-437871']],['Mat',26,['met-437986']],
  ]){
-  await page.evaluate(([b,c])=>window.__navigate('/read/'+b+'/'+c),[book,chapter]);
-  await page.waitForFunction(path=>window.__path===path,'/read/'+book+'/'+chapter);
-  await page.waitForFunction(()=>document.querySelector('[data-bible-reader]')?.getAttribute('aria-busy')==='false',{},{timeout:45000});
-  const seen=new Set();
-  for(let turn=0;turn<30&&seen.size<ids.length;turn++){
-   await page.waitForTimeout(250);
-   const plates=page.locator('[data-reader-page-side] [data-reader-visual-id]');
-   for(const plate of await plates.all()){
-    const id=await plate.getAttribute('data-reader-visual-id');
-    if(!ids.includes(id)||!await plate.isVisible())continue;
-    const visible=await plate.evaluate(node=>{const r=node.getBoundingClientRect();return r.width>0&&r.height>0&&r.top<innerHeight&&r.bottom>0&&r.left<innerWidth&&r.right>0});
-    if(!visible)continue;
-    const image=plate.locator('img');
-    await image.waitFor({timeout:10000});
-    await image.evaluate(img=>img.decode());
-    assert((await image.getAttribute('src')).startsWith('/'),'Not a first-party image');
-    seen.add(id);
-    await plate.screenshot({path:join(output,'reader-variety-'+id+'.png')});
-   }
-   if(seen.size<ids.length)await page.getByRole('button',{name:'Next page',exact:true}).first().click();
+  await openVisualPage(book,chapter);const before=await allocation();
+  const explorer=page.getByRole('region',{name:'Passage visual explorer'});
+  for(const id of ids){
+   await explorer.getByRole('combobox',{name:'Choose passage visual'}).selectOption(id);
+   await explorer.locator('img').evaluate(img=>img.decode());
+   assert((await explorer.locator('img').getAttribute('src')).startsWith('/'),'Not a first-party image');
+   assert(await explorer.getByTestId('selected-visual-source').innerText(),'Missing selected attribution');
+   assert.deepEqual(await allocation(),before,'Visual selection navigated or reallocated Scripture');
+   await explorer.screenshot({path:join(output,'reader-variety-'+id+'.png')});
   }
-  assert.deepEqual([...seen].sort(),[...ids].sort(),book+' '+chapter+' did not display its new visuals through page turning');
-  reports.push(book+' '+chapter+': '+[...seen].join(', '));console.log('PASS '+reports.at(-1));
+  await explorer.getByRole('button',{name:'Close passage visuals'}).click();
+  await explorer.waitFor({state:'detached'});
+  assert.deepEqual(await allocation(),before,'Closing changed the Bible page');
+  reports.push(book+' '+chapter+': actual reading page switches to '+ids.join(', '));console.log('PASS '+reports.at(-1));
  }
- await page.setViewportSize({width:390,height:844});
- await page.evaluate(()=>window.__navigate('/read/Luk/2'));
- const mobile=page.locator('[data-reader-page-side] [data-reader-visual-id="met-547804"]').first();
- await mobile.waitFor({timeout:15000});await mobile.locator('img').evaluate(img=>img.decode());
- await page.screenshot({path:join(output,'reader-variety-mobile.png')});
- assert.deepEqual(errors,[]);assert.deepEqual(externalImages,[]);
- writeFileSync(join(output,'reader-variety-results.json'),JSON.stringify({reports,externalImageRequests:0,errors},null,2));
-}catch(error){if(page)await page.screenshot({path:join(output,'reader-variety-failure.png')}).catch(()=>{});console.error(JSON.stringify({reports,errors,externalImages}));throw error}
+ for(const width of [1440,390]){
+  await page.setViewportSize({width,height:width===390?844:1000});
+  await openVisualPage('Mat',21);const before=await allocation();const explorer=page.getByRole('region',{name:'Passage visual explorer'});
+  const select=explorer.getByRole('combobox');
+  await select.selectOption('map-jerusalem');await explorer.locator('img').evaluate(img=>img.decode());
+  await select.press('ArrowRight');assert.deepEqual(await allocation(),before,'Arrow key leaked into Bible navigation');
+  await select.selectOption('geography');await explorer.getByTestId('passage-geography').waitFor();
+  assert(await explorer.getByText(/not a view of the first century/).isVisible());
+  assert.equal(await explorer.getByRole('link',{name:/Open Google Earth/}).getAttribute('target'),'_blank');
+  assert.deepEqual(await allocation(),before,'Geography moved Scripture');
+  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Horizontal overflow');
+  await page.screenshot({path:join(output,width===390?'reader-variety-mobile.png':'reader-variety-geography.png')});
+  await explorer.getByRole('button',{name:'Close passage visuals'}).click();
+  await page.waitForFunction(()=>document.activeElement?.getAttribute('aria-label')==='Explore this passage');
+  reports.push('Triumphal-entry chooser, map, geography and focus return at '+width+'px');
+ }
+ assert.deepEqual(errors,[]);assert.deepEqual(externalImages,[]);assert.deepEqual(googleRequests,[]);
+ writeFileSync(join(output,'reader-variety-results.json'),JSON.stringify({reports,externalImageRequests:0,googleRequestsBeforeOptIn:0,errors},null,2));
+}catch(error){if(page)await page.screenshot({path:join(output,'reader-variety-failure.png')}).catch(()=>{});console.error(JSON.stringify({reports,errors,externalImages,googleRequests}));throw error}
 finally{await browser?.close();await server.close();rmSync(scratch,{recursive:true,force:true})}

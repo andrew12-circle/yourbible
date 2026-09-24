@@ -2,9 +2,9 @@ name: Masterwork collections
 on:
   push:
     branches: [main, 'feat/masterworks-atlas-collections']
-    paths: ['src/data/visualBible/**', 'src/lib/visualBible/**', 'src/lib/bible/readerVisuals*', 'src/components/bible/visual/**', 'scripts/*visual-bible*', 'scripts/lib/visual-bible*', 'public/visual-bible/**', '.github/workflows/masterwork-collections.yml']
+    paths: ['src/data/visualBible/**', 'src/lib/visualBible/**', 'src/lib/bible/readerVisuals*', 'src/components/bible/**', 'scripts/*visual*', 'scripts/lib/*image*', 'public/visual-bible/**', '.github/workflows/masterwork-collections.yml']
   pull_request:
-    paths: ['src/data/visualBible/**', 'src/lib/visualBible/**', 'src/components/bible/visual/**', 'scripts/*visual-bible*', 'scripts/lib/visual-bible*']
+    paths: ['src/data/visualBible/**', 'src/lib/visualBible/**', 'src/components/bible/**', 'scripts/*visual*', 'scripts/lib/*image*']
 permissions:
   contents: read
 concurrency:
@@ -43,6 +43,7 @@ jobs:
         run: |
           node scripts/acquire-visual-bible.mjs --verify
           node scripts/verify-visual-bible-dist.mjs
+          node scripts/report-visual-collection.mjs
       - name: No new TypeScript diagnostics
         run: node scripts/check-journal-type-regressions.mjs e0932650aeef3d5e59765e2b8592335847fe2268 2>&1 | tee "$RUNNER_TEMP/collections-types.log"
       - name: Browser dependencies

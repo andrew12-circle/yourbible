@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { collectionCoverage, collectionsFor, filterCollection, orderCollection } from "./collections";
 import { SEED_VISUALS, CURATED_VISUALS, ALL_VISUAL_SEED } from "./seed";
+import { VISUAL_CATALOGUE } from "./catalogue";
+import { passageVisualChoices } from "./passageChoices";
 import { curatedReaderPlates, selectReaderVisuals } from "@/lib/bible/readerVisuals";
+import { inlinePlatesForChapter } from "@/lib/bible/chapterContext";
+import { BIBLE_PLATES } from "@/data/biblePlates";
 import { validateSeed } from "../../../scripts/acquire-visual-bible.mjs";
 
 const work = { ...SEED_VISUALS[0], collections: ["masterworks" as const], iconic: true, period: "Baroque", technique: "painting" as const };
@@ -25,24 +29,29 @@ describe("five visual collections", () => {
     const regular = { ...work, id: "ordinary", iconic: false };
     expect(orderCollection([regular, work]).map(a => a.id)).toEqual([work.id, "ordinary"]);
   });
-  it("validates all publication records rather than treating the target list as imported art", () => {
+  it("validates actual publication records and requires the acquired iconic collection", () => {
     expect(() => validateSeed(ALL_VISUAL_SEED)).not.toThrow();
+    expect(CURATED_VISUALS.length).toBeGreaterThanOrEqual(300);
     expect(new Set(CURATED_VISUALS.map(a => a.id)).size).toBe(CURATED_VISUALS.length);
+    for (const id of ["masterworks-leonardo-supper", "masterworks-michelangelo-adam", "masterworks-caravaggio-matthew", "masterworks-van-eyck-ghent", "masterworks-van-eyck-lamb", "heritage-michelangelo-pieta", "heritage-sinai-icon", "heritage-sistine-ceiling"]) {
+      expect(CURATED_VISUALS.find(a => a.id === id), id).toBeDefined();
+    }
   });
   it("uses lightweight reader derivatives and respects library-only connections", () => {
     for (const asset of CURATED_VISUALS) for (const p of asset.passages) {
       const plate = curatedReaderPlates(p.book, p.chapter).find(item => item.visualAssetId === asset.id);
-      if (p.inline === false && !asset.passages.some(other => other.book === p.book && other.chapter === p.chapter && other.inline !== false)) expect(plate).toBeUndefined();
+      if (asset.galleryOnly || (p.inline === false && !asset.passages.some(other => other.book === p.book && other.chapter === p.chapter && other.inline !== false))) expect(plate).toBeUndefined();
       else if (asset.readerUrl) expect(plate?.assetPath).toBe(asset.readerUrl);
     }
   });
-  it("keeps every published iconic work eligible and prioritizes it at its declared passage", () => {
-    const iconic = CURATED_VISUALS.filter(a => a.iconic);
-    for (const asset of iconic) {
-      const p = asset.passages.find(connection => connection.inline !== false);
-      if (!p) continue;
-      const selected = selectReaderVisuals(p.book, p.chapter, []);
-      expect(selected.some(plate => plate.visualAssetId === asset.id), asset.title).toBe(true);
+  it("keeps published iconic alternatives reachable without forcing them all onto bounded pages", () => {
+    for (const asset of CURATED_VISUALS.filter(a => a.iconic && !a.galleryOnly)) {
+      const eligible = asset.passages.filter(p => p.inline !== false);
+      if (!eligible.length) continue;
+      expect(eligible.some(p => inlinePlatesForChapter(p.book, p.chapter).some(plate => passageVisualChoices(plate, VISUAL_CATALOGUE, BIBLE_PLATES).some(a => a.id === asset.id))), asset.title).toBe(true);
+      const p = eligible[0];
+      expect(curatedReaderPlates(p.book, p.chapter).some(plate => plate.visualAssetId === asset.id), asset.title).toBe(true);
+      expect(selectReaderVisuals(p.book, p.chapter, []).length).toBeLessThanOrEqual(3);
     }
   });
   it("rejects unsupported rights, invented chapters and invalid checked dates", () => {
