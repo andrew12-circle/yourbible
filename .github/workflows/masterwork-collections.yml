@@ -31,32 +31,66 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Raw publication catalog identity and totals
+        id: catalog
+        continue-on-error: true
+        run: |
+          node --input-type=module <<'JS'
+          import {readFile} from 'node:fs/promises';
+          import {validateSeed} from './scripts/acquire-visual-bible.mjs';
+          for (const file of ['seed.json','readerExpansion.json','collectionExpansion.json']) {
+            const rows=JSON.parse(await readFile('src/data/visualBible/'+file,'utf8'));
+            console.log(file, rows.length, 'records');
+            for (const [index,row] of rows.entries()) { try { validateSeed([row]); } catch(error) { console.error(file,index,JSON.stringify(row),error); throw error; } }
+          }
+          JS
+          node scripts/report-visual-collection.mjs
       - name: Lint
+        id: lint
+        continue-on-error: true
         run: npm run lint 2>&1 | tee "$RUNNER_TEMP/collections-lint.log"
       - name: Full tests
+        id: tests
+        continue-on-error: true
         run: npm test 2>&1 | tee "$RUNNER_TEMP/collections-tests.log"
       - name: Offline production build
+        id: build
+        continue-on-error: true
         env:
           VERCEL: '1'
         run: npm run build 2>&1 | tee "$RUNNER_TEMP/collections-build.log"
       - name: Verify source bundle and actual distribution
+        id: images
+        continue-on-error: true
         run: |
           node scripts/acquire-visual-bible.mjs --verify
           node scripts/verify-visual-bible-dist.mjs
-          node scripts/report-visual-collection.mjs
       - name: No new TypeScript diagnostics
+        id: types
+        continue-on-error: true
         run: node scripts/check-journal-type-regressions.mjs e0932650aeef3d5e59765e2b8592335847fe2268 2>&1 | tee "$RUNNER_TEMP/collections-types.log"
       - name: Browser dependencies
         run: |
           npm install --prefix "$RUNNER_TEMP/collections-playwright" --no-package-lock playwright@1.55.0
           "$RUNNER_TEMP/collections-playwright/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Real reader and collection browser checks
+      - name: Existing real reader checks
+        id: reader
+        continue-on-error: true
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/collections-playwright/node_modules/playwright/index.mjs
-        run: |
-          node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/collections-reader.log"
-          node scripts/test-reader-visual-variety.mjs 2>&1 | tee "$RUNNER_TEMP/collections-variety.log"
-          node scripts/test-visual-bible-browser.mjs 2>&1 | tee "$RUNNER_TEMP/collections-browser.log"
+        run: node scripts/test-bible-reader.mjs 2>&1 | tee "$RUNNER_TEMP/collections-reader.log"
+      - name: Same-page passage visual switching
+        id: explorer
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/collections-playwright/node_modules/playwright/index.mjs
+        run: node scripts/test-reader-visual-variety.mjs 2>&1 | tee "$RUNNER_TEMP/collections-variety.log"
+      - name: Full visual gallery
+        id: gallery
+        continue-on-error: true
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/collections-playwright/node_modules/playwright/index.mjs
+        run: node scripts/test-visual-bible-browser.mjs 2>&1 | tee "$RUNNER_TEMP/collections-browser.log"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -69,3 +103,6 @@ jobs:
             ${{ runner.temp }}/visual-*.png
             ${{ runner.temp }}/visual-*.json
             public/visual-bible/v1/manifest.json
+      - name: Require all verification outcomes
+        if: always()
+        run: test '${{ steps.catalog.outcome }}' = success && test '${{ steps.lint.outcome }}' = success && test '${{ steps.tests.outcome }}' = success && test '${{ steps.build.outcome }}' = success && test '${{ steps.images.outcome }}' = success && test '${{ steps.types.outcome }}' = success && test '${{ steps.reader.outcome }}' = success && test '${{ steps.explorer.outcome }}' = success && test '${{ steps.gallery.outcome }}' = success
