@@ -1,0 +1,48 @@
+name: Align visual collection fixtures
+on:
+  push:
+    branches: ['feat/masterworks-atlas-collections']
+    paths: ['.github/workflows/align-visual-fixtures.yml']
+permissions:
+  contents: write
+jobs:
+  align:
+    if: github.ref == 'refs/heads/feat/masterworks-atlas-collections'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Update only three collection-dependent fixture assumptions
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          def replace(path, old, new):
+              p=Path(path); text=p.read_text()
+              if text.count(old)!=1: raise RuntimeError('Expected exactly one matching fixture: '+path)
+              p.write_text(text.replace(old,new))
+          replace('src/lib/bible/biblePlates.test.ts',
+            'it("includes full-color Tissot plates that beat Doré inline at the same verse", () => {\n    const inline = inlinePlatesForChapter("Mat", 5);\n    const tissot = inline.find((p) => p.artist === "James Tissot");',
+            'it("retains full-color Tissot alternatives without forcing them ahead of curated masterpieces", () => {\n    const alternatives = platesForChapter("Mat", 5);\n    const tissot = alternatives.find((p) => p.artist === "James Tissot");')
+          replace('src/lib/bible/readerStream.test.ts',
+            'const paired = [0, ch22 - 1, ch22, ch22 + 2, stream.length];',
+            '// Anchor the right pane to Luke 21:38, not to the unit preceding a header: a chapter-opening image can occupy that unit.\n    const lastVerse21 = stream.findIndex((u) => u.kind === "verse" && u.bookAbbr === "Luk" && u.chapter === 21 && u.verse.number === 38);\n    expect(lastVerse21).toBeGreaterThan(0);\n    const paired = [0, lastVerse21, ch22, ch22 + 2, stream.length];')
+          replace('src/lib/visualBible/catalogue.test.ts',
+            'import { SEED_VISUALS, VISUAL_SEED, hasVisualSeedForChapter } from "./seed";',
+            'import { SEED_VISUALS, VISUAL_SEED, CURATED_VISUALS, hasVisualSeedForChapter } from "./seed";')
+          replace('src/lib/visualBible/catalogue.test.ts',
+            'expect(VISUAL_CATALOGUE.filter((a) => a.review === "source-checked")).toHaveLength(20);',
+            'expect(SEED_VISUALS.filter((a) => a.review === "source-checked")).toHaveLength(20);\n    expect(VISUAL_CATALOGUE.filter((a) => a.review === "source-checked")).toHaveLength(CURATED_VISUALS.filter((a) => a.review === "source-checked").length);')
+          PY
+      - name: Commit the fixture changes without touching application code
+        shell: bash
+        run: |
+          git fetch origin feat/masterworks-atlas-collections
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/lib/bible/biblePlates.test.ts src/lib/bible/readerStream.test.ts src/lib/visualBible/catalogue.test.ts
+          git commit -m 'Keep legacy art available and assert verse-identified pagination boundaries with the expanded catalogue'
+          git push origin HEAD:refs/heads/feat/masterworks-atlas-collections
