@@ -1,4 +1,5 @@
 import { readerStreamUnitId } from "@/lib/bible/readerWindowFlow";
+import { readerIllustrationSourceRange } from "@/lib/bible/readerPageBoundaries";
 import { useCallback, useLayoutEffect, useMemo, useState, type SetStateAction } from "react";
 import type { PassageVerse } from "@/lib/bible/api";
 import type { ReaderStreamUnit } from "@/lib/bible/readerStream";
@@ -7,10 +8,12 @@ export interface ReaderAnchor { id: string; bookAbbr: string; chapter: number; v
 export function readerUnitAnchor(unit: ReaderStreamUnit): ReaderAnchor {
   return { id: readerStreamUnitId(unit), bookAbbr: unit.bookAbbr, chapter: unit.chapter, verse: unit.kind === "verse" ? unit.verse.number : undefined };
 }
-export function readerPageForUnit(splits: number[], index: number, spread: boolean): number {
+export function readerPageForUnit(splits: number[], index: number, spread: boolean, preferIllustration = false): number {
   let page = 0;
   for (let i = 0; i < splits.length - 1; i++) {
-    if (index >= splits[i] && index < splits[i + 1]) { page = i; break; }
+    const illustration = preferIllustration ? readerIllustrationSourceRange(splits, i) : null;
+    if ((illustration && index >= illustration.start && index < illustration.end)
+      || (index >= splits[i] && index < splits[i + 1])) { page = i; break; }
   }
   return spread ? page - page % 2 : page;
 }
@@ -48,29 +51,38 @@ export function useReaderPosition(options: Options) {
     return Math.max(0, units.findIndex(inChapter));
   }, [units, bookAbbr, chapter, requestedVerse, enterAtEnd, requestedAnchorId]);
   const anchorAtPage = useCallback((page: number) => {
+    const illustration = !spread ? readerIllustrationSourceRange(splits, page) : null;
     const start = splits[page] ?? 0;
-    const end = splits[Math.min(page + (spread ? 2 : 1), splits.length - 1)] ?? units.length;
+    const end = illustration?.end ?? splits[Math.min(page + (spread ? 2 : 1), splits.length - 1)] ?? units.length;
     const range = units.slice(start, end);
+    if (illustration) return range.find(u => u.id.includes("|art:")) ?? range[0] ?? null;
     return range.find((u) => !u.id.endsWith("|heading")) ?? range[0] ?? null;
   }, [splits, units, spread]);
   const page = useMemo(() => {
     if (!ready) return snapshot.intent === intent ? snapshot.page : 0;
-    if (snapshot.intent !== intent) return readerPageForUnit(splits, indexForIntent(), spread);
+    if (snapshot.intent !== intent) {
+      const preferIllustration = requestedAnchorId ? requestedAnchorId.includes("|art:") : !requestedVerse && !enterAtEnd;
+      return readerPageForUnit(splits, indexForIntent(), spread, preferIllustration);
+    }
     if (snapshot.layout !== layoutKey && snapshot.anchor) {
       const index = units.findIndex((u) => u.id === snapshot.anchor!.id);
-      return readerPageForUnit(splits, index >= 0 ? index : indexForIntent(), spread);
+      return readerPageForUnit(splits, index >= 0 ? index : indexForIntent(), spread, snapshot.anchor.id.includes("|art:"));
     }
     return clamp(snapshot.page);
-  }, [ready, snapshot, intent, splits, indexForIntent, spread, layoutKey, units, clamp]);
+  }, [ready, snapshot, intent, splits, indexForIntent, spread, layoutKey, units, clamp, requestedAnchorId, requestedVerse, enterAtEnd]);
   const anchor = useMemo(() => {
     if (!ready) return snapshot.intent === intent ? snapshot.anchor : null;
-    // A chapter opener on the right page must not inherit the preceding
-    // chapter's left-page verse as its reading position.
-    if (snapshot.intent !== intent) return units[indexForIntent()] ?? null;
+    if (snapshot.intent !== intent) {
+      // Preserve an illustration identity on mobile so resize does not skip it.
+      if (!spread && readerIllustrationSourceRange(splits, page)) return anchorAtPage(page);
+      // A chapter opener on the right must not inherit the preceding chapter.
+      return units[indexForIntent()] ?? null;
+    }
     if (snapshot.anchor) {
       const index = units.findIndex((unit) => unit.id === snapshot.anchor!.id);
       const start = splits[page] ?? 0;
-      const end = splits[Math.min(page + (spread ? 2 : 1), splits.length - 1)] ?? units.length;
+      const illustration = !spread ? readerIllustrationSourceRange(splits, page) : null;
+      const end = illustration?.end ?? splits[Math.min(page + (spread ? 2 : 1), splits.length - 1)] ?? units.length;
       if (index >= start && index < end) return snapshot.anchor;
     }
     return anchorAtPage(page);
@@ -87,15 +99,17 @@ export function useReaderPosition(options: Options) {
       return { intent, layout: layoutKey, page: next, anchor: anchorAtPage(next) };
     });
   }, [ready, intent, layoutKey, page, clamp, anchorAtPage]);
-  const goToIndex = useCallback((index: number) => {
+  const goToIndex = useCallback((index: number, preferIllustration = false) => {
     if (!ready || index < 0 || !units[index]) return;
-    setSnapshot({ intent, layout: layoutKey, page: readerPageForUnit(splits, index, spread), anchor: units[index] });
-  }, [ready, units, intent, layoutKey, splits, spread]);
+    const next = readerPageForUnit(splits, index, spread, preferIllustration);
+    const artwork = !spread && readerIllustrationSourceRange(splits, next);
+    setSnapshot({ intent, layout: layoutKey, page: next, anchor: artwork ? anchorAtPage(next) : units[index] });
+  }, [ready, units, intent, layoutKey, splits, spread, anchorAtPage]);
   const goToVerse = useCallback((verse: number) => {
     goToIndex(units.findIndex((u) => u.bookAbbr === bookAbbr && u.chapter === chapter && u.verse === verse));
   }, [units, bookAbbr, chapter, goToIndex]);
   const goToStart = useCallback(() => {
-    goToIndex(units.findIndex((u) => u.bookAbbr === bookAbbr && u.chapter === chapter));
+    goToIndex(units.findIndex((u) => u.bookAbbr === bookAbbr && u.chapter === chapter), true);
   }, [units, bookAbbr, chapter, goToIndex]);
   return { page, setPage, anchor, goToVerse, goToStart };
 }

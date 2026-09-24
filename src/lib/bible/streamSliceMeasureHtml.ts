@@ -11,16 +11,11 @@ import {
   headingsForChapter, paragraphStartsForChapter, poetryBlocksForChapter,
   type ReaderChapterPassage, type ReaderStreamUnit,
 } from "@/lib/bible/readerStream";
-import { biblePlateAssetUrl } from "@/lib/bible/biblePlateAssets";
 
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
   );
-}
-
-function escapeAttr(s: string): string {
-  return escapeHtml(s).replace(/`/g, "&#96;");
 }
 
 export function verseGroupsFromStreamSlice(
@@ -78,14 +73,9 @@ export function buildStreamSliceMeasureHtml(
   };
 
   for (const unit of slice) {
-    if (unit.kind === "plate") {
-      flushBatch();
-      parts.push(
-        `<figure class="scripture-plate scripture-plate-measure"><img class="scripture-plate-image" src="${escapeAttr(biblePlateAssetUrl(unit.plate))}" alt="" /><figcaption class="scripture-plate-caption">${escapeHtml(unit.plate.title)} ${escapeHtml(unit.plate.referenceLabel)}</figcaption></figure>`,
-      );
-      continue;
-    }
-    if (unit.kind === "chapter-header") continue;
+    // Artwork is a page companion, never a text-height input or paragraph break.
+    // Image loading, aspect ratio and carousel selection cannot change these cuts.
+    if (unit.kind === "plate" || unit.kind === "chapter-header") continue;
     if (unit.kind === "verse") {
       if (
         batch &&
