@@ -36,25 +36,26 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: reviewed-collection-import
-          run-id: 36017557912
+          run-id: 36020109334
           github-token: ${{ github.token }}
           path: import-resume
-      - name: Restore checkpointed derivatives without treating a partial bundle as complete
+      - name: Restore verified acquisition checkpoint
         run: |
           checkpoint=$(find import-resume -path '*/public/visual-bible/v1/manifest.json' -type f -print -quit)
           test -n "$checkpoint"
           cp -a "$(dirname "$checkpoint")/." public/visual-bible/v1/
-      - name: Prepare explicit editorial decisions and compatible source handling
+      - name: Prepare reviewed source decisions and bounded derivatives
         run: |
           node scripts/visual-bible/apply-import-compat.mjs
+          node scripts/visual-bible/apply-bounded-images.mjs
           node scripts/visual-bible/prepare-reviewed.mjs
-      - name: Recheck source identity and rights before importing metadata
+      - name: Recheck source identity and rights
         run: node scripts/visual-bible/import-reviewed.mjs 2>&1 | tee "$RUNNER_TEMP/collection-import.log"
-      - name: Resume approved images with provider backoff and verify the full bundle
+      - name: Resume approved images without exceeding reader file limits
         run: |
           node scripts/acquire-visual-bible.mjs 2>&1 | tee "$RUNNER_TEMP/collection-acquire.log"
           node scripts/acquire-visual-bible.mjs --verify
-      - name: Commit only reviewed metadata, image files and their exact integration changes
+      - name: Commit only reviewed catalogue and verified derivatives
         run: |
           git fetch origin feat/masterworks-atlas-collections
           test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
@@ -62,7 +63,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -f public/visual-bible/v1
           git add src/data/visualBible/collectionExpansion.json scripts/visual-bible/approved-selections.json docs/visual-bible/acquisition-review.json scripts/visual-bible/import-reviewed.mjs scripts/visual-bible/discover.mjs scripts/visual-bible/art-place-review.mjs scripts/acquire-visual-bible.mjs
-          git commit -m 'Import reviewed masterworks, atlas, artifacts, heritage and place images with verified first-party derivatives'
+          git commit -m 'Publish source-reviewed collection with verified first-party image derivatives'
           git push origin HEAD:refs/heads/feat/masterworks-atlas-collections
       - uses: actions/upload-artifact@v4
         if: always()

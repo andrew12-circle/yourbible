@@ -1,0 +1,57 @@
+import "@testing-library/jest-dom/vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { BiblePlate } from "@/data/biblePlates/types";
+import { SEED_VISUALS } from "@/lib/visualBible/seed";
+import PassageVisualExplorer from "./PassageVisualExplorer";
+import PassageGeographyView from "./PassageGeographyView";
+import { PASSAGE_GEOGRAPHY } from "@/data/visualBible/geography";
+const mocks = vi.hoisted(() => ({ key: null as string | null, map: vi.fn() }));
+vi.mock("@/lib/maps/googleMaps", () => ({ getGoogleMapsApiKey: () => mocks.key, openInGoogleMapsUrl: () => "https://www.google.com/maps/" }));
+vi.mock("./GooglePassageMap", () => ({ default: (props: unknown) => { mocks.map(props); return <div>Mock modern map</div>; } }));
+const plate: BiblePlate = { id: "example", visualAssetId: "example-art", bookAbbr: "Mat", chapter: 21, beforeVerse: 1, title: "Entry", referenceLabel: "Matthew 21", alt: "Entry", imageUrl: "/entry.webp", kind: "artwork" };
+const art = { ...SEED_VISUALS[0], id: "example-art", title: "Entry painting", creator: "Painter A", passages: [{ book: "Mat", chapter: 21, verse: 1, endVerse: 11, relationship: "depiction" as const, note: "Entry" }] };
+const map = { ...art, id: "example-map", title: "Jerusalem plan", kind: "map" as const, source: { ...art.source, credit: "Cartographer B", license: "CC BY 4.0", url: "https://example.org/map" } };
+afterEach(() => { cleanup(); mocks.key = null; mocks.map.mockClear(); vi.unstubAllEnvs(); });
+describe("passage explorer", () => {
+  it("changes the visual and attribution without firing the parent page-turn handlers", async () => {
+    const parent = vi.fn(), close = vi.fn();
+    render(<div onClick={parent} onKeyDown={parent} onTouchStart={parent}><PassageVisualExplorer plate={plate} assets={[art, map]} onClose={close} /></div>);
+    expect(screen.getByRole("combobox", { name: "Choose passage visual" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Next visual" }));
+    expect(screen.getByTestId("selected-visual-title")).toHaveTextContent("Jerusalem plan");
+    expect(screen.getByTestId("selected-visual-source")).toHaveTextContent("Cartographer B");
+    expect(screen.getByRole("link", { name: "Source record" })).toHaveAttribute("href", "https://example.org/map");
+    fireEvent.touchStart(screen.getByRole("region", { name: "Passage visual explorer" }));
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "ArrowRight" });
+    expect(parent).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Previous visual" }));
+    expect(screen.getByTestId("selected-visual-title")).toHaveTextContent("Entry painting");
+    expect(screen.getByRole("button", { name: "Previous visual" })).toBeDisabled();
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
+    expect(close).toHaveBeenCalledOnce();
+    expect(mocks.map).not.toHaveBeenCalled();
+  });
+  it("offers same-page geography without fabricating an ancient satellite view", async () => {
+    render(<PassageVisualExplorer plate={plate} assets={[art, map]} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "geography" } });
+    const geography = await screen.findByTestId("passage-geography");
+    expect(within(geography).getByText(/not a view of the first century/)).toBeVisible();
+    expect(within(geography).getByRole("link", { name: /Open Google Earth/ })).toHaveAttribute("target", "_blank");
+    expect(within(geography).getByRole("status")).toHaveTextContent("not configured");
+    expect(mocks.map).not.toHaveBeenCalled();
+  });
+  it("does not load Google until explicitly requested and disables it offline", async () => {
+    mocks.key = "test-not-a-live-key";
+    render(<PassageGeographyView scene={PASSAGE_GEOGRAPHY[0]} />);
+    expect(mocks.map).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Load Google map" }));
+    await waitFor(() => expect(mocks.map).toHaveBeenCalled());
+    expect(screen.getByText("Mock modern map")).toBeVisible();
+    const descriptor = Object.getOwnPropertyDescriptor(window.navigator, "onLine");
+    Object.defineProperty(window.navigator, "onLine", { configurable: true, value: false });
+    fireEvent(window, new Event("offline"));
+    expect(screen.getByRole("status")).toHaveTextContent("need internet");
+    if (descriptor) Object.defineProperty(window.navigator, "onLine", descriptor); else Reflect.deleteProperty(window.navigator, "onLine");
+  });
+});
