@@ -470,7 +470,10 @@ describe("readerStream", () => {
       },
     ]);
     const ch22 = stream.findIndex((u) => u.kind === "chapter-header" && u.chapter === 22);
-    const paired = [0, ch22 - 1, ch22, ch22 + 2, stream.length];
+    // Anchor the right pane to Luke 21:38, not to the unit preceding a header: a chapter-opening image can occupy that unit.
+    const lastVerse21 = stream.findIndex((u) => u.kind === "verse" && u.bookAbbr === "Luk" && u.chapter === 21 && u.verse.number === 38);
+    expect(lastVerse21).toBeGreaterThan(0);
+    const paired = [0, lastVerse21, ch22, ch22 + 2, stream.length];
     const normalized = ensureSpreadPageSplits(paired, stream);
     expect(normalized).toEqual(paired);
 

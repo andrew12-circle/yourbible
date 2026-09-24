@@ -1,0 +1,35 @@
+name: Visual atlas supplement
+on:
+  push:
+    branches: ['feat/masterworks-atlas-collections']
+    paths: ['scripts/visual-bible/supplement.mjs', '.github/workflows/visual-atlas-supplement.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: visual-collection-reviewed-previews
+          run-id: 36010367933
+          github-token: ${{ github.token }}
+          path: visual-review
+      - name: Discover named map series and specific collection gaps
+        run: node scripts/visual-bible/supplement.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-full-review
+          path: visual-review/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,49 @@
+name: Visual collection research
+on:
+  push:
+    branches: ['feat/masterworks-atlas-collections']
+    paths: ['scripts/visual-bible/targets.mjs', 'scripts/visual-bible/discover.mjs', '.github/workflows/visual-collection-research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: visual-research-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VISUAL_REVIEW_DIR: visual-review
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Include scalable maps as raster-preview candidates
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const path='scripts/visual-bible/discover.mjs';
+          let code=readFileSync(path,'utf8');
+          code=code.replace('Math.max(info.width || 0, info.height || 0) < 1200','info.mime !== "image/svg+xml" && Math.max(info.width || 0, info.height || 0) < 1200');
+          code=code.replace('jpeg|png|tiff|webp','jpeg|png|tiff|webp|svg\\+xml');
+          writeFileSync(path,code);
+          NODE
+      - name: Create review queue, never publish search results
+        run: node scripts/visual-bible/discover.mjs
+      - name: Snapshot source for implementation review
+        if: always()
+        run: |
+          mkdir -p visual-review/source
+          tar --exclude='public/bible-plates' --exclude='.git' -czf visual-review/source/implementation-source.tar.gz src scripts .github .cursor public/visual-bible package.json package-lock.json vite.config.ts vercel.json tsconfig*.json eslint.config.js AGENTS.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-collection-research
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: true
+          path: visual-review/
