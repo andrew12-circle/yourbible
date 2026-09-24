@@ -132,15 +132,22 @@ describe("BookPaginator spread mode", () => {
         const splits = onSplitsChange.mock.calls.at(-1)?.[0] as number[] | undefined;
         expect(splits).toBeDefined();
         expect(splits!.length).toBeGreaterThanOrEqual(4);
-        for (let spreadIdx = 0; spreadIdx + 2 < splits!.length; spreadIdx += 2) {
-          const leftEnd = splits![spreadIdx + 1]!;
-          const spreadEnd = splits![spreadIdx + 2]!;
-          expect(leftEnd).toBeGreaterThan(splits![spreadIdx]!);
-          expect(spreadEnd).toBeGreaterThan(leftEnd);
-        }
         const stream = buildReaderStream(
           longChapter(33).map((ch) => ({ ...ch, chapter: 13 })),
         );
+        for (let page = 0; page < splits!.length - 1; page++) {
+          const rendered = sliceReaderPage(stream, splits!, page);
+          expect(rendered).not.toBeNull();
+          if (splits![page] === splits![page + 1]) {
+            // A companion consumes no text and must contain real artwork.
+            expect(rendered!.isPlatePage).toBe(true);
+            expect(rendered!.plates.length).toBeGreaterThan(0);
+            expect(rendered!.verseGroups).toHaveLength(0);
+          } else {
+            expect(splits![page + 1]).toBeGreaterThan(splits![page]);
+            expect(rendered!.plates).toHaveLength(0);
+          }
+        }
         for (let spreadIdx = 0; spreadIdx + 2 < splits!.length; spreadIdx += 2) {
           const left = sliceReaderSpreadPane(stream, splits!, spreadIdx, "left", stream.length);
           const right = sliceReaderSpreadPane(stream, splits!, spreadIdx, "right", stream.length);
