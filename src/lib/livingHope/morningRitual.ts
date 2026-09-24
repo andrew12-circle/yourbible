@@ -367,9 +367,10 @@ export function buildRitualSteps(
       case "assignment":
         steps.push({ kind: "assignment" });
         break;
-      case "goals":
+      case "goals": {
         for (const g of activeGoals) steps.push({ kind: "goal", goalId: g.id });
         break;
+      }
       case "metrics":
         if (workbook?.metrics.length) steps.push({ kind: "metrics" });
         break;
