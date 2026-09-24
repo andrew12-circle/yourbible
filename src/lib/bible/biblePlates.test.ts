@@ -43,9 +43,9 @@ describe("biblePlates", () => {
     expect(hasChapterMedia("Exo", 14)).toBe(true);
   });
 
-  it("includes full-color Tissot plates that beat Doré inline at the same verse", () => {
-    const inline = inlinePlatesForChapter("Mat", 5);
-    const tissot = inline.find((p) => p.artist === "James Tissot");
+  it("retains full-color Tissot alternatives without forcing them ahead of curated masterpieces", () => {
+    const alternatives = platesForChapter("Mat", 5);
+    const tissot = alternatives.find((p) => p.artist === "James Tissot");
     expect(tissot).toBeDefined();
     expect(tissot?.priority ?? 10).toBeLessThan(10);
   });

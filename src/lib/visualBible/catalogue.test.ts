@@ -4,7 +4,7 @@ import { BIBLE_PLATES } from "@/data/biblePlates";
 import { STUDY_MAPS } from "@/lib/bible/studyBackMatter";
 import { VISUAL_KINDS } from "@/data/visualBible/types";
 import { VISUAL_CATALOGUE } from "./catalogue";
-import { SEED_VISUALS, VISUAL_SEED, hasVisualSeedForChapter } from "./seed";
+import { SEED_VISUALS, VISUAL_SEED, CURATED_VISUALS, hasVisualSeedForChapter } from "./seed";
 import { deduplicateVisuals, filterVisuals, normalizeVisualText, passageLabel, passageMatches, visualPage } from "./query";
 import { assertImageUrl, downloadImage, validateSeed } from "../../../scripts/acquire-visual-bible.mjs";
 
@@ -30,7 +30,8 @@ describe("visual Bible catalog", () => {
     for (const map of STUDY_MAPS) {
       expect(VISUAL_CATALOGUE.find((a) => a.id === `map-${map.id}`)?.source.license).toBe(map.license);
     }
-    expect(VISUAL_CATALOGUE.filter((a) => a.review === "source-checked")).toHaveLength(20);
+    expect(SEED_VISUALS.filter((a) => a.review === "source-checked")).toHaveLength(20);
+    expect(VISUAL_CATALOGUE.filter((a) => a.review === "source-checked")).toHaveLength(CURATED_VISUALS.filter((a) => a.review === "source-checked").length);
     expect(VISUAL_CATALOGUE.filter((a) => a.id.startsWith("plate-")).every((a) => a.review === "legacy")).toBe(true);
   });
   it("supports accents, artists, periods and Scripture search", () => {
