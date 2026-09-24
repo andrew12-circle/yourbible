@@ -4,7 +4,7 @@
   "chapter": 8,
   "reference": "Romans 8",
   "verseCount": 39,
-  "versesWithCrossRefs": 37,
+  "versesWithCrossRefs": 38,
   "versesWithFootnotes": 8,
   "verses": [
     {
@@ -201,7 +201,7 @@
         "Gl 4:6"
       ],
       "footnoteMarkers": [
-        1
+        9
       ]
     },
     {
@@ -345,7 +345,7 @@
         "Eph 6:18"
       ],
       "footnoteMarkers": [
-        1
+        10
       ]
     },
     {
@@ -379,8 +379,8 @@
         "1Pt 3:9"
       ],
       "footnoteMarkers": [
-        1,
-        2
+        11,
+        12
       ]
     },
     {
@@ -476,9 +476,20 @@
     },
     {
       "number": 36,
-      "textLength": 17,
-      "textPreview": "As it is written:",
-      "crossRefLabels": [],
+      "textLength": 115,
+      "textPreview": "As it is written: Because of you we are being put to death all day long; we are ",
+      "crossRefLabels": [
+        "Ac 20:24",
+        "1Co 4:9",
+        "1Co 15:30–31",
+        "2Co 1:9",
+        "2Co 6:9",
+        "2Co 11:23",
+        "Ps 44:22",
+        "Is 53:7",
+        "Zch 11:4",
+        "Zch 11:7"
+      ],
       "footnoteMarkers": []
     },
     {

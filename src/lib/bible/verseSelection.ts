@@ -1,4 +1,4 @@
-import type { Highlight } from "@/hooks/useUserData";
+import type { AnnotationAnchor } from "./annotationAnchor";
 
 export type VerseRange = {
   verse: number;
@@ -400,39 +400,17 @@ export function isRangeInReadingArea(range: Range): boolean {
 
 export type HighlightInterval = { start: number; end: number; color: string };
 
-/** Merge highlight rows into sorted non-overlapping intervals (later row wins on overlap). */
-export function highlightIntervalsForVerse(
-  textLength: number,
-  marks: Highlight[],
-): HighlightInterval[] {
-  const raw: HighlightInterval[] = [];
-  for (const m of marks) {
-    if ((m.kind ?? "highlight") !== "highlight") continue;
-    const start = m.start_offset ?? 0;
-    const end = m.end_offset ?? textLength;
-    if (end > start) raw.push({ start, end, color: m.color });
-  }
-  raw.sort((a, b) => a.start - b.start || a.end - b.end);
-  return raw;
+export type ReaderHighlight = { source_anchor?: AnnotationAnchor; color:string; kind?:string; id?:string; created_at?:string; start_offset?:number|null;end_offset?:number|null;start?:number;end?:number };
+/** Disjoint intervals; last input row wins. Never concatenate a character twice. */
+export function highlightIntervalsForVerse(textLength:number,marks:readonly ReaderHighlight[]):HighlightInterval[]{
+  if(!Number.isFinite(textLength)||textLength<=0)return[];
+  const ranges=marks.flatMap(m=>{if((m.kind??"highlight")!=="highlight")return[];const a=m.start_offset??m.start??0,b=m.end_offset??m.end??textLength;if(!Number.isFinite(a)||!Number.isFinite(b))return[];const start=Math.max(0,Math.min(textLength,Math.trunc(a))),end=Math.max(0,Math.min(textLength,Math.trunc(b)));return end>start?[{start,end,color:m.color}]:[];});
+  const edges=[...new Set(ranges.flatMap(r=>[r.start,r.end]))].sort((a,b)=>a-b),result:HighlightInterval[]=[];
+  for(let i=0;i<edges.length-1;i++){const start=edges[i],end=edges[i+1],winner=[...ranges].reverse().find(r=>r.start<=start&&r.end>=end);if(!winner)continue;const last=result.at(-1);if(last?.end===start&&last.color===winner.color)last.end=end;else result.push({start,end,color:winner.color});}return result;
 }
-
-export type TextPart = { text: string; color?: string };
-
-/** Split plain verse text into alternating plain / highlighted parts. */
-export function sliceTextByHighlights(
-  text: string,
-  intervals: HighlightInterval[],
-): TextPart[] {
-  if (intervals.length === 0) return [{ text }];
-
-  const parts: TextPart[] = [];
-  let pos = 0;
-  for (const iv of intervals) {
-    if (iv.start > pos) parts.push({ text: text.slice(pos, iv.start) });
-    const chunk = text.slice(iv.start, iv.end);
-    if (chunk) parts.push({ text: chunk, color: iv.color });
-    pos = Math.max(pos, iv.end);
-  }
-  if (pos < text.length) parts.push({ text: text.slice(pos) });
-  return parts.length > 0 ? parts : [{ text }];
+export type TextPart={text:string;color?:string};
+export function sliceTextByHighlights(text:string,intervals:HighlightInterval[]):TextPart[]{
+  const resolved=highlightIntervalsForVerse(text.length,intervals),parts:TextPart[]=[];let pos=0;
+  for(const iv of resolved){if(iv.start>pos)parts.push({text:text.slice(pos,iv.start)});parts.push({text:text.slice(iv.start,iv.end),color:iv.color});pos=iv.end;}
+  if(pos<text.length)parts.push({text:text.slice(pos)});return parts.length?parts:[{text}];
 }

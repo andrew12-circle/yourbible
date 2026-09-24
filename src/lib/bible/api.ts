@@ -1,3 +1,4 @@
+import { PASSAGE_PARSER_REVISION } from "./textRevision";
 import { EOTC_BIBLE_ENTRY, WLC_BIBLE_ENTRY, isEotcBibleId } from "@/lib/bible/canon";
 import {
   API_BIBLE_CSB_ID,
@@ -21,7 +22,7 @@ const FUNCTIONS_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 export type VersePartStyle = "divine" | "inscription" | "selah";
 
 export type VersePart =
-  | { kind: "text"; text: string; style?: VersePartStyle }
+  | { kind: "text"; text: string; style?: VersePartStyle; isJesus?: boolean }
   | { kind: "footnote"; marker: number; text: string }
   | { kind: "image"; src: string; alt: string; caption?: string }
   | {
@@ -34,10 +35,17 @@ export type VersePart =
       letter?: string;
     };
 
+export interface VerseSourceBlock {
+  /** UTF-16 offset in versePlainText, not a display-line index. */
+  start: number; paragraphStart: boolean; level: number;
+  alignment?: "start" | "center" | "end";
+}
 export interface PassageVerse {
   number: number;
   text: string;
   parts?: VersePart[];
+  sourceBlocks?: VerseSourceBlock[];
+  annotationSourceText?: string;
   crossRefs?: PassageCrossRef[];
   footnotes?: PassageFootnote[];
 }
@@ -52,13 +60,15 @@ export interface Passage {
   headings: PassageHeading[];
   poetryBlocks?: PoetryBlock[];
   textRevision?: string;
+  rawContent?: string;
+  parserRevision?: string;
 }
 
 /** Ensure every verse has a string body (cached/API payloads can omit text). */
 export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "reference" | "verses">): Passage {
   const verses = (raw.verses ?? []).map((v) => {
     const parts = v.parts;
-    const text = sanitizePubVerseText(
+    const text = v.sourceBlocks?.length ? versePlainText(v) : sanitizePubVerseText(
       parts && parts.length > 0
         ? versePlainText({ number: v.number, text: "", parts })
         : typeof v.text === "string"
@@ -66,6 +76,7 @@ export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "referenc
           : "",
     );
     return {
+      ...v,
       number: v.number,
       text,
       parts,
@@ -74,6 +85,7 @@ export function normalizePassage(raw: Partial<Passage> & Pick<Passage, "referenc
     };
   });
   return {
+    ...raw,
     reference: raw.reference,
     verses,
     paragraphStarts:
@@ -114,7 +126,7 @@ export function resolvePassageFromApi(json: unknown): Passage {
         poetryBlocks: [],
       };
     }
-    return normalizePassage({ ...parsed, textRevision });
+    return normalizePassage({ ...parsed, textRevision, rawContent, parserRevision: PASSAGE_PARSER_REVISION });
   }
 
   return normalizePassage(json as Passage);

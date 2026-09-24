@@ -16,11 +16,13 @@ export function ScriptureParagraph({
   children,
   className,
   poetryLevel = 0,
+  alignment,
   isContinuation = false,
 }: {
   children: ReactNode;
   className?: string;
   poetryLevel?: number;
+  alignment?: "start" | "center" | "end";
   isContinuation?: boolean;
 }) {
   const poetryClass =
@@ -30,7 +32,7 @@ export function ScriptureParagraph({
         ? "scripture-paragraph scripture-paragraph-continue"
         : "scripture-paragraph";
   return (
-    <p className={cn(poetryClass, className)} style={{ orphans: 2, widows: 2 }}>
+    <p className={cn(poetryClass, className)} style={{ orphans: 2, widows: 2, ...(alignment && alignment !== "start" ? { textAlign: alignment } : {}) }}>
       {children}
     </p>
   );

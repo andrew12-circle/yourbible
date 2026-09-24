@@ -1,18 +1,8 @@
 import { versePlainText, type VersePart } from "./verseParts";
 
-/**
- * Red-letter Bible support — segment a verse into Jesus/non-Jesus text.
- *
- * Scholar-curated approach. Verses where Jesus speaks (WHOLE or PARTIAL lists)
- * are split by quotation marks. Only text inside the outermost pair of quotes
- * is painted red — narration ("Jesus replied…", "He answered them,") and
- * nested quotes (what others said) stay black.
- *
- * For PARTIAL verses, quote depth is **carried across verse boundaries**
- * within a chapter so Jesus' speech that spans several verses (e.g. Mat 11:4–6)
- * stays red until the closing quote. Depth resets at non-speech verses and at
- * chapter boundaries. Only depth-1 (outermost) quoted text is red; nested
- * quotes stay black. Curly apostrophes in contractions (Haven't) are not quotes.
+/** Publisher speech attributes are authoritative when available.
+ * Legacy unmarked data retains the existing best-effort quotation fallback.
+ * The fallback is not certified as identical to a publisher red-letter edition.
  */
 
 export type Segment = { text: string; isJesus: boolean };
@@ -51,12 +41,7 @@ const span = (chapter: number, from: number, to: number): string[] => {
   return out;
 };
 
-/**
- * Verses where the entire verse is Jesus speaking.
- * Curated against standard published red-letter editions, with the Greek
- * dialogue structure double-checked verse-by-verse so that narration verses
- * ("Then his disciples said unto him…") are NEVER included.
- */
+/** Legacy candidate list only. Explicit source attributes bypass this heuristic. */
 const RED_WHOLE: WholeMap = {
   // ============ MATTHEW ============
   Mat: w(
@@ -523,6 +508,16 @@ export function splitJesusSpeechForChapter(
     // stream as the renderer. v.text may have collapsed whitespace while its
     // styled parts retain spaces surrounding removed reference markers.
     const text = versePlainText(v);
+    const sourceParts = v.parts?.filter((part) => part.kind === "text");
+    if (sourceParts?.length && sourceParts.every((part) => typeof part.isJesus === "boolean")) {
+      const segments: Segment[] = [];
+      for (const part of sourceParts) {
+        const last = segments.at(-1);
+        if (last && last.isJesus === part.isJesus) last.text += part.text;
+        else segments.push({ text: part.text, isJesus: part.isJesus === true });
+      }
+      result.set(v.number, segments); quoteDepth = 0; continue;
+    }
     if (isJesusSpeechVerse(bookAbbr, chapter, v.number)) {
       const startDepth = quoteDepth;
       const { segments, depth } = splitByQuotesStateful(text, quoteDepth);

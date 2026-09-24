@@ -58,10 +58,11 @@
     },
     {
       "number": 5,
-      "textLength": 205,
+      "textLength": 196,
       "textPreview": "My people, remember what King Balak of Moab proposed, what Balaam son of Beor an",
       "crossRefLabels": [
         "Nm 22:5",
+        "Nm 22:1",
         "Nm 25:1",
         "Jos 2:1",
         "Jos 3:1",
@@ -72,7 +73,7 @@
         "Is 1:27"
       ],
       "footnoteMarkers": [
-        1
+        2
       ]
     },
     {
@@ -120,8 +121,8 @@
       "textPreview": "The voice of the Lord calls out to the city (and it is wise to fear your name): ",
       "crossRefLabels": [],
       "footnoteMarkers": [
-        1,
-        1
+        3,
+        4
       ]
     },
     {
@@ -135,7 +136,7 @@
         "Am 8:5"
       ],
       "footnoteMarkers": [
-        1
+        5
       ]
     },
     {
@@ -175,7 +176,7 @@
         "Is 6:11"
       ],
       "footnoteMarkers": [
-        1
+        6
       ]
     },
     {
@@ -187,7 +188,7 @@
         "Is 30:6"
       ],
       "footnoteMarkers": [
-        1
+        7
       ]
     },
     {
@@ -222,9 +223,9 @@
         "Hs 12:14"
       ],
       "footnoteMarkers": [
-        1,
-        2,
-        1
+        8,
+        9,
+        10
       ]
     }
   ]

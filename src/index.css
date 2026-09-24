@@ -729,7 +729,7 @@
     --hl-stroke-opacity: 0.62;
     position: relative;
     display: inline;
-    padding: 0 0.05em;
+    padding: 0;
     color: inherit;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
@@ -1801,7 +1801,7 @@
   /* Red-letter words of Jesus — Holman-style color emphasis, same weight as body. */
   .red-letter {
     color: hsl(0 72% 36%);
-    letter-spacing: 0.003em;
+    letter-spacing: inherit;
   }
   .dark .red-letter {
     color: hsl(0 68% 62%);

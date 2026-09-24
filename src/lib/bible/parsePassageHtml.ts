@@ -10,13 +10,10 @@ import {
   versePlainText,
 } from "@/lib/bible/verseParts";
 
-export interface PassageVerse {
-  number: number;
-  text: string;
-  parts?: VersePart[];
-  crossRefs?: { label: string; book: string; chapter: number; verse: number }[];
-  footnotes?: { marker: number; text: string }[];
-}
+import type { PassageVerse, VerseSourceBlock } from "./api";
+export type { PassageVerse } from "./api";
+import { parseSourceHtml, sourceClasses, sourceParagraphs, sourceText, type SourceNode } from "./sourceHtml";
+import { normalizeSourceParts } from "./sourceTextParts";
 
 export interface PassageHeading {
   /** First verse that follows this heading in reading order. */
@@ -161,11 +158,11 @@ const USFM_TO_BOOK_ABBR: Record<string, string> = {
 };
 
 function parseUsfmSpanId(id: string): { bookAbbr: string; chapter: number; verse: number } | null {
-  const m = /^([A-Z0-9]+)\.(\d+)\.(\d+)/i.exec(id.trim().split("-")[0]!);
+  const m = /^([A-Z0-9]+)\.(\d+)(?:\.(\d+))?/i.exec(id.trim().split("-")[0]!);
   if (!m) return null;
   const bookAbbr = USFM_TO_BOOK_ABBR[m[1]!.toUpperCase()];
   const chapter = parseInt(m[2]!, 10);
-  const verse = parseInt(m[3]!, 10);
+  const verse = m[3] ? parseInt(m[3], 10) : 1;
   if (!bookAbbr || !Number.isFinite(chapter) || !Number.isFinite(verse)) return null;
   return { bookAbbr, chapter, verse };
 }
@@ -175,7 +172,8 @@ function crossRefPartFromCitation(id: string | undefined, labelRaw: string): Ext
   if (!label || /^[—–-]+$/.test(label)) return null;
   let parsed = id ? parseUsfmSpanId(id) : null;
   if (!parsed?.verse) {
-    parsed = parseBibleReference(label) ?? parsed;
+    const ref = parseBibleReference(label);
+    if (ref?.verse) parsed = { bookAbbr: ref.bookAbbr, chapter: ref.chapter, verse: ref.verse };
   }
   if (!parsed?.verse) return null;
   return {
@@ -195,7 +193,7 @@ function pushXtCrossRefs(xtInner: string, parts: VersePart[], pushText: (raw: st
       if (part) parts.push(part);
       else {
         const fallback = decodeEntities(stripHtmlTags(inner)).trim();
-        if (fallback) pushText(fallback);
+        if (fallback) parts.push({ kind: "footnote", marker: 0, text: `Cross-reference: ${fallback}` });
       }
     }
     return;
@@ -206,7 +204,7 @@ function pushXtCrossRefs(xtInner: string, parts: VersePart[], pushText: (raw: st
     if (part) parts.push(part);
     else {
       const fallback = chunk.trim();
-      if (fallback) pushText(fallback);
+      if (fallback) parts.push({ kind: "footnote", marker: 0, text: `Cross-reference: ${fallback}` });
     }
   }
 }
@@ -409,7 +407,7 @@ function imagePartFromHtml(token: string): Extract<VersePart, { kind: "image" }>
 }
 
 /** Parse inline API.Bible markup into ordered verse parts (text, footnotes, cross-refs). */
-export function parseVerseHtmlToParts(html: string, footnoteStart = 0): {
+function parseLegacyVerseHtmlToParts(html: string, footnoteStart = 0): {
   parts: VersePart[];
   nextFootnoteMarker: number;
 } {
@@ -609,70 +607,127 @@ function appendContinuationToVerse(existing: PassageVerse, innerHtml: string): P
   return mergeVerseEntries(existing, incoming);
 }
 
-/** Parse API.Bible HTML chapter content into verses, paragraph breaks, and headings. */
-export function parsePassageHtml(content: string, reference = ""): ParsedPassage {
-  const blocks = splitParagraphBlocks(content);
-  const verseMap = new Map<number, PassageVerse>();
-  const paragraphStarts: number[] = [];
-  const poetryBlocks: PoetryBlock[] = [];
-  const headings: PassageHeading[] = [];
-  let nextHeading: string | null = null;
-  let lastOpenVerse: number | null = null;
+type InlineEvent = { kind: "verse"; number: number } | { kind: "break" } | { kind: "part"; part: VersePart };
 
-  for (const block of blocks) {
-    if (isHeadingBlock(block)) {
-      const text = cleanHeadingText(block.replace(/^<p\b[^>]*>/i, "").replace(/<\/p>$/i, ""));
-      if (text) nextHeading = text;
-      continue;
-    }
-    if (!isTextBlock(block)) continue;
-
-    const cls = paragraphClass(block);
-    const inner = block.replace(/^<p\b[^>]*>/i, "").replace(/<\/p>$/i, "");
-    const blockVerses = extractVersesFromBlock(inner);
-    if (blockVerses.length === 0) {
-      if (lastOpenVerse !== null && isVerselessContinuationBlock(block)) {
-        const existing = verseMap.get(lastOpenVerse);
-        if (existing) {
-          const merged = appendContinuationToVerse(existing, inner);
-          if (merged) verseMap.set(lastOpenVerse, merged);
+/** Traverse nested speech/style markup before dividing at verse markers. */
+function inlineSourceEvents(nodes: SourceNode[], html: string, footnoteStart = 0): { events: InlineEvent[]; nextFootnoteMarker: number } {
+  const events: InlineEvent[] = [];
+  let marker = footnoteStart;
+  let crossRefLetter: string | undefined;
+  const pushPart = (part: VersePart, jesus: boolean) => {
+    if (part.kind === "text") events.push({ kind: "part", part: { ...part, isJesus: jesus } });
+    else if (part.kind === "footnote") events.push({ kind: "part", part: { ...part, marker: ++marker } });
+    else events.push({ kind: "part", part });
+  };
+  const visit = (children: SourceNode[], jesus = false, style?: VersePartStyle) => {
+    for (let i = 0; i < children.length; i++) {
+      const node = children[i];
+      if (node.kind === "text") { if (node.value) pushPart({ kind: "text", text: node.value, ...(style ? { style } : {}) }, jesus); continue; }
+      const classes = sourceClasses(node);
+      if (["script", "style", "iframe", "object", "template", "noscript"].includes(node.tag)) continue;
+      if (classes.has("v") || node.tag === "verse") {
+        const raw = node.attrs["data-number"] ?? node.attrs.number ?? sourceText(node).trim();
+        const number = /^\d+$/.test(raw) ? Number(raw) : NaN;
+        if (Number.isInteger(number) && number > 0) events.push({ kind: "verse", number });
+        continue;
+      }
+      if (classes.has("xo")) { const label = sourceText(node).trim(); crossRefLetter = /^[a-z]$/i.test(label) ? label : undefined; continue; }
+      if (classes.has("sup") || classes.has("fr") || classes.has("va") || classes.has("vp")) continue;
+      if (node.tag === "br") { events.push({ kind: "break" }); continue; }
+      if (classes.has("f") || classes.has("fe") || node.tag === "note" || classes.has("xt") || classes.has("x") || node.tag === "figure" || node.tag === "img") {
+        const result = parseLegacyVerseHtmlToParts(html.slice(node.start, node.end), 0);
+        for (const part of result.parts) {
+          if (part.kind === "text") {
+            if (classes.has("xt") && /^\s*[—–-]\s*$/.test(sourceText(node))) pushPart({ kind: "text", text: "—" }, jesus);
+            else if (part.text.trim()) pushPart({ kind: "footnote", marker: 0, text: `Cross-reference: ${part.text.trim()}` }, false);
+          } else if (part.kind === "crossref" && crossRefLetter) pushPart({ ...part, letter: crossRefLetter }, false);
+          else pushPart(part, false);
+        }
+        crossRefLetter = undefined;
+        continue;
+      }
+      if (["ft", "fqa", "fq", "fk", "xop", "xot", "xnt", "notelink", "footnote", "crossref"].some((cls) => classes.has(cls))) continue;
+      const nextJesus = jesus || classes.has("wj");
+      const nextStyle = classes.has("nd") ? "divine" : classes.has("qs") || classes.has("selah") ? "selah" : classes.has("sc") ? "inscription" : style;
+      if (classes.has("sc")) {
+        const body = sourceText(node), next = children[i + 1];
+        if (/^[A-Z]$/.test(body) && next?.kind === "text") {
+          const tail = /^[a-z]+/.exec(next.value)?.[0] ?? "";
+          if (tail) {
+            pushPart({ kind: "text", text: joinSmallCapSpan(body, tail), style: "inscription" }, nextJesus);
+            if (next.value.length > tail.length) pushPart({ kind: "text", text: next.value.slice(tail.length), ...(style ? { style } : {}) }, jesus);
+            i++; continue;
+          }
+        }
+        const previous = events.at(-1);
+        if (/^[a-z]/.test(body) && previous?.kind === "part" && previous.part.kind === "text" && /[A-Z]$/.test(previous.part.text)) {
+          const capital = previous.part.text.slice(-1);
+          previous.part = { ...previous.part, text: previous.part.text.slice(0, -1) };
+          pushPart({ kind: "text", text: capital + body, style: "inscription" }, nextJesus); continue;
         }
       }
-      continue;
+      visit(node.children, nextJesus, nextStyle);
     }
-
-    const firstVerse = blockVerses[0]!.number;
-    paragraphStarts.push(firstVerse);
-    const poetryLevel = poetryLevelFromClass(cls);
-    if (poetryLevel > 0) {
-      poetryBlocks.push({ beforeVerse: firstVerse, level: poetryLevel });
-    }
-    if (nextHeading) {
-      headings.push({ beforeVerse: firstVerse, text: nextHeading });
-      nextHeading = null;
-    }
-    for (const v of blockVerses) {
-      const existing = verseMap.get(v.number);
-      verseMap.set(v.number, existing ? mergeVerseEntries(existing, v) : v);
-      lastOpenVerse = v.number;
-    }
-  }
-
-  const verses = [...verseMap.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([, v]) => v);
-
-  if (verses.length > 0 && paragraphStarts.length === 0) {
-    paragraphStarts.push(verses[0]!.number);
-  }
-
-  return {
-    reference,
-    verses,
-    paragraphStarts,
-    headings,
-    poetryBlocks,
   };
+  visit(nodes);
+  return { events, nextFootnoteMarker: marker };
+}
+
+export function parseVerseHtmlToParts(html: string, footnoteStart = 0): { parts: VersePart[]; nextFootnoteMarker: number } {
+  const { events, nextFootnoteMarker } = inlineSourceEvents(parseSourceHtml(html).children, html, footnoteStart);
+  const parts = events.flatMap((event): VersePart[] => event.kind === "part" ? [event.part] : event.kind === "break" ? [{ kind: "text", text: " ", isJesus: false }] : []);
+  return { parts: normalizeSourceParts(parts), nextFootnoteMarker };
+}
+
+/** Preserve all body blocks, including centered poetry and leading continuation. */
+export function parsePassageHtml(content: string, reference = ""): ParsedPassage {
+  const root = parseSourceHtml(content), verseMap = new Map<number, PassageVerse>();
+  const paragraphStarts: number[] = [], poetryBlocks: PoetryBlock[] = [], headings: PassageHeading[] = [];
+  let currentVerse: number | null = null, marker = 0, lastLevel = 0;
+  let nextHeading: string | undefined;
+  const blocks = sourceParagraphs(root);
+  for (const node of blocks.length ? blocks : [root]) {
+    const classes = sourceClasses(node);
+    const hasMarker = (child: SourceNode): boolean => child.kind === "element" && (sourceClasses(child).has("v") || child.tag === "verse" || child.children.some(hasMarker));
+    const containsVerse = node.children.some(hasMarker);
+    if (!containsVerse && [...classes].some((cls) => /^(s\d*|ms\d*|d|qa)$/.test(cls))) { nextHeading = cleanHeadingText(content.slice(node.openEnd, node.closeStart)); continue; }
+    if (!containsVerse && [...classes].some((cls) => /^(c|cp|cl|ca|r|mr|sr|mt\d*|h\d*|toc\d*|rem|b)$/.test(cls))) continue;
+    const poetryClass = [...classes].find((cls) => /^(q\d*|qm\d*|qc|qr|qd)$/.test(cls));
+    const level = poetryClass ? Number(/\d+/.exec(poetryClass)?.[0] ?? 1) : 0;
+    const alignment = classes.has("qc") || classes.has("pc") ? "center" : classes.has("qr") || classes.has("pr") || classes.has("pmr") ? "end" : "start";
+    const result = inlineSourceEvents(node.children, content, marker); marker = result.nextFootnoteMarker;
+    let buffer: VersePart[] = [], paragraphStart = true;
+    const flush = () => {
+      if (currentVerse == null) { buffer = []; return; }
+      const parts = normalizeSourceParts(buffer); buffer = [];
+      const plain = parts.filter((p) => p.kind === "text").map((p) => p.text).join("");
+      if (!parts.length) return;
+      const existing = verseMap.get(currentVerse), separator = existing?.text && plain ? " " : "";
+      const block: VerseSourceBlock = { start: (existing?.text.length ?? 0) + separator.length, paragraphStart, level, alignment };
+      if (existing) {
+        const combined = [...(existing.parts ?? []), ...(separator ? [{ kind: "text" as const, text: separator, isJesus: false }] : []), ...parts];
+        verseMap.set(currentVerse, { ...existing, parts: combined, text: existing.text + separator + plain,
+          sourceBlocks: [...(existing.sourceBlocks ?? []), ...(plain ? [block] : [])], crossRefs: collectCrossRefs(combined), footnotes: collectFootnotes(combined) });
+      } else if (plain) {
+        verseMap.set(currentVerse, { number: currentVerse, text: plain, parts, sourceBlocks: [block], crossRefs: collectCrossRefs(parts), footnotes: collectFootnotes(parts) });
+        if (paragraphStart) paragraphStarts.push(currentVerse);
+        if (level !== lastLevel || level > 0) { poetryBlocks.push({ beforeVerse: currentVerse, level }); lastLevel = level; }
+      }
+      if (plain) {
+        if (nextHeading && !existing) { headings.push({ beforeVerse: currentVerse, text: nextHeading }); nextHeading = undefined; }
+        paragraphStart = false;
+      }
+    };
+    for (const event of result.events) {
+      if (event.kind === "part") buffer.push(event.part);
+      else if (event.kind === "break") { flush(); paragraphStart = true; }
+      else { flush(); currentVerse = event.number; }
+    }
+    flush();
+  }
+  const verses = [...verseMap.values()].sort((a,b) => a.number-b.number);
+  if (verses.length && !paragraphStarts.includes(verses[0].number)) paragraphStarts.unshift(verses[0].number);
+  return { reference, verses, paragraphStarts: [...new Set(paragraphStarts)], headings, poetryBlocks };
 }
 
 /** Plain-text fallback when HTML has no paragraph markup. */

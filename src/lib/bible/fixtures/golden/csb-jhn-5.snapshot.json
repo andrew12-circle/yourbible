@@ -4,7 +4,7 @@
   "chapter": 5,
   "reference": "John 5",
   "verseCount": 46,
-  "versesWithCrossRefs": 35,
+  "versesWithCrossRefs": 36,
   "versesWithFootnotes": 6,
   "verses": [
     {
@@ -80,9 +80,11 @@
     },
     {
       "number": 9,
-      "textLength": 67,
-      "textPreview": "Instantly the man got well, picked up his mat, and started to walk.",
-      "crossRefLabels": [],
+      "textLength": 97,
+      "textPreview": "Instantly the man got well, picked up his mat, and started to walk. Now that day",
+      "crossRefLabels": [
+        "Mk 2:23"
+      ],
       "footnoteMarkers": []
     },
     {
@@ -119,7 +121,7 @@
         "Jn 7:28"
       ],
       "footnoteMarkers": [
-        1
+        3
       ]
     },
     {
@@ -150,7 +152,7 @@
         "Lk 13:10"
       ],
       "footnoteMarkers": [
-        1
+        4
       ]
     },
     {
@@ -204,7 +206,7 @@
         "Jn 17:9–10"
       ],
       "footnoteMarkers": [
-        1
+        5
       ]
     },
     {
@@ -374,7 +376,7 @@
         "Jn 12:46"
       ],
       "footnoteMarkers": [
-        1
+        6
       ]
     },
     {

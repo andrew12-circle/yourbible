@@ -1,19 +1,7 @@
 import type { PassageCrossRef, PassageFootnote, PassageVerse } from "@/lib/bible/api";
 
-export type VersePartStyle = "divine" | "inscription" | "selah";
-
-export type VersePart =
-  | { kind: "text"; text: string; style?: VersePartStyle }
-  | { kind: "footnote"; marker: number; text: string }
-  | { kind: "image"; src: string; alt: string; caption?: string }
-  | {
-      kind: "crossref";
-      label: string;
-      book: string;
-      chapter: number;
-      verse: number;
-      letter?: string;
-    };
+export type { VersePartStyle, VersePart } from "./api";
+import type { VersePart, VersePartStyle } from "./api";
 
 export function verseParts(v: PassageVerse): VersePart[] {
   if (v.parts && v.parts.length > 0) return v.parts;

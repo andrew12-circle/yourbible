@@ -1,4 +1,6 @@
-import { normalizePassage, type Passage } from "@/lib/bible/api";
+import { versePlainText } from "./verseParts";
+import { identifyReaderPassage } from "./readerPassageIdentity";
+import { normalizePassage, resolvePassageFromApi, type Passage } from "@/lib/bible/api";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import { bibleDeliveryMode } from "@/lib/bible/bibleEditions";
 
@@ -36,32 +38,42 @@ function openDb(): Promise<IDBDatabase> {
   }
   return dbPromise;
 }
-export async function getCachedPassage(bibleId: string, book: string, chapter: number): Promise<CachedPassageRecord | null> {
-  try {
-    const db = await openDb();
-    const key = passageCacheKey(bibleId, book, chapter);
-    const row = await new Promise<CachedPassageRecord | undefined>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readonly");
-      const req = tx.objectStore(STORE).get(key);
-      req.onsuccess = () => resolve(req.result as CachedPassageRecord | undefined);
-      req.onerror = () => reject(req.error);
-      tx.onabort = () => reject(tx.error ?? new Error("Cache read aborted"));
-    });
-    if (!row || row.key !== key || !isPassageCacheFresh(row.cachedAt)) return null;
-    const normalized = normalizePassage(row.passage);
-    return { ...row, passage: { ...row.passage, ...normalized } };
-  } catch { return null; }
+function previousCacheKey(bibleId:string,book:string,chapter:number):string {
+  return `${bibleId}|${book}|${chapter}|v11|reader-integrity-v1|${bibleDeliveryMode(bibleId)}`;
 }
-export async function setCachedPassage(bibleId: string, book: string, chapter: number, passage: Passage): Promise<void> {
-  try {
-    const db = await openDb();
-    const record: CachedPassageRecord = { key: passageCacheKey(bibleId, book, chapter), passage, cachedAt: Date.now() };
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(record);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error ?? new Error("Cache write aborted"));
-    });
-  } catch { /* Quota/private-mode failures cannot prevent reading a valid response. */ }
+async function readRecord(db:IDBDatabase,key:string):Promise<CachedPassageRecord|undefined>{
+  return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,"readonly"),request=tx.objectStore(STORE).get(key);request.onsuccess=()=>resolve(request.result as CachedPassageRecord|undefined);request.onerror=()=>reject(request.error);tx.onabort=()=>reject(tx.error??new Error("Cache read aborted"));});
+}
+async function writeRecord(db:IDBDatabase,row:CachedPassageRecord):Promise<void>{
+  await new Promise<void>((resolve,reject)=>{const tx=db.transaction(STORE,"readwrite");tx.objectStore(STORE).put(row);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error??new Error("Cache write aborted"));});
+}
+function preserveAnnotationBaseline(passage:Passage,prior?:Passage):Passage{
+  if(!prior)return passage;const previous=new Map(prior.verses.map(v=>[v.number,v]));
+  return{...passage,verses:passage.verses.map(v=>{const old=previous.get(v.number);return old?{...v,annotationSourceText:old.annotationSourceText??versePlainText(old)}:v;})};
+}
+export async function getCachedPassage(bibleId:string,book:string,chapter:number):Promise<CachedPassageRecord|null>{
+  try{
+    const db=await openDb(),key=passageCacheKey(bibleId,book,chapter);let row=await readRecord(db,key);
+    if(!row){
+      const legacyKey=previousCacheKey(bibleId,book,chapter),legacy=await readRecord(db,legacyKey);
+      if(!legacy||legacy.key!==legacyKey||!isPassageCacheFresh(legacy.cachedAt)||!legacy.passage.rawContent)return null;
+      identifyReaderPassage(legacy.passage,bibleId,book,chapter);
+      const reparsed=resolvePassageFromApi({reference:legacy.passage.reference,rawContent:legacy.passage.rawContent,textRevision:legacy.passage.textRevision});
+      const passage=identifyReaderPassage(preserveAnnotationBaseline(reparsed,legacy.passage),bibleId,book,chapter);
+      row={key,passage,cachedAt:legacy.cachedAt};await writeRecord(db,row);
+    }
+    if(row.key!==key||!isPassageCacheFresh(row.cachedAt))return null;
+    const normalized=normalizePassage(row.passage),passage=identifyReaderPassage({...row.passage,...normalized},bibleId,book,chapter);
+    return{...row,passage};
+  }catch{return null;}
+}
+export async function setCachedPassage(bibleId:string,book:string,chapter:number,input:Passage):Promise<Passage>{
+  let passage=input;
+  try{
+    const db=await openDb(),key=passageCacheKey(bibleId,book,chapter);
+    const prior=await readRecord(db,key)??await readRecord(db,previousCacheKey(bibleId,book,chapter));
+    if(prior){try{identifyReaderPassage(prior.passage,bibleId,book,chapter);passage=preserveAnnotationBaseline(input,prior.passage);}catch{/* Incorrect identity is not an annotation baseline. */}}
+    await writeRecord(db,{key,passage,cachedAt:Date.now()});
+  }catch{/* Storage failure cannot prevent displaying a validated passage. */}
+  return passage;
 }

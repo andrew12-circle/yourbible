@@ -54,6 +54,7 @@ export function passageToCanonicalChapter(
     parserRevision: PASSAGE_PARSER_REVISION,
     verses,
     layout,
+    rawContent: passage.rawContent,
     cachedAt: Date.now(),
   };
 }
@@ -67,6 +68,7 @@ function studyMetaFromVerse(
   return {
     verseId: makeVerseId(bibleId, bookAbbr, chapter, v.number),
     parts: v.parts,
+    sourceBlocks: v.sourceBlocks,
     crossRefs: v.crossRefs,
     footnotes: v.footnotes,
   };
@@ -78,6 +80,8 @@ export function canonicalChapterToPassage(record: CanonicalChapterRecord): Passa
   );
   return {
     reference: `${record.bookAbbr} ${record.chapter}`,
+    rawContent: record.rawContent,
+    parserRevision: record.parserRevision,
     textRevision: record.textRevision,
     paragraphStarts: record.layout.paragraphStarts,
     headings: record.layout.headings,
@@ -88,6 +92,7 @@ export function canonicalChapterToPassage(record: CanonicalChapterRecord): Passa
         number: cv.verse,
         text: sanitizePubVerseText(cv.text),
         parts: study?.parts,
+        sourceBlocks: study?.sourceBlocks,
         crossRefs: study?.crossRefs,
         footnotes: study?.footnotes,
       };
