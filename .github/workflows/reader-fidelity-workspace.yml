@@ -1,0 +1,32 @@
+name: Reader fidelity workspace
+on:
+  push:
+    branches: [fix/reader-source-fidelity]
+    paths: [.github/workflows/reader-fidelity-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  workspace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Export tracked application and installed test dependencies
+        run: |
+          git archive --format=tar.gz HEAD > "$RUNNER_TEMP/reader-source.tar.gz"
+          tar -czf "$RUNNER_TEMP/reader-dependencies.tar.gz" node_modules
+          git rev-parse HEAD > "$RUNNER_TEMP/source-sha.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reader-fidelity-workspace
+          retention-days: 2
+          path: |
+            ${{ runner.temp }}/reader-source.tar.gz
+            ${{ runner.temp }}/reader-dependencies.tar.gz
+            ${{ runner.temp }}/source-sha.txt
