@@ -55,9 +55,10 @@ const css=(await postcss([tailwindcss(join(root,'tailwind.config.ts'))]).process
    for(const variant of ['red','highlight','note']){
     window.renderFidelity({font,size,width,variant});const actual=measure();
     const differences=actual.boxes.map((r,i)=>({char:actual.text[i],i,actual:r,base:base.boxes[i]})).filter(({actual:r,i})=>!base.boxes[i]||Math.abs(r[1]-base.boxes[i][1])>.2||Math.abs(r[3]-base.boxes[i][3])>.2);
-    // Collapsed zero-width spaces can be reported on either line at a span boundary.
-    // Keep every exact-text assertion and every visible glyph's geometry assertion.
-    const lineChanges=differences.filter(d=>d.actual[2]>.01||d.base?.[2]>.01||/\S/u.test(d.char)).length;
+    // Chromium can round a collapsed space range to 1/64 CSS px at a span cut.
+    // Ignore that unpainted space's line association only; retain its diagnostic,
+    // exact characters, every visible space, and EVERY non-whitespace glyph check.
+    const lineChanges=differences.filter(d=>d.actual[2]>1/32||d.base?.[2]>1/32||/\S/u.test(d.char)).length;
     results.push({font,size,width,variant,textEqual:actual.text===expected,heightEqual:Math.abs(actual.height-base.height)<.2,lineChanges,differences});
    }
   }
