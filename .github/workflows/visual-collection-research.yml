@@ -1,0 +1,35 @@
+name: Visual collection research
+on:
+  push:
+    branches: ['feat/masterworks-atlas-collections']
+    paths: ['scripts/visual-bible/targets.mjs', 'scripts/visual-bible/discover.mjs', '.github/workflows/visual-collection-research.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: visual-research-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Create review queue, never publish search results
+        run: node scripts/visual-bible/discover.mjs
+      - name: Snapshot source for implementation review
+        if: always()
+        run: |
+          mkdir -p .visual-review/source
+          tar --exclude='public/bible-plates' --exclude='.git' -czf .visual-review/source/implementation-source.tar.gz src scripts .github .cursor public/visual-bible package.json package-lock.json vite.config.ts vercel.json tsconfig*.json eslint.config.js AGENTS.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-collection-research
+          retention-days: 14
+          path: .visual-review/
