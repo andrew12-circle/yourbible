@@ -1,9 +1,14 @@
 import { lazy, Suspense } from "react";
-const VisualBibleLibrary = lazy(() => import("./visual/VisualBibleLibrary").then((module) => ({ default: module.VisualBibleLibrary })));
+import { useSearchParams } from "react-router-dom";
+import { BOOKS } from "@/data/books";
+const VisualBibleLibrary = lazy(() => import("./visual/VisualBibleLibrary").then(module => ({ default: module.VisualBibleLibrary })));
 
-/** Keep the established back-matter route while replacing the unbounded image grid. */
 export function ArtworkGallery() {
+  const [params] = useSearchParams();
+  const book = BOOKS.find(item => item.abbr === params.get("book"));
+  const chapter = Number(params.get("chapter"));
+  const valid = book && Number.isInteger(chapter) && chapter >= 1 && chapter <= book.chapters;
   return <Suspense fallback={<p role="status" className="p-6 text-sm text-muted-foreground">Opening visual library…</p>}>
-    <VisualBibleLibrary />
+    <VisualBibleLibrary book={valid ? book.abbr : undefined} chapter={valid ? chapter : undefined} />
   </Suspense>;
 }
