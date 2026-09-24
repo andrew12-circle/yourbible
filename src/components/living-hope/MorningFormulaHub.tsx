@@ -6,6 +6,7 @@ import {
   Calendar,
   ChevronRight,
   Mail,
+  Settings2,
   Sparkles,
   Sunrise,
   Target,
@@ -228,6 +229,11 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
           <Button className={lh.btnPrimary} disabled={!lookupError} onClick={() => setLookupAttempt((n) => n + 1)}>{lookupError ? "Try opening today's journal again" : "Opening today's journal…"}</Button>
           {lookupError && <p role="alert" className="mt-2 text-sm text-destructive">Your completed journal could not be found. No new entry has been created.</p>}
         </> : <Button asChild className={lh.btnPrimary}><Link to={href}>{label}<ChevronRight className="ml-2 h-4 w-4" aria-hidden /></Link></Button>}
+      </div>
+      <div className="mt-3">
+        <Button asChild variant="outline" className="min-h-11">
+          <Link to="/living-hope/builder"><Settings2 className="mr-2 h-4 w-4" aria-hidden />Edit Morning Formula</Link>
+        </Button>
       </div>
       {streak > 0 && <p className="mt-4 text-sm text-muted-foreground">{streak} {streak === 1 ? "morning" : "mornings"} in a row</p>}
     </section>
