@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { BibleEarthButton } from "@/components/bible/earth/BibleEarthButton";
 import {
   ChevronDown,
   ChevronLeft,
@@ -451,7 +452,10 @@ export function TopBar({
                 singlePage && "overflow-x-auto scrollbar-hide touch-pan-x",
               )}
             >
-              {!focusMode ? <ReaderToolbarActions {...toolbarProps} /> : null}
+              {!focusMode ? (<>
+                <BibleEarthButton book={currentBook.abbr} chapter={currentChapter} translation={bibles.find((entry) => entry.id === bibleId)?.abbreviation} />
+                <ReaderToolbarActions {...toolbarProps} />
+              </>) : null}
               <ReaderIconButton onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Secret Place"}>
                 {focusMode ? (
                   <EyeOff className="w-[18px] h-[18px]" strokeWidth={2} />

@@ -1,0 +1,43 @@
+name: Bible Earth browser
+on:
+  push:
+    branches: ['feat/bible-earth-explorer', 'test/bible-earth-browser']
+    paths: ['src/components/bible/earth/**', 'src/lib/bible/geography*', 'src/hooks/useBibleGeography.ts', 'scripts/bible-geography/browser.mjs', '.github/workflows/bible-earth-browser.yml']
+  pull_request:
+    paths: ['src/components/bible/earth/**', 'src/lib/bible/geography*', 'src/hooks/useBibleGeography.ts', 'scripts/bible-geography/**', 'public/bible-geography/**', '.github/workflows/bible-earth-browser.yml']
+permissions:
+  contents: read
+concurrency:
+  group: bible-earth-browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify pinned atlas
+        run: |
+          if [ ! -f public/bible-geography/atlas-v1.json ]; then node scripts/bible-geography/import.mjs; fi
+          node scripts/bible-geography/import.mjs --verify
+      - run: npm ci
+      - name: Browser engines
+        run: |
+          npm install --prefix "$RUNNER_TEMP/earth-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/earth-playwright/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Real atlas reader dialog on desktop Chromium and mobile WebKit
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/earth-playwright/node_modules/playwright/index.mjs
+        run: node scripts/bible-geography/browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bible-earth-browser
+          path: ${{ runner.temp }}/bible-earth-browser/
+          retention-days: 7
+          if-no-files-found: warn

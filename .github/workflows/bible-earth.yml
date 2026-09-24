@@ -1,0 +1,62 @@
+name: Bible Earth explorer
+on:
+  push:
+    branches: ['feat/bible-earth-explorer']
+  pull_request:
+    paths: ['src/**/earth/**', 'src/**/geography*', 'src/hooks/useBibleGeography.ts', 'src/pages/bible/BibleEarthPage.tsx', 'scripts/bible-geography/**', 'public/bible-geography/**', '.github/workflows/bible-earth.yml']
+permissions:
+  contents: read
+concurrency:
+  group: bible-earth-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: earth-test-placeholder
+  VITE_SUPABASE_ANON_KEY: earth-test-placeholder
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Integrate reader and import pinned open geography
+        run: |
+          node scripts/bible-geography/integrate.mjs
+          if [ -f public/bible-geography/atlas-v1.json ]; then
+            node scripts/bible-geography/import.mjs --verify
+          else
+            node scripts/bible-geography/import.mjs
+          fi
+      - run: npm ci
+      - name: Importer regressions
+        run: node --test scripts/bible-geography/normalize.test.mjs
+      - name: Full repository lint
+        run: npm run lint
+      - name: Full repository tests
+        run: npm run test
+      - name: Production build
+        run: npm run build
+      - name: Materialize verified data and integration on feature branch only
+        if: github.event_name == 'push' && github.ref == 'refs/heads/feat/bible-earth-explorer'
+        run: |
+          git add public/bible-geography src/App.tsx src/components/bible/TopBar.tsx
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Bundle verified Bible atlas and wire Earth into reader'
+            git push origin HEAD:feat/bible-earth-explorer
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bible-earth-atlas
+          path: public/bible-geography/
+          if-no-files-found: warn
+          retention-days: 7

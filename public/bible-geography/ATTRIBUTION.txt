@@ -1,0 +1,7 @@
+YourBible Biblical Geography
+Derived from OpenBible.info / Bible-Geocoding-Data
+Source: https://www.openbible.info/geo/
+Revision: 7eb18a5ee62f27b9b93bd6689ea272d76dd23b8f (2021-11-01)
+Data: Creative Commons Attribution 4.0, https://creativecommons.org/licenses/by/4.0/
+Some coordinates and geometry derive from OpenStreetMap contributors, https://www.openstreetmap.org/copyright, ODbL 1.0 https://opendatacommons.org/licenses/odbl/1-0/
+Changes: normalized ancient places, candidate resolutions and translation-specific verse associations into a searchable application index. Source KML is copied without alteration. No Scripture text or image assets are republished.
