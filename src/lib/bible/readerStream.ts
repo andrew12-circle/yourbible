@@ -2,6 +2,7 @@ import { appendReaderStreamVerse, type ReaderTextRange } from "./readerVerseFrag
 import type { PassageHeading, PassageVerse, PoetryBlock } from "@/lib/bible/api";
 import { inlinePlatesForChapter } from "@/lib/bible/biblePlates";
 import type { BiblePlate } from "@/lib/bible/biblePlates";
+import { readerIllustrationSourceRange, validReaderPageBoundaries } from "./readerPageBoundaries";
 
 /** Chapter title block above the article on pages where a chapter begins. */
 export const CHAPTER_HEADER_RESERVE_PX = 96;
@@ -115,22 +116,17 @@ export function areSameStreamSplits(a: number[], b: number[]): boolean {
 }
 
 /** Bump when spread split layout changes — forces paginator remeasure in ReaderPage. */
-export const READER_PAGINATOR_SPLIT_REVISION = 22;
+export const READER_PAGINATOR_SPLIT_REVISION = 23;
 
 export function isStreamSplitsReady(splits: number[], streamLength: number): boolean {
   if (streamLength === 0) return true;
-  if (splits.length < 2) return false;
-  if (splits[0] !== 0) return false;
-  if (splits[splits.length - 1] !== streamLength) return false;
-  for (let i = 1; i < splits.length; i++) {
-    if (splits[i]! <= splits[i - 1]!) return false;
-  }
-  return true;
+  return validReaderPageBoundaries(splits, streamLength, true);
 }
 
 /**
  * Spread + two columns per page needs a measured left/right boundary ([0, left, …, end]),
  * not a provisional [0, end] slice that dumps half the chapter per page.
+ * [0, 0, textEnd, …] is an illustration and its fully measured Scripture page.
  */
 export function isSpreadDoubleColumnSplitsReady(
   splits: number[],
@@ -142,10 +138,11 @@ export function isSpreadDoubleColumnSplitsReady(
   const rightEnd = splits[2];
   return (
     splits.length >= 3 &&
-    leftEnd > 0 &&
+    leftEnd >= 0 &&
     leftEnd < streamLength &&
     rightEnd != null &&
-    rightEnd > leftEnd
+    rightEnd >= leftEnd &&
+    rightEnd > 0
   );
 }
 
@@ -181,12 +178,13 @@ function synthesizeSpreadLeftBoundary(end: number, stream: ReaderStreamUnit[]): 
   return synthesizeSpreadLeftBoundaryInRange(0, end, stream);
 }
 
-/** True when spread splits look like one boundary per spread (right page jumps to next spread). */
+/** True when splits look like old spread-only boundaries, not illustrated page plans. */
 export function spreadSplitsNeedPagePairRepair(
   stream: ReaderStreamUnit[],
   splits: number[],
 ): boolean {
   if (!isStreamSplitsReady(splits, stream.length) || splits.length < 3) return false;
+  if (splits.some((cut, index) => index > 0 && cut === splits[index - 1])) return false;
 
   const left = sliceReaderStreamRange(stream, splits[0]!, splits[1]!, 0);
   const right = sliceReaderStreamRange(stream, splits[1]!, splits[2]!, 1);
@@ -234,13 +232,14 @@ export function spreadSplitsNeedPagePairRepair(
   return false;
 }
 
-/** True when splits already alternate left/right boundaries ([0, left, spreadEnd, left, spreadEnd, …]). */
+/** True when splits already describe physical pages, including illustration companions. */
 export function spreadSplitsAlreadyPaired(
   splits: number[],
   streamLength: number,
 ): boolean {
-  if (splits.length < 4 || splits.length % 2 !== 0) return false;
   if (!isStreamSplitsReady(splits, streamLength)) return false;
+  if (splits.some((cut, index) => index > 0 && cut === splits[index - 1])) return true;
+  if (splits.length < 4 || splits.length % 2 !== 0) return false;
   for (let spreadIdx = 0; spreadIdx + 2 < splits.length; spreadIdx += 2) {
     const leftStart = splits[spreadIdx]!;
     const leftEnd = splits[spreadIdx + 1]!;
@@ -313,14 +312,18 @@ export function sliceReaderSpreadPane(
   side: "left" | "right",
   streamLength: number,
 ): ReaderPageSlice | null {
+  const pageIdx = spreadLeftPageIdx + (side === "right" ? 1 : 0);
+  if (splits[pageIdx] != null && splits[pageIdx + 1] != null) {
+    return sliceReaderPage(stream, splits, pageIdx);
+  }
   const ranges = spreadPaneStreamRanges(splits, spreadLeftPageIdx, streamLength);
   const range = side === "left" ? ranges.left : ranges.right;
   if (range.end <= range.start) return null;
-  const pageIdx = spreadLeftPageIdx + (side === "right" ? 1 : 0);
-  return sliceReaderStreamRange(stream, range.start, range.end, pageIdx);
+  const slice = sliceReaderStreamRange(stream, range.start, range.end, pageIdx);
+  return slice?.verseGroups.length ? { ...slice, plates: [], isPlatePage: false } : slice;
 }
 
-/** Left/right stream index ranges for one facing spread in double-column mode. */
+/** Left/right stream ranges; an illustration page deliberately consumes zero units. */
 export function spreadPaneStreamRanges(
   splits: number[],
   spreadPageIdx: number,
@@ -334,7 +337,7 @@ export function spreadPaneStreamRanges(
   const mid = splits[spreadPageIdx + 1];
   const far = splits[spreadPageIdx + 2];
 
-  if (mid != null && far != null && mid > leftStart && far > mid) {
+  if (mid != null && far != null && mid >= leftStart && far >= mid && far > leftStart) {
     return {
       left: { start: leftStart, end: mid },
       right: { start: mid, end: far },
@@ -379,7 +382,9 @@ export function spreadPaneSplitsReady(
   streamLength: number,
 ): boolean {
   const ranges = spreadPaneStreamRanges(splits, spreadPageIdx, streamLength);
-  return ranges.left.end > ranges.left.start && ranges.right.end > ranges.right.start;
+  const ready = (pageIdx: number, range: { start: number; end: number }) =>
+    range.end > range.start || readerIllustrationSourceRange(splits, pageIdx) !== null;
+  return ready(spreadPageIdx, ranges.left) && ready(spreadPageIdx + 1, ranges.right);
 }
 
 /** Even page index of the spread that contains a verse (searches left then right panes). */
@@ -611,12 +616,30 @@ export function sliceReaderPage(
   pageIdx: number,
 ): ReaderPageSlice | null {
   if (stream.length === 0 || pageIdx < 0) return null;
+  const illustration = readerIllustrationSourceRange(splits, pageIdx);
+  if (illustration) {
+    const units = stream.slice(illustration.start, illustration.end);
+    const anchors = units.filter((unit): unit is Extract<ReaderStreamUnit, { kind: "plate" }> => unit.kind === "plate");
+    if (!anchors.length) return null;
+    const first = anchors[0];
+    return {
+      pageIdx,
+      startsWithChapterHeader: null,
+      plates: anchors.map(unit => unit.plate),
+      isPlatePage: true,
+      verseGroups: [],
+      primaryChapter: { bookAbbr: first.bookAbbr, bookName: first.bookName, chapter: first.chapter },
+      anchorVerse: first.plate.beforeVerse,
+    };
+  }
   const start = splits[pageIdx];
   const end = splits[pageIdx + 1];
   if (start != null && end != null && end > start) {
-    return sliceReaderStreamRange(stream, start, end, pageIdx);
+    const slice = sliceReaderStreamRange(stream, start, end, pageIdx);
+    // Artwork stays on its companion page. Never inject a full-height image
+    // into Scripture that was measured without one, or repeat its anchor text.
+    return slice?.verseGroups.length ? { ...slice, plates: [], isPlatePage: false } : slice;
   }
-  if (!isStreamSplitsReady(splits, stream.length)) return null;
   return null;
 }
 

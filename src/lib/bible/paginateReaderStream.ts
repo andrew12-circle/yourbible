@@ -1,52 +1,65 @@
 import type { ReaderStreamUnit } from "./readerStream";
+import { validReaderPageBoundaries } from "./readerPageBoundaries";
 
 /** Validate a fixed prefix before remeasuring the current page and unread suffix. */
 export function readerPaginationPrefix(length: number, prefix?: readonly number[]): number[] {
-  if (!prefix?.length || prefix[0] !== 0 || prefix.at(-1)! > length) return [0];
-  for (let i = 0; i < prefix.length; i++) {
-    if (!Number.isInteger(prefix[i]) || prefix[i] < 0 || (i > 0 && prefix[i] <= prefix[i - 1])) return [0];
-  }
-  return [...prefix];
+  return prefix && validReaderPageBoundaries(prefix, length) ? [...prefix] : [0];
 }
 
-/** Measure text only. Artwork is an explicit, immutable single-page boundary. */
+/**
+ * Fill Scripture pages before placing artwork. Plates are anchors, not breaks.
+ * textFits measures Scripture only, at the supplied physical page index.
+ * A zero-width companion groups every illustration anchored to that text page
+ * into one carousel without moving, omitting or repeating source text units.
+ */
 export function paginateReaderStream(
   stream: ReaderStreamUnit[],
   textFits: (start: number, end: number, pageIndex: number) => boolean,
   fixedPrefix?: readonly number[],
 ): number[] {
   const splits = readerPaginationPrefix(stream.length, fixedPrefix);
-  let start = splits.at(-1)!;
-  while (start < stream.length) {
-    if (stream[start].kind === "plate") {
-      splits.push(++start);
-      continue;
-    }
-    let cap = start + 1;
-    while (cap < stream.length && stream[cap].kind !== "plate") cap += 1;
-    const pageIndex = splits.length - 1;
-    let lastFit = start;
-    let step = 1;
-    while (start + step <= cap && textFits(start, start + step, pageIndex)) {
+  // An illustration and its text are one layout decision. When only the
+  // illustration is in an append/correction prefix, remeasure the pair; a
+  // shorter text page might no longer contain that illustration's anchor.
+  if (splits.length > 1 && splits.at(-1) === splits.at(-2)) splits.pop();
+  const plateCounts = [0];
+  for (const unit of stream) plateCounts.push(plateCounts.at(-1)! + Number(unit.kind === "plate"));
+  const hasPlates = (start: number, end: number) => plateCounts[end] > plateCounts[start];
+
+  const textEnd = (start: number, pageIndex: number): number => {
+    let firstVerse = start;
+    while (firstVerse < stream.length && stream[firstVerse].kind !== "verse") firstVerse++;
+    if (firstVerse === stream.length) return stream.length;
+    let lastFit = start, step = 1;
+    while (start + step <= stream.length && textFits(start, start + step, pageIndex)) {
       lastFit = start + step;
       step *= 2;
     }
-    let lo = lastFit + 1;
-    let hi = Math.min(start + step, cap);
+    let lo = lastFit + 1, hi = Math.min(start + step, stream.length);
     while (lo <= hi) {
       const mid = Math.floor((lo + hi) / 2);
       if (textFits(start, mid, pageIndex)) { lastFit = mid; lo = mid + 1; }
       else hi = mid - 1;
     }
-    // A title never owns an empty text page. In page mode, Scripture units
-    // are measured word fragments; long verses continue onto later pages.
-    // A chapter header carries no separate text height (its numeral is in
-    // verse 1), so a candidate ending at that header can appear to fit even
-    // when verse 1 does not. Keep the header with its opening verse instead
-    // of reserving a blank chapter title on the preceding page.
-    if (lastFit > start && stream[lastFit - 1].kind === "chapter-header") lastFit -= 1;
-    const minimum = stream[start].kind === "chapter-header" && start + 1 < cap ? start + 2 : start + 1;
-    start = Math.min(cap, Math.max(minimum, lastFit));
+    // Keep trailing chapter headings and artwork anchors with their next verse,
+    // not at the end of the previous page. Oversized first words still advance.
+    while (lastFit > firstVerse + 1 && stream[lastFit - 1].kind !== "verse") lastFit--;
+    return Math.max(firstVerse + 1, lastFit);
+  };
+
+  let start = splits.at(-1)!;
+  while (start < stream.length) {
+    const pageIndex = splits.length - 1;
+    if (hasPlates(start, stream.length)) {
+      const end = textEnd(start, pageIndex + 1);
+      const hasText = stream.slice(start, end).some(unit => unit.kind === "verse");
+      if (hasText && hasPlates(start, end)) {
+        splits.push(start, end);
+        start = end;
+        continue;
+      }
+    }
+    start = textEnd(start, pageIndex);
     splits.push(start);
   }
   return splits;

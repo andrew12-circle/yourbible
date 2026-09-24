@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { renderReaderScrollStream } from "./renderReaderScrollStream";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
 import { ScriptureVirtualChapter, ScriptureDocumentBlocks } from "@/components/scripture";
@@ -20,6 +20,21 @@ import {
 } from "@/lib/bible/readerStream";
 import type { ResolvedStudyLayout } from "@/lib/bible/readerStudyLayout";
 import type { ReaderColumnLayout } from "@/lib/bible/readerColumnMeasure";
+
+/** One full-height illustration at a time, even when a text page spans several scenes. */
+function ReaderPageArtwork({ plates }: { plates: BiblePlate[] }) {
+  const [index, setIndex] = useState(0);
+  const plate = plates[index] ?? plates[0];
+  if (!plate) return null;
+  return <div className="relative h-full min-h-0" data-reader-artwork-group>
+    <ScripturePlate plate={plate} />
+    {plates.length > 1 ? <nav aria-label="Scenes on this Scripture page" className="absolute left-2 top-2 z-10 flex items-center gap-1 rounded-full border bg-background/95 px-1 shadow-sm">
+      <button type="button" aria-label="Previous scene on this page" className="h-11 w-9" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setIndex(current => (current - 1 + plates.length) % plates.length); }}>‹</button>
+      <span className="text-xs tabular-nums">{index + 1}/{plates.length}</span>
+      <button type="button" aria-label="Next scene on this page" className="h-11 w-9" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setIndex(current => (current + 1) % plates.length); }}>›</button>
+    </nav> : null}
+  </div>;
+}
 
 type VerseCtx = {
   bookAbbr: string;
@@ -174,9 +189,7 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
         () => passagePoetryBlocks,
       )
     ) : streamSlice?.isPlatePage && pageContentReady ? (
-      streamSlice.plates.map((plate) => (
-        <ScripturePlate key={plate.id} plate={plate} />
-      ))
+      <ReaderPageArtwork key={streamSlice.plates.map(plate => plate.id).join("|")} plates={streamSlice.plates} />
     ) : useStreamReader && streamSlice && pageContentReady ? (
       <>
         {streamSlice.plates.map((plate) => (
