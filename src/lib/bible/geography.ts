@@ -3,7 +3,8 @@ import { BOOKS } from "@/data/books";
 
 export const GEOGRAPHY_TRANSLATIONS = ["csb", "esv", "kjv", "leb", "nasb", "net", "niv", "nkjv", "nlt", "nrsv"] as const;
 export type GeographyTranslation = (typeof GEOGRAPHY_TRANSLATIONS)[number] | "all";
-const sourceScore = z.number().finite().min(0).max(1000).nullable();
+// The upstream includes negative evidence scores; retain rather than clamp them.
+const sourceScore = z.number().finite().nullable();
 const verseTuple = z.tuple([z.number().int().min(1).max(66), z.number().int().min(1).max(150), z.number().int().min(1).max(176)]);
 const candidateSchema = z.object({
   id: z.string(), modernId: z.string(), name: z.string(), description: z.string(),
@@ -36,7 +37,6 @@ export interface GeographyFilter {
   book: number | null; chapter: number | null; verses: [number, number] | null;
   translation: GeographyTranslation; query: string;
 }
-
 export function geographyBookNumber(book: string | undefined): number | null {
   if (!book) return null;
   const normalized = book.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -52,8 +52,7 @@ export function parseGeographyVerseRange(value: string): [number, number] | null
   if (!value.trim()) return null;
   const match = value.trim().match(/^(\d{1,3})(?:\s*[-–]\s*(\d{1,3}))?$/);
   if (!match) throw new Error("Use a verse number or range, such as 7 or 1–12.");
-  const start = Number(match[1]);
-  const end = Number(match[2] ?? match[1]);
+  const start = Number(match[1]), end = Number(match[2] ?? match[1]);
   if (start < 1 || end < start || end > 176) throw new Error("Use an ascending verse range between 1 and 176.");
   return [start, end];
 }
@@ -125,5 +124,6 @@ export function geographyStatus(place: GeographyPlace): string {
   if (!place.candidates.length) return "Location unresolved";
   const top = place.candidates[0].score ?? 0;
   if (place.unresolved.some((item) => (item.score ?? 0) >= top && ["unknown_place", "nonspecific_place", "not_a_place", "not_a_proper_name"].includes(item.kind))) return "Location unresolved; candidates listed";
+  if (top <= 0) return "Low source support; candidate only";
   return top === 1000 ? "High source confidence" : "Proposed identification";
 }
