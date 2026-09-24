@@ -4,10 +4,12 @@ import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { boundedVisualDerivative } from "./lib/visual-image-derivative.mjs";
+import { imageResponseError, imageRetryDelay } from "./lib/image-download-backoff.mjs";
 import { readVisualSeed, derivativeSpecs, CANON_CHAPTERS } from "./lib/visual-bible-catalog.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const HOSTS = new Set(["collectionapi.metmuseum.org", "images.metmuseum.org", "art.thewalters.org", "upload.wikimedia.org"]);
+const HOSTS = new Set(["collectionapi.metmuseum.org", "images.metmuseum.org", "art.thewalters.org", "upload.wikimedia.org", "thumb.wikimedia.org"]);
 const MAX_BYTES = 30_000_000;
 const sha = bytes => createHash("sha256").update(bytes).digest("hex");
 const licenseUrls = {
@@ -77,7 +79,7 @@ export async function downloadImage(input, fetcher = fetch) {
       url = assertImageUrl(new URL(location, url).href);
       continue;
     }
-    if (!response.ok) { await response.body?.cancel(); throw new Error(`Image request failed (${response.status}): ${url}`); }
+    if (!response.ok) { await response.body?.cancel(); throw imageResponseError(response, url); }
     if (!/^image\/(jpeg|jpg|png|webp|tiff)(;|$)/i.test(response.headers.get("content-type") ?? "")) { await response.body?.cancel(); throw new Error(`Non-raster image response: ${url}`); }
     if (Number(response.headers.get("content-length")) > MAX_BYTES) { await response.body?.cancel(); throw new Error("Source image too large"); }
     if (!response.body) throw new Error("Empty image response");
@@ -137,9 +139,9 @@ export async function ensureVisualBibleAssets({ root = ROOT, verify = false } = 
     } else {
       let downloaded;
       const cached = join(root, ".visual-bible-cache", `${asset.id}-${asset.revision}.original`);
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt < 5; attempt++) {
         try { downloaded = await downloadImage(asset.imageUrl); break; }
-        catch (error) { if (attempt === 2) throw error; await new Promise(done => setTimeout(done, 2_000 * (attempt + 1))); }
+        catch (error) { if (attempt === 4) throw error; const pause = imageRetryDelay(error, attempt); console.warn(`Source paused; waiting ${pause}ms before retrying ${asset.id}`); await new Promise(done => setTimeout(done, pause)); }
       }
       const metadata = await sharp(downloaded.bytes, { limitInputPixels: 100_000_000 }).metadata();
       if (!metadata.width || !metadata.height || Math.max(metadata.width, metadata.height) < (asset.readerDerivative ? 1200 : 400)) throw new Error(`Insufficient image resolution: ${asset.id}`);
@@ -149,7 +151,7 @@ export async function ensureVisualBibleAssets({ root = ROOT, verify = false } = 
       record.resolvedUrl = downloaded.resolvedUrl;
       await writeAtomic(cached, downloaded.bytes);
       for (const { path, size, quality } of derivativeSpecs(asset)) {
-        const { data, info } = await sharp(downloaded.bytes, { limitInputPixels: 100_000_000 }).rotate().resize({ width: size, height: size, fit: "inside", withoutEnlargement: true }).webp({ quality }).toBuffer({ resolveWithObject: true });
+        const { data, info } = await boundedVisualDerivative(downloaded.bytes, { size, quality });
         if (data.length > 4_900_000) throw new Error(`Derivative exceeds size limit: ${asset.id}`);
         await writeAtomic(join(root, "public", path.slice(1)), data);
         record.files.push({ path, bytes: data.length, sha256: sha(data), width: info.width, height: info.height });
@@ -157,6 +159,9 @@ export async function ensureVisualBibleAssets({ root = ROOT, verify = false } = 
     }
     await verifyEntry(root, asset, record);
     entries.push(record);
+    // Save a resumable acquisition checkpoint; verification still requires the full catalog.
+    await writeAtomic(manifestPath, `${JSON.stringify({ schemaVersion: 1, entries }, null, 2)}\n`);
+    if (asset.imageUrl.includes("wikimedia.org")) await new Promise(done => setTimeout(done, 1000));
     console.log(`Acquired ${asset.id}`);
   }
   if (verify && (previous.schemaVersion !== 1 || previous.entries.length !== assets.length)) throw new Error("Unexpected visual manifest entries");

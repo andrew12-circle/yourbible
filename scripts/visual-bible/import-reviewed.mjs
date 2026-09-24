@@ -59,13 +59,13 @@ for(const decision of approvals) {
   const credit=decision.credit || [candidate.creator,candidate.credit,candidate.attribution].filter(Boolean).join(' · ') || creator;
   const license=candidate.license;
   const record={
-    id:target.id,revision:1,kind,title:decision.title||target.title,creator,
+    id:decision.id||target.id,revision:1,kind,title:decision.title||target.title,creator,
     date:decision.date||'Date not specified in source metadata',culture:decision.culture||'See the source record',
     medium:decision.medium||({artwork:'Reproduction of historical sacred art',artifact:'Photograph of a historical object',map:'Cartographic reference',manuscript:'Manuscript image','place-photo':'Modern site photograph',architecture:'Architectural reference'}[kind]||'Historical visual reference'),
     description:decision.description,caution:decision.caution,tags:[target.title,target.query,...(decision.tags||[])],
     passages:decision.passages||[passage(decision.reference||target.reference,decision.relationship||({masterworks:'depiction',maps:'geography',artifacts:'cultural-context',heritage:'textual-history',places:'geography'}[pack]),decision.passageNote,decision.inline!==false)],
-    source:{name:'Wikimedia Commons',objectId:String(page.pageid),url:info.descriptionurl,license:license.label,licenseUrl:license.url,credit,checkedOn,
-      ...(decision.photographer?{photographer:decision.photographer}:license.label!=='Public domain'&&pack!=='masterworks'?{photographer:candidate.creator||credit}:{}),
+    source:{name:decision.sourceName||'Wikimedia Commons',objectId:String(page.pageid),url:info.descriptionurl,license:license.label,licenseUrl:license.url,credit,checkedOn,
+      ...(decision.photographer?{photographer:decision.photographer}:{}),
       recordRevision:page.revisions?.[0]?.revid,imageSha1:info.sha1,originalImageUrl:info.url,
       rightsNote:decision.rightsNote||(license.label==='Public domain'?'The selected source record identifies this reproduction as public domain. Territorial rights and institution-specific restrictions may differ.':'The photographer’s image license is distinct from the age or copyright status of the object. Attribution and applicable share-alike conditions remain attached to these resized derivatives.'),
       ...(decision.objectUrl?{objectUrl:decision.objectUrl}:{}),
@@ -73,10 +73,10 @@ for(const decision of approvals) {
     review:'source-checked',imageUrl,alt:decision.alt||decision.title||target.title,
     collections:decision.collections||[pack],technique:decision.technique||({masterworks:'painting',maps:'map',artifacts:'photograph',heritage:'manuscript',places:'photograph'}[pack]),
     ...(decision.period?{period:decision.period}:{}),...(decision.holdingCollection?{holdingCollection:decision.holdingCollection}:{}),
-    workGroup:decision.workGroup||target.id,iconic:ICONIC_TARGETS.includes(target.id),readerRank:decision.readerRank??(ICONIC_TARGETS.includes(target.id)?0:20),sourceDimensions:dims,readerDerivative:true,
+    workGroup:decision.workGroup||decision.id||target.id,iconic:ICONIC_TARGETS.includes(target.id),readerRank:decision.readerRank??(ICONIC_TARGETS.includes(target.id)?0:20),sourceDimensions:dims,readerDerivative:true,
   };
   validateSeed([record]);approved.push(record);
-  evidence.push({id:target.id,file:candidate.file,pageId:page.pageid,sourceRevision:page.revisions?.[0]?.revid,sourceSha1:info.sha1,previewSha256:candidate.previewSha256,reviewedOn:checkedOn,reviewMethod:'Explicit visual, source-rights and passage review; not automatic search publication',decision});
+  evidence.push({id:decision.id||target.id,file:candidate.file,pageId:page.pageid,sourceRevision:page.revisions?.[0]?.revid,sourceSha1:info.sha1,previewSha256:candidate.previewSha256,reviewedOn:checkedOn,reviewMethod:'Explicit visual, source-rights and passage review; not automatic search publication',decision});
   console.log('Prepared reviewed image: '+target.id);await delay(250);
 }
 if(!approved.length)throw new Error('No approved images');

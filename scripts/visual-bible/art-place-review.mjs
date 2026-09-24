@@ -42,6 +42,8 @@ export function artReview(target,candidate){
  ...(institutions[key]?{holdingCollection:institutions[key]}:{}),...particular[key]};
  if(key.startsWith('michelangelo-')&&key!=='michelangelo-judgement')data.workGroup='michelangelo-sistine-ceiling';
  if(candidate.license.label.startsWith('CC BY')&&candidate.creator!==target.creator&&candidate.creator!==creator)data.photographer=candidate.creator;
+ if(['leonardo-rocks','raphael-sistine-madonna','raphael-meadow','rembrandt-family','latour-magdalene','latour-joseph','millais-parents'].includes(key))data.inline=false;
+ if(key==='raphael-fishing')data.reference='Luk 5:6';
  data.passageNote=data.relationship==='thematic'?'A thematic or devotional connection; this work does not claim to depict a separately documented episode.':'An editorial association with the biblical subject; artistic details should be compared with the passage rather than added to it.';
  return data;
 }

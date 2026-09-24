@@ -10,7 +10,7 @@ const plain = value => String(value || '').replace(/<script[\s\S]*?<\/script>/gi
 const sha = value => createHash('sha256').update(value).digest('hex');
 async function request(url, json = true) {
   const parsed = new URL(url);
-  if (parsed.protocol !== 'https:' || !['commons.wikimedia.org', 'upload.wikimedia.org'].includes(parsed.hostname)) throw new Error('Unapproved discovery host');
+  if (parsed.protocol !== 'https:' || !['commons.wikimedia.org', 'upload.wikimedia.org', 'thumb.wikimedia.org'].includes(parsed.hostname)) throw new Error('Unapproved discovery host');
   for (let attempt = 0; attempt < 4; attempt++) {
     const response = await fetch(url, { headers: { 'User-Agent': UA, Accept: json ? 'application/json' : 'image/*' }, signal: AbortSignal.timeout(35000), redirect: 'error' });
     if (response.status === 429 || response.status === 503) { await response.body?.cancel(); await pause(Math.min(60000, Number(response.headers.get('retry-after') || 3) * 1000 + attempt * 2000)); continue; }
