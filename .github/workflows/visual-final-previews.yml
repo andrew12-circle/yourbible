@@ -1,0 +1,45 @@
+name: Visual final previews
+on:
+  push:
+    branches: ['feat/masterworks-atlas-collections']
+    paths: ['.github/workflows/visual-final-previews.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: visual-full-review
+          run-id: 36012764720
+          github-token: ${{ github.token }}
+          path: visual-review
+      - name: Reuse verified previews and fetch only missing images
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          const path='scripts/visual-bible/fetch-previews.mjs';
+          let code=readFileSync(path,'utf8');
+          const marker='const c=candidates[next++];';
+          if(!code.includes(marker))throw new Error('Preview source changed');
+          code=code.replace(marker,marker+`\n  if(c.previewFile&&c.previewSha256){try{if(sha(await readFile(join(root,c.previewFile)))===c.previewSha256){success++;continue;}}catch{}}`);
+          writeFileSync(path,code);
+          NODE
+          node scripts/visual-bible/fetch-previews.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-final-review
+          path: visual-review/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
