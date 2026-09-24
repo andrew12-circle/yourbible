@@ -1,5 +1,8 @@
 import type { LivingHopeGoalRow } from "@/lib/livingHope/api";
-import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
+import {
+  DEFAULT_MORNING_FORMULA_STEPS,
+  type LivingHopeWorkbookContent,
+} from "@/lib/livingHope/workbookTypes";
 
 /** Connection-phase notes stored on `living_hope_reviews.connection_notes`. */
 export interface DailyAssignment {
@@ -332,7 +335,10 @@ export function buildRitualSteps(
   if (expressMode) return buildExpressRitualSteps();
 
   const steps: RitualStep[] = [{ kind: "intro" }];
-  const configured = workbook?.morning_formula_steps ?? [];
+  const configured =
+    workbook?.morning_formula_steps?.length
+      ? workbook.morning_formula_steps
+      : DEFAULT_MORNING_FORMULA_STEPS;
 
   for (const config of configured) {
     if (!config.enabled) continue;
