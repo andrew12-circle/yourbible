@@ -11,18 +11,16 @@ await edit('scripts/visual-bible/import-reviewed.mjs',code=>{
  return code;
 });
 await edit('scripts/acquire-visual-bible.mjs',code=>{
+ code=replace(code,'import sharp from "sharp";', 'import sharp from "sharp";\nimport { imageResponseError, imageRetryDelay } from "./lib/image-download-backoff.mjs";');
  code=replace(code,'"art.thewalters.org", "upload.wikimedia.org"','"art.thewalters.org", "upload.wikimedia.org", "thumb.wikimedia.org"');
- code=replace(code,'    entries.push(record);\n    console.log', '    entries.push(record);\n    // Save a resumable acquisition checkpoint; verification still requires the full catalog.\n    await writeAtomic(manifestPath, `${JSON.stringify({ schemaVersion: 1, entries }, null, 2)}\\n`);\n    console.log');
+ code=replace(code,'throw new Error(`Image request failed (${response.status}): ${url}`);','throw imageResponseError(response, url);');
+ code=replace(code,'attempt < 3','attempt < 5');
+ code=replace(code,'if (attempt === 2) throw error; await new Promise(done => setTimeout(done, 2_000 * (attempt + 1)));','if (attempt === 4) throw error; const pause = imageRetryDelay(error, attempt); console.warn(`Source paused; waiting ${pause}ms before retrying ${asset.id}`); await new Promise(done => setTimeout(done, pause));');
+ code=replace(code,'    entries.push(record);\n    console.log', '    entries.push(record);\n    // Save a resumable acquisition checkpoint; verification still requires the full catalog.\n    await writeAtomic(manifestPath, `${JSON.stringify({ schemaVersion: 1, entries }, null, 2)}\\n`);\n    if (asset.imageUrl.includes("wikimedia.org")) await new Promise(done => setTimeout(done, 1000));\n    console.log');
  return code;
 });
-await edit('scripts/visual-bible/discover.mjs',code=>{
- code=replace(code,"['commons.wikimedia.org', 'upload.wikimedia.org']","['commons.wikimedia.org', 'upload.wikimedia.org', 'thumb.wikimedia.org']");
- return code;
-});
-await edit('scripts/visual-bible/art-place-review.mjs',code=>{
- code=replace(code,' data.passageNote=data.relationship',` if(['leonardo-rocks','raphael-sistine-madonna','raphael-meadow','rembrandt-family','latour-magdalene','latour-joseph','millais-parents'].includes(key))data.inline=false;
+await edit('scripts/visual-bible/discover.mjs',code=>replace(code,"['commons.wikimedia.org', 'upload.wikimedia.org']","['commons.wikimedia.org', 'upload.wikimedia.org', 'thumb.wikimedia.org']"));
+await edit('scripts/visual-bible/art-place-review.mjs',code=>replace(code,' data.passageNote=data.relationship',` if(['leonardo-rocks','raphael-sistine-madonna','raphael-meadow','rembrandt-family','latour-magdalene','latour-joseph','millais-parents'].includes(key))data.inline=false;
  if(key==='raphael-fishing')data.reference='Luk 5:6';
- data.passageNote=data.relationship`);
- return code;
-});
+ data.passageNote=data.relationship`));
 console.log('Import compatibility changes applied without changing Scripture or account data.');
