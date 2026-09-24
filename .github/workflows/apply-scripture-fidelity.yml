@@ -1,0 +1,60 @@
+name: Apply Scripture fidelity repair
+on:
+  push:
+    branches: [fix/scripture-fidelity-20260924]
+    paths: ['scripts/.apply-fidelity-*.py', '.github/workflows/apply-scripture-fidelity.yml']
+permissions:
+  contents: write
+concurrency:
+  group: apply-scripture-fidelity
+  cancel-in-progress: true
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check inspected source identity and apply guarded repair
+        run: |
+          test "$(git hash-object src/lib/bible/parsePassageHtml.ts)" = 38c8aab7bf4fc0ee201c058c8b7d8996b50ee0df
+          test "$(git hash-object src/lib/bible/redLetter.ts)" = d4e693cba4f36dfe64143e6948b5cadf924beb12
+          python scripts/.apply-fidelity-parser.py
+          python scripts/.apply-fidelity-layout.py
+          python scripts/.apply-fidelity-cache.py
+          python scripts/.apply-fidelity-browser.py
+      - run: npm ci
+      - name: Compare against independent original source before updating snapshots
+        run: |
+          set -o pipefail
+          npx vitest run src/lib/bible/sourceFidelity.test.tsx src/lib/bible/sourceStructure.test.tsx src/lib/bible/sourceCache.test.ts src/lib/bible/annotationText.test.ts src/lib/bible/scriptureFormatting.test.ts --maxWorkers=2 2>&1 | tee "$RUNNER_TEMP/fidelity-focused.log"
+      - name: Rebuild parser snapshots from existing local source only
+        run: |
+          set -o pipefail
+          UPDATE_GOLDEN=1 npx vitest run src/lib/bible/goldenChapters.test.ts --maxWorkers=2 2>&1 | tee "$RUNNER_TEMP/fidelity-snapshots.log"
+      - name: Remove transfer tooling and commit only requested source and tests
+        run: |
+          rm scripts/.apply-fidelity-*.py .github/workflows/export-scripture-workspace.yml .github/workflows/apply-scripture-fidelity.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src scripts docs/scripture-source-fidelity.md .github/workflows
+          git diff --cached --check
+          git diff --cached --stat > "$RUNNER_TEMP/fidelity-source-stat.txt"
+          git diff --cached > "$RUNNER_TEMP/fidelity-applied.patch"
+          git commit -m 'Preserve Scripture source, publisher speech and layout-neutral annotations'
+          git push origin HEAD:fix/scripture-fidelity-20260924
+          git rev-parse HEAD > "$RUNNER_TEMP/fidelity-head.txt"
+          tar -czf "$RUNNER_TEMP/fidelity-final-source.tar.gz" src/lib/bible src/components/scripture/ScriptureComponents.tsx src/hooks/useUserData.ts src/hooks/useReaderSelectionMarks.ts src/pages/reader/ReaderPage.tsx src/index.css scripts/test-scripture-fidelity.mjs scripts/test-bible-chapter-continuation.mjs .github/workflows/scripture-fidelity.yml docs/scripture-source-fidelity.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fidelity-application-evidence
+          path: |
+            ${{ runner.temp }}/fidelity-*.log
+            ${{ runner.temp }}/fidelity-source-stat.txt
+            ${{ runner.temp }}/fidelity-applied.patch
+            ${{ runner.temp }}/fidelity-head.txt
+            ${{ runner.temp }}/fidelity-final-source.tar.gz
+          retention-days: 7
