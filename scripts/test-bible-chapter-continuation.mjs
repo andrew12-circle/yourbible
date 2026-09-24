@@ -5,7 +5,7 @@ import { renderedVerseFragments, verifyConsecutiveFragments, verifyFragmentWords
 /** Real reader: visible page geometry and consecutive facing-page flow. No provider calls. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createServer } from 'vite';
@@ -52,7 +52,19 @@ let scenario;
 const reports = [], requests = [], browserErrors = [];
 let steps=[];
 const record = (message) => { reports.push(message); console.log('PASS: ' + message); };
+const sourceParser = process.env.READER_SOURCE_FIXTURES === '1'
+  ? (await server.ssrLoadModule('/src/lib/bible/parsePassageHtml.ts')).parsePassageHtml : null;
+const sourceFixtureCache = new Map();
 function syntheticPassage(book, chapter) {
+  if (sourceParser) {
+    const key=book+':'+chapter, path=join(root,'src/lib/bible/fixtures/golden/csb-'+book.toLowerCase()+'-'+chapter+'.html');
+    if(sourceFixtureCache.has(key))return sourceFixtureCache.get(key);
+    if(existsSync(path)){
+      const rawContent=readFileSync(path,'utf8');
+      const result={...sourceParser(rawContent,book+' '+chapter),rawContent};
+      sourceFixtureCache.set(key,result);return result;
+    }
+  }
   const data = JSON.parse(readFileSync(join(root, `public/bibles/csb/chapters/${book}/${chapter}.json`), 'utf8'));
   const study = new Map((data.layout.studyByVerse || []).map(v => [v.verseId, v]));
   return { reference: `${book} ${chapter}`, ...data.layout,
@@ -61,6 +73,27 @@ function syntheticPassage(book, chapter) {
 const inspectWords = () => renderedVerseFragments(page);
 const lookupVerse = (book,ch,verse) => syntheticPassage(book,ch).verses.find(v=>v.number===verse);
 const verifyWords = words => verifyFragmentWords(words,lookupVerse);
+async function verifyPublishedSpeech(words) {
+  const rows=await page.evaluate(()=>[...document.querySelectorAll('[data-reader-page-side] [data-verse-id]')].map(node=>{
+    const body=node.querySelector('[data-verse-body]');const flags=[];
+    if(!body)return{flags};
+    const walker=document.createTreeWalker(body,NodeFilter.SHOW_TEXT);
+    for(let n=walker.nextNode();n;n=walker.nextNode()){
+      if(n.parentElement.closest('sup,figure'))continue;
+      for(const ch of n.textContent)if(/[\p{L}\p{N}]/u.test(ch))flags.push(!!n.parentElement.closest('.red-letter'));
+    }
+    return{flags};
+  }));
+  for(let i=0;i<words.length;i++){
+    const row=words[i],[,b,c,v]=row.id.split(':');const source=lookupVerse(b,Number(c),Number(v));
+    if(!source.sourceBlocks)continue;
+    const expected=[];let offset=0;
+    for(const part of source.parts||[])if(part.kind==='text'){
+      for(const ch of part.text){if(offset>=row.start&&offset<row.end&&/[\p{L}\p{N}]/u.test(ch))expected.push(part.isJesus===true);offset+=ch.length;}
+    }
+    assert.deepEqual(rows[i].flags,expected,'Publisher speech coloring changed on '+row.id+'@'+row.start);
+  }
+}
 async function settled() {
   await page.waitForFunction(() => {
     const root = document.querySelector('[data-bible-reader]');
@@ -158,6 +191,7 @@ try {
       steps.push({scenario:scenario.name,step,...current,position:await page.evaluate(()=>window.__readerPositionHistory.at(-1)),path:await page.evaluate(()=>window.__path)});
       assert.deepEqual(current.issues, [], scenario.name + ': ' + current.issues.slice(0,3).join('\n'));
       verifyWords(words);
+      if(sourceParser)await verifyPublishedSpeech(words);
       if (process.env.READER_PRINT_CHECKS === "1") await verifyReaderPrintGeometry(page);
       const faces = await page.locator('[data-reader-page-side] article').evaluateAll(nodes => nodes.map(node => ({
         ids:[...node.querySelectorAll('[data-verse-id]')].map(v=>v.dataset.verseId+'@'+(v.dataset.verseStart||'0')+'-'+(v.dataset.verseEnd||'')),

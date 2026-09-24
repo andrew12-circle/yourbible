@@ -731,6 +731,7 @@ export default function ReaderPage() {
     for (const h of passage?.headings ?? []) m.set(h.beforeVerse, h.text);
     return m;
   }, [passage?.headings]);
+  const verseTexts = useMemo(() => new Map(verses.map(v => [v.number,versePlainText(v)])),[verses]);
   const verseLengths = useMemo(() => {
     const m = new Map<number, number>();
     for (const v of verses) m.set(v.number, versePlainText(v).length);
@@ -980,6 +981,7 @@ export default function ReaderPage() {
     setMarkRanges,
     setMarks,
     verseLengths,
+    verseTexts,
     ulFor,
     setNoteOpen,
   });

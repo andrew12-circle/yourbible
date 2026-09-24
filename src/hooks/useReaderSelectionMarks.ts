@@ -12,6 +12,7 @@ type Args = {
     cssVar: string,
     kind: "highlight",
     verseLengths: Map<number, number>,
+    verseTexts?: Map<number, string>,
   ) => Promise<void>;
   setMarks: (
     verses: number[],
@@ -19,6 +20,7 @@ type Args = {
     kind: "highlight" | "underline",
   ) => Promise<void>;
   verseLengths: Map<number, number>;
+  verseTexts?: Map<number, string>;
   ulFor: (verse: number) => unknown;
   setNoteOpen: (v: { verse: number } | null) => void;
 };
@@ -31,6 +33,7 @@ export function useReaderSelectionMarks({
   setMarkRanges,
   setMarks,
   verseLengths,
+  verseTexts,
   ulFor,
   setNoteOpen,
 }: Args) {
@@ -41,7 +44,7 @@ export function useReaderSelectionMarks({
       persistHighlightColor(cssVar);
       try {
         if (sel.ranges.length > 0) {
-          await setMarkRanges(sel.ranges, cssVar, "highlight", verseLengths);
+          await setMarkRanges(sel.ranges, cssVar, "highlight", verseLengths, verseTexts);
         } else {
           await setMarks(sel.verses, cssVar, "highlight");
         }
@@ -61,6 +64,7 @@ export function useReaderSelectionMarks({
       persistHighlightColor,
       setMarkRanges,
       verseLengths,
+  verseTexts,
       setMarks,
       clearWindowSelection,
     ],

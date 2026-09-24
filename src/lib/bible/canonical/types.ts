@@ -14,6 +14,7 @@ export type CanonicalVerse = {
 export type ChapterStudyMeta = {
   verseId: string;
   parts?: import("@/lib/bible/api").VersePart[];
+  sourceBlocks?: import("@/lib/bible/api").VerseSourceBlock[];
   crossRefs?: import("@/lib/bible/api").PassageCrossRef[];
   footnotes?: import("@/lib/bible/api").PassageFootnote[];
 };
@@ -39,5 +40,6 @@ export type CanonicalChapterRecord = {
   parserRevision?: string;
   verses: CanonicalVerse[];
   layout: ChapterLayout;
+  rawContent?: string;
   cachedAt: number;
 };

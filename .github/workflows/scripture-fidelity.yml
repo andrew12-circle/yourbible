@@ -1,0 +1,62 @@
+name: Scripture source fidelity
+on:
+  pull_request:
+    paths: ['src/lib/bible/**', 'src/hooks/useUserData.ts', 'src/hooks/useReaderSelectionMarks.ts', 'src/index.css', 'scripts/test-scripture-fidelity.mjs', '.github/workflows/scripture-fidelity.yml']
+  push:
+    branches: [main]
+    paths: ['src/lib/bible/**', 'src/hooks/useUserData.ts', 'src/index.css', 'scripts/test-scripture-fidelity.mjs', '.github/workflows/scripture-fidelity.yml']
+permissions:
+  contents: read
+concurrency:
+  group: source-fidelity-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: offline-placeholder
+  VITE_SUPABASE_ANON_KEY: offline-placeholder
+jobs:
+  fidelity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Independent original source, speech, structure and cache tests
+        run: npx vitest run src/lib/bible/sourceFidelity.test.tsx src/lib/bible/sourceStructure.test.tsx src/lib/bible/sourceCache.test.ts src/lib/bible/annotationText.test.ts --maxWorkers=2
+      - name: Install browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fidelity-tools" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/fidelity-tools/node_modules/.bin/playwright" install --with-deps ${{ matrix.browser }}
+      - name: Typography must change color, not word positions
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/fidelity-tools/node_modules/playwright/index.mjs
+          READER_BROWSER: ${{ matrix.browser }}
+        run: node scripts/test-scripture-fidelity.mjs
+      - name: Actual reader with source-marked Matthew and John
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/fidelity-tools/node_modules/playwright/index.mjs
+          READER_BROWSER: ${{ matrix.browser }}
+          READER_SOURCE_FIXTURES: '1'
+          READER_SCENARIO: csb-serif-double
+        run: |
+          READER_TEST_BOOK=Mat READER_TEST_CHAPTER=5 READER_TEST_END_CHAPTER=6 node scripts/test-bible-chapter-continuation.mjs
+          READER_TEST_BOOK=Jhn READER_TEST_CHAPTER=5 READER_TEST_END_CHAPTER=6 node scripts/test-bible-chapter-continuation.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: source-fidelity-${{ matrix.browser }}
+          path: |
+            ${{ runner.temp }}/scripture-fidelity-browser.json
+            ${{ runner.temp }}/text-metrics-fixed.png
+            ${{ runner.temp }}/chapter-flow-*.png
+            ${{ runner.temp }}/chapter-flow-*-results.json
+            ${{ runner.temp }}/chapter-flow-failure.json

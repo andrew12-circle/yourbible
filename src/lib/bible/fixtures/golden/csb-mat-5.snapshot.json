@@ -4,7 +4,7 @@
   "chapter": 5,
   "reference": "Matthew 5",
   "verseCount": 48,
-  "versesWithCrossRefs": 32,
+  "versesWithCrossRefs": 36,
   "versesWithFootnotes": 10,
   "verses": [
     {
@@ -34,18 +34,22 @@
     },
     {
       "number": 3,
-      "textLength": 32,
-      "textPreview": "“Blessed are the poor in spirit,",
+      "textLength": 69,
+      "textPreview": "“Blessed are the poor in spirit, for the kingdom of heaven is theirs.",
       "crossRefLabels": [
         "Is 57:15",
-        "Is 66:2"
+        "Is 66:2",
+        "Mt 19:14",
+        "Mt 25:34",
+        "Mk 10:14",
+        "Lk 6:20"
       ],
       "footnoteMarkers": []
     },
     {
       "number": 4,
-      "textLength": 28,
-      "textPreview": "Blessed are those who mourn,",
+      "textLength": 56,
+      "textPreview": "Blessed are those who mourn, for they will be comforted.",
       "crossRefLabels": [
         "Is 61:2",
         "Mt 11:29",
@@ -57,8 +61,8 @@
     },
     {
       "number": 5,
-      "textLength": 23,
-      "textPreview": "Blessed are the humble,",
+      "textLength": 56,
+      "textPreview": "Blessed are the humble, for they will inherit the earth.",
       "crossRefLabels": [
         "Ps 37:11",
         "Rm 4:13",
@@ -68,8 +72,8 @@
     },
     {
       "number": 6,
-      "textLength": 58,
-      "textPreview": "Blessed are those who hunger and thirst for righteousness,",
+      "textLength": 83,
+      "textPreview": "Blessed are those who hunger and thirst for righteousness, for they will be fill",
       "crossRefLabels": [
         "Is 55:1–2",
         "Jn 4:14",
@@ -80,30 +84,52 @@
     },
     {
       "number": 7,
-      "textLength": 25,
-      "textPreview": "Blessed are the merciful,",
-      "crossRefLabels": [],
+      "textLength": 55,
+      "textPreview": "Blessed are the merciful, for they will be shown mercy.",
+      "crossRefLabels": [
+        "Pr 11:17",
+        "Mt 18:33",
+        "Lk 6:36",
+        "2Tm 1:16"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 8,
-      "textLength": 30,
-      "textPreview": "Blessed are the pure in heart,",
-      "crossRefLabels": [],
+      "textLength": 53,
+      "textPreview": "Blessed are the pure in heart, for they will see God.",
+      "crossRefLabels": [
+        "Ps 24:4",
+        "Heb 12:14",
+        "1Jn 3:2",
+        "Rv 22:4"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 9,
-      "textLength": 28,
-      "textPreview": "Blessed are the peacemakers,",
-      "crossRefLabels": [],
+      "textLength": 65,
+      "textPreview": "Blessed are the peacemakers, for they will be called sons of God.",
+      "crossRefLabels": [
+        "Mt 5:45",
+        "Lk 6:35",
+        "Rm 8:14",
+        "Jms 3:18",
+        "1Jn 3:1"
+      ],
       "footnoteMarkers": []
     },
     {
       "number": 10,
-      "textLength": 62,
-      "textPreview": "Blessed are those who are persecuted because of righteousness,",
-      "crossRefLabels": [],
+      "textLength": 99,
+      "textPreview": "Blessed are those who are persecuted because of righteousness, for the kingdom o",
+      "crossRefLabels": [
+        "Mt 19:14",
+        "Mt 25:34",
+        "Mk 10:14",
+        "Lk 6:20",
+        "Lk 22:29"
+      ],
       "footnoteMarkers": []
     },
     {
@@ -135,7 +161,7 @@
         "Lk 14:34"
       ],
       "footnoteMarkers": [
-        1
+        2
       ]
     },
     {
@@ -192,7 +218,7 @@
       "textPreview": "For truly I tell you, until heaven and earth pass away, not the smallest letter ",
       "crossRefLabels": [],
       "footnoteMarkers": [
-        1
+        3
       ]
     },
     {
@@ -244,10 +270,10 @@
         "1Jn 3:15"
       ],
       "footnoteMarkers": [
-        1,
-        2,
-        3,
-        4
+        4,
+        5,
+        6,
+        7
       ]
     },
     {
@@ -273,7 +299,7 @@
         "Lk 12:58"
       ],
       "footnoteMarkers": [
-        5
+        8
       ]
     },
     {
@@ -282,7 +308,7 @@
       "textPreview": "Truly I tell you, you will never get out of there until you have paid the last p",
       "crossRefLabels": [],
       "footnoteMarkers": [
-        6
+        9
       ]
     },
     {
@@ -435,7 +461,7 @@
         "1Pt 3:9"
       ],
       "footnoteMarkers": [
-        1
+        10
       ]
     },
     {
@@ -487,8 +513,8 @@
         "1Pt 2:23"
       ],
       "footnoteMarkers": [
-        1,
-        2
+        11,
+        12
       ]
     },
     {
@@ -502,7 +528,7 @@
         "Ac 14:17"
       ],
       "footnoteMarkers": [
-        3
+        13
       ]
     },
     {
@@ -524,8 +550,8 @@
         "2Co 9:1"
       ],
       "footnoteMarkers": [
-        4,
-        5
+        14,
+        15
       ]
     },
     {

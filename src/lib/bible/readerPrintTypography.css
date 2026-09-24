@@ -104,3 +104,10 @@
 [data-reading-area].reader-print-text .scripture-verse:has(.reader-verse-first-word) .verse-body-wrap { white-space: inherit; }
 [data-reading-area].reader-print-text .reader-verse-first-word { white-space: nowrap; }
 [data-reading-area].reader-print-text .reader-verse-remainder { white-space: normal; }
+
+/* Decorations must not alter the character stream's line metrics. */
+[data-reading-area].reader-print-text .red-letter { font-size:inherit;line-height:inherit;font-weight:inherit;letter-spacing:inherit;word-spacing:inherit;vertical-align:baseline; }
+[data-reading-area].reader-print-text .marker-hl { padding:0;margin:0; }
+[data-reading-area].reader-print-text .reader-note-anchor { display:inline-block;position:relative;width:0;height:0;margin:0;padding:0;vertical-align:baseline; }
+[data-reading-area].reader-print-text .reader-note-trigger { position:absolute;inset-inline-start:-0.8em;bottom:0.2em;display:flex;align-items:center;justify-content:center;width:0.8em;height:0.9em;padding:0;border:0;color:hsl(var(--gold-deep));background:transparent; }
+[data-reading-area].reader-print-text .reader-note-trigger:focus-visible { outline:2px solid currentColor;outline-offset:2px; }

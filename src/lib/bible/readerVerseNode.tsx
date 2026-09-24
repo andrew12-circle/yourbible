@@ -1,3 +1,5 @@
+import { protectAnnotationRanges } from "./annotationText";
+import type { ReaderHighlight } from "./verseSelection";
 import { bindVerseOpeningWord } from "./readerVerseLead";
 import { readerVerseFragment } from "./readerVerseFragments";
 import type { ReactNode } from "react";
@@ -129,7 +131,7 @@ export interface ReaderVerseRenderDeps {
     n: number,
     bookAbbr?: string,
     chapterNum?: number,
-  ) => { start?: number; end?: number; color: string }[];
+  ) => ReaderHighlight[];
   noteFor: (
     n: number,
     bookAbbr?: string,
@@ -186,14 +188,13 @@ export function createReaderVerseRenderer({
     const note = noteFor(v.number, verseBook, verseChapter);
     const plain = versePlainText(original);
     const segments = redLetterSegmentsForVerse(
-      (useBookSpread
-        ? redSegmentsByChapter.get(`${verseBook}|${verseChapter}`)
-        : redSegments) ?? new Map<number, JesusSegment[]>(),
+      redSegmentsByChapter.get(`${verseBook}|${verseChapter}`) ??
+        (verseBook === bookAbbr && verseChapter === chapter ? redSegments : new Map<number, JesusSegment[]>()),
       v.number,
       plain,
     );
-    const hlMarks = hlsFor(v.number, verseBook, verseChapter);
-    const intervals = highlightIntervalsForVerse(plain.length, hlMarks);
+    const annotationRanges = protectAnnotationRanges(original, hlsFor(v.number, verseBook, verseChapter));
+    const intervals = highlightIntervalsForVerse(plain.length, annotationRanges.marks);
     const hlSlices = sliceTextByHighlights(plain, intervals);
     const mv = markerVariant(verseBook, verseChapter, v.number);
     const parts = studyLayout === "holman" ? holmanPartsForVerse(v) : verseParts(v);
@@ -260,6 +261,8 @@ export function createReaderVerseRenderer({
     return (
       <span
         key={`${verseBook}-${verseChapter}-${v.number}-${startOffset}`}
+        data-annotation-review={annotationRanges.needsReview || undefined}
+        title={annotationRanges.needsReview ? "Saved range highlights are preserved but need review against restored Scripture text." : undefined}
         data-verse={v.number}
         data-verse-id={verseId}
         data-verse-start={startOffset}
@@ -278,15 +281,14 @@ export function createReaderVerseRenderer({
             onClick={(e) => onVerseNumberClick(e, original, verseBook, verseChapter)}
             className="verse-num verse-num-gutter bg-transparent border-0 p-0 cursor-pointer hover:text-leather transition-colors"
             aria-label={`Verse ${v.number}`}
+            aria-description={annotationRanges.needsReview ? "Saved highlights need review after text restoration; no saved marks were deleted." : undefined}
             style={{ userSelect: "none" }}
           >
             <span className="reader-verse-number-glyph">{v.number}</span>
           </button>
         )}
-        <span className="verse-body-wrap">
-          {wrappedBody}
           {note && startOffset === 0 ? (
-            <button
+            <span className="reader-note-anchor"><button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
@@ -296,13 +298,15 @@ export function createReaderVerseRenderer({
                 }
                 setNoteOpen({ verse: v.number });
               }}
-              className="inline-flex items-center align-middle ml-1 w-4 h-4 rounded-full bg-gold/20 text-gold-deep hover:bg-gold/40 transition-colors"
+              className="reader-note-trigger"
               aria-label="Open note"
               style={{ userSelect: "none" }}
             >
-              <NotebookPen className="w-2.5 h-2.5 m-auto" />
-            </button>
+              <NotebookPen className="w-2.5 h-2.5" aria-hidden="true" />
+            </button></span>
           ) : null}
+        <span className="verse-body-wrap">
+          {wrappedBody}
         </span>
       </span>
     );

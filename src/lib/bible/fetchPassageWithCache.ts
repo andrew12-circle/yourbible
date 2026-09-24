@@ -30,9 +30,9 @@ export async function fetchPassageWithCache(
   const passage = await fetchPassage(bibleId, book, chapter, signal, bibleAbbr);
   checkAbort(signal);
   const verified = identifyReaderPassage(passage, bibleId, book, chapter);
-  await setCachedPassage(bibleId, book, chapter, verified);
+  const stored = await setCachedPassage(bibleId, book, chapter, verified);
   checkAbort(signal);
-  return verified;
+  return stored ?? verified;
 }
 
 /** Compatibility read. Query functions, not competing hydration effects, own publication. */

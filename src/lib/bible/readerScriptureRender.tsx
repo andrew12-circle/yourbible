@@ -1,3 +1,4 @@
+import { sourceParagraphsForReader } from "./readerSourceParagraphs";
 import { readerVerseFragment } from "./readerVerseFragments";
 import type { CSSProperties, ReactNode } from "react";
 import type { PassageVerse, PoetryBlock } from "@/lib/bible/api";
@@ -262,10 +263,23 @@ export function renderScriptureParagraphNodes(
   options?: ScriptureRenderOptions,
 ): ReactNode {
   const holman = options?.studyLayout === "holman";
-  return groups.flatMap((verseGroup) => {
+  return groups.flatMap<ReactNode>((verseGroup) => {
     const paragraphStartSet = resolveParagraphStarts(verseGroup.bookAbbr, verseGroup.chapter);
     const headingMap = resolveHeading(verseGroup.bookAbbr, verseGroup.chapter);
     const poetryBlocks = resolvePoetryBlocks?.(verseGroup.bookAbbr, verseGroup.chapter) ?? [];
+    const sourceParagraphs = sourceParagraphsForReader(verseGroup.verses);
+    if (sourceParagraphs) return sourceParagraphs.flatMap((group) => {
+      const first = group.verses[0], start = readerVerseFragment(first)?.start ?? 0;
+      const heading = start === 0 ? headingMap.get(first.number) : undefined;
+      const key = `${verseGroup.bookAbbr}-${verseGroup.chapter}-${first.number}-${start}`;
+      return [
+        ...(heading ? [<ScriptureHeading key={`h-${key}`} className={holman ? holmanHeadingClassName(verseGroup.bookAbbr) : undefined}>{holman ? holmanHeadingText(heading) : heading}</ScriptureHeading>] : []),
+        <ScriptureParagraph key={`p-${key}`} poetryLevel={group.level} alignment={group.alignment}
+          className={first.number === 1 && start === 0 ? "scripture-paragraph-chapter-open" : undefined} isContinuation={group.isContinuation}>
+          {group.verses.map((v,index) => renderVerse(v,{bookAbbr:verseGroup.bookAbbr,chapter:verseGroup.chapter,paragraphIsContinuation:group.isContinuation,startsPrintedParagraph:index===0}))}
+        </ScriptureParagraph>,
+      ];
+    });
     // Headings and publisher poetry transitions are paragraph boundaries too.
     // Poetry has a verse-number gutter; prose keeps its existing paragraph flow.
     const printStarts = new Set([...paragraphStartSet, ...headingMap.keys(), ...poetryBlocks.map(block => block.beforeVerse)]);

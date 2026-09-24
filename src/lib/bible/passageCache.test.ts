@@ -4,7 +4,7 @@ import { passageCacheKey } from "@/lib/bible/passageCache";
 
 describe("passageCacheKey", () => {
   it("combines bibleId, book, and chapter", () => {
-    expect(passageCacheKey("abc", "Jhn", 3)).toBe("abc|Jhn|3|v11|reader-integrity-v1|unsupported");
+    expect(passageCacheKey("abc", "Jhn", 3)).toBe("abc|Jhn|3|v12-source-fidelity|reader-integrity-v1|unsupported");
   });
 });
 

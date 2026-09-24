@@ -1,3 +1,4 @@
+import { createAnnotationAnchor, readAnnotationAnchor, saveAnnotationAnchor, type AnnotationAnchor } from "@/lib/bible/annotationAnchor";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,6 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 export type MarkKind = "highlight" | "underline";
 export interface Highlight {
   id: string;
+  created_at?: string;
+  source_anchor?: AnnotationAnchor;
   book: string;
   chapter: number;
   verse: number;
@@ -45,6 +48,7 @@ export function useChapterData(book: string, chapter: number, enabled = true) {
     setHighlights(
       ((h ?? []) as Highlight[]).map(x => ({
         ...x,
+        source_anchor: readAnnotationAnchor(user.id,x.id),
         kind: x.kind ?? "highlight",
         start_offset: x.start_offset ?? null,
         end_offset: x.end_offset ?? null,
@@ -94,6 +98,7 @@ export function useChapterData(book: string, chapter: number, enabled = true) {
     color: string,
     kind: MarkKind = "highlight",
     verseLengths?: Map<number, number>,
+    verseTexts?: Map<number, string>,
   ) => {
     if (!user || ranges.length === 0) return;
     const verses = [...new Set(ranges.map(r => r.verse))];
@@ -112,6 +117,7 @@ export function useChapterData(book: string, chapter: number, enabled = true) {
       const isWhole =
         len != null && r.start <= 0 && r.end >= len;
       return {
+        id: crypto.randomUUID(),
         user_id: user.id,
         book,
         chapter,
@@ -124,6 +130,11 @@ export function useChapterData(book: string, chapter: number, enabled = true) {
     });
     const { error: insErr } = await supabase.from("highlights").insert(rows);
     if (insErr) throw insErr;
+    for (let i=0;i<rows.length;i++) {
+      const text=verseTexts?.get(rows[i].verse),range=ranges[i];
+      const anchor=text==null?undefined:createAnnotationAnchor(text,range.start,range.end);
+      if(anchor)saveAnnotationAnchor(user.id,rows[i].id,anchor);
+    }
     await reload();
   };
 
