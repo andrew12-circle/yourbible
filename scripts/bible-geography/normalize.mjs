@@ -31,7 +31,7 @@ function normalizeVerse(verse, placeId) {
   return { b, c, v, t, ...(Object.keys(a).length ? { a } : {}) };
 }
 export function normalizePlace(raw) {
-  if (!/^a[0-9a-f]{6}$/.test(raw.id) || !raw.friendly_id || !Array.isArray(raw.verses)) throw new Error(`Invalid ancient place: ${raw.id}`);
+  if (!/^a[0-9a-f]{6}$/.test(raw.id) || !raw.friendly_id || (raw.verses !== undefined && !Array.isArray(raw.verses))) throw new Error(`Invalid ancient place: ${raw.id}`);
   const candidates = [], unresolved = [], seen = new Set();
   for (const [i, identification] of (raw.identifications ?? []).entries()) {
     const special = identification.special;
@@ -53,13 +53,12 @@ export function normalizePlace(raw) {
       if (seen.has(key)) continue;
       seen.add(key);
       const score = association?.score ?? identification.score?.time_total ?? null;
-      // Source evidence scores can be negative. Preserve them; never coerce to a percentage.
       if (score !== null && !Number.isFinite(score)) throw new Error(`Non-numeric source score for ${raw.id}: ${JSON.stringify(score)}`);
       candidates.push({ id: `${raw.id}-${i}-${j}`, modernId: modernId || '', name: plain(association?.name || description), description, ...coordinates, coordinateKind, score, radiusMeters: resolution.geometry_radius_meters ?? identification.geometry_radius_meters ?? null, geometryId: resolution.geometry_id ?? identification.geometry_id ?? null });
     }
   }
   candidates.sort((a, b) => (b.score ?? -Infinity) - (a.score ?? -Infinity) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
-  return { id: raw.id, name: plain(raw.friendly_id), aliases: Object.keys(raw.translation_name_counts ?? {}).map(plain).sort(), type: plain(raw.type || 'place'), sourceUrl: `https://www.openbible.info/geo/ancient/${raw.id}/${encodeURIComponent(raw.url_slug || raw.friendly_id.toLowerCase().replaceAll(' ', '-'))}`, notes: plain(raw.comment), geojsonFile: raw.geojson_file || null, candidates, unresolved: [...new Map(unresolved.map((item) => [`${item.kind}|${item.description}`, item])).values()], references: raw.verses.map((verse) => normalizeVerse(verse, raw.id)) };
+  return { id: raw.id, name: plain(raw.friendly_id), aliases: Object.keys(raw.translation_name_counts ?? {}).map(plain).sort(), type: plain(raw.types?.join(', ') || raw.type || 'place'), sourceUrl: `https://www.openbible.info/geo/ancient/${raw.id}/${encodeURIComponent(raw.url_slug || raw.friendly_id.toLowerCase().replaceAll(' ', '-'))}`, notes: plain(raw.comment), geojsonFile: raw.geojson_file || null, candidates, unresolved: [...new Map(unresolved.map((item) => [`${item.kind}|${item.description}`, item])).values()], references: (raw.verses ?? []).map((verse) => normalizeVerse(verse, raw.id)) };
 }
 export function normalizeAtlas(text) {
   const places = text.split(/\r?\n/).filter((line) => line.trim()).map((line, i) => {
