@@ -7,6 +7,7 @@ type ThreeDLibrary = {
   Map3DElement: new (options: { center: { lat: number; lng: number; altitude: number }; range: number; tilt: number; heading: number; mode: string }) => HTMLElement;
   Marker3DElement: new (options: { position: { lat: number; lng: number }; label: string; altitudeMode: string }) => HTMLElement;
 };
+type GoogleLoaderWindow = Window & { google?: { maps?: { importLibrary?: (name: string) => Promise<unknown> } } };
 function Globe({ scene, showSites, onFailure }: Pick<Props, "scene" | "showSites"> & { onFailure: () => void }) {
   const host = useRef<HTMLDivElement>(null);
   const globe = useRef<HTMLElement | null>(null);
@@ -14,9 +15,13 @@ function Globe({ scene, showSites, onFailure }: Pick<Props, "scene" | "showSites
   const status = useApiLoadingStatus();
   useEffect(() => {
     if (status !== APILoadingStatus.LOADED) return;
+    const maps = (window as GoogleLoaderWindow).google?.maps;
+    if (!maps?.importLibrary) { onFailure(); return; }
     let disposed = false;
-    void google.maps.importLibrary("maps3d").then(value => {
-      if (!disposed) setLibrary(value as unknown as ThreeDLibrary);
+    void maps.importLibrary("maps3d").then(value => {
+      const candidate = value as Partial<ThreeDLibrary> | null;
+      if (typeof candidate?.Map3DElement !== "function" || typeof candidate.Marker3DElement !== "function") throw new Error("Google 3D library is unavailable");
+      if (!disposed) setLibrary(candidate as ThreeDLibrary);
     }).catch(() => { if (!disposed) onFailure(); });
     return () => { disposed = true; };
   }, [status, onFailure]);
