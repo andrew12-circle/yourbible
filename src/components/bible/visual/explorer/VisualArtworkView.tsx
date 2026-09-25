@@ -23,7 +23,7 @@ export function VisualArtworkView({ asset, index, total, onBack, onStep, saved, 
     <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.6fr)_minmax(260px,1fr)]">
       <div className="min-w-0 space-y-3">
         <div className="h-[42dvh] min-h-56 overflow-auto rounded-2xl border bg-muted/30 xl:h-[60dvh]" tabIndex={0} role="region" aria-label="Artwork image; arrow keys browse, scroll to explore when zoomed">
-          <div style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}><VisualImage src={asset.detailUrl} alt={asset.alt} detail /></div>
+          <div style={{ width: `${zoom * 100}%`, height: `${zoom * 100}%` }}><VisualImage src={asset.readerUrl ?? asset.detailUrl} alt={asset.alt} detail /></div>
         </div>
         <div className="flex flex-wrap items-center gap-2" aria-label="Image magnification"><button type="button" className={explorerButton} disabled={zoom <= 1} onClick={() => setZoom(value => Math.max(1, value - 0.5))} aria-label="Zoom out"><ZoomOut className="h-4 w-4" /></button><button type="button" className={explorerButton} disabled={zoom >= 4} onClick={() => setZoom(value => Math.min(4, value + 0.5))} aria-label="Zoom in"><ZoomIn className="h-4 w-4" /></button><button type="button" className={explorerButton} onClick={() => setZoom(1)}>Fit image</button><span className="text-xs" aria-live="polite">{Math.round(zoom * 100)}%</span></div>
         <p className="text-xs leading-relaxed text-muted-foreground">{asset.source.credit} · {asset.source.license}</p>

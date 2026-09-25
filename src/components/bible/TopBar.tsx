@@ -449,12 +449,12 @@ export function TopBar({
                   )}
                 </PopoverContent>
               </Popover>
-              {!focusMode && onChapterContext ? <button type="button" onClick={onChapterContext} title="Explore artwork, maps and places" aria-label="Explore artwork, maps and places" className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-zinc-800 px-3 text-sm font-medium text-white hover:bg-zinc-700 focus-visible:ring-2 focus-visible:ring-ring"><Palette className="h-4 w-4" aria-hidden="true" />Explore</button> : null}
+              {!focusMode && onChapterContext ? <button type="button" data-visual-explorer-trigger onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); onChapterContext(); }} title="Explore artwork, maps and places" aria-label="Explore artwork, maps and places" className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-zinc-800 px-3 text-sm font-medium text-white hover:bg-zinc-700 focus-visible:ring-2 focus-visible:ring-ring"><Palette className="h-4 w-4" aria-hidden="true" />Explore</button> : null}
             </div>
 
             <div
               className={cn(
-                "flex min-w-0 max-w-full flex-[1_1_38rem] items-center justify-end overflow-x-auto scrollbar-hide touch-pan-x",
+                "flex min-w-0 max-w-full flex-[1_1_38rem] items-center justify-start overflow-x-auto scrollbar-hide touch-pan-x",
               )}
             >
               {!focusMode ? (<>

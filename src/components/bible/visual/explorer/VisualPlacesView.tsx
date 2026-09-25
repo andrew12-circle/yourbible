@@ -32,5 +32,5 @@ export function VisualPlacesView(props: {
   places: GeographyPlace[]; assets: readonly VisualAsset[]; saved: readonly string[]; onSave: (id: string) => void;
   translation: GeographyTranslation; book?: string; chapter?: number; onNavigate?: () => void;
 }) {
-  return <div className={galleryGrid}>{props.places.map(place => <PlaceCard key={place.id} {...props} place={place} />)}</div>;
+  return <div className="grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))]">{props.places.map(place => <PlaceCard key={place.id} {...props} place={place} />)}</div>;
 }

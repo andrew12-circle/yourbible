@@ -50,11 +50,10 @@ export function useReaderAudio(reference: string, passage: Passage | null | unde
         audioRef.current = audio; audio.src = url; audio.playbackRate = rate.current;
         audio.onended = () => { if (current()) void playChunk(index + 1, session, signal); };
         audio.onerror = () => { if (current()) { stop(); toast({ variant: "destructive", title: "Playback failed" }); } };
-        bindSleepMediaSession(audio, { title: reference, subtitle: `Part ${index + 1} of ${chunks.current.length}`, setId: reference });
         await audio.play();
         if (!current()) return;
         usingBrowser.current = false; setBoth("playing");
-        updateSleepMediaSession({ title: reference, subtitle: reference, setId: reference }, "playing");
+        updateSleepMediaSession({ title: reference, subtitle: reference }, "playing");
         return;
       } catch {
         if (!current()) return;
@@ -77,14 +76,14 @@ export function useReaderAudio(reference: string, passage: Passage | null | unde
     if (statusRef.current === "loading") return;
     if (statusRef.current === "playing") {
       if (usingBrowser.current) pauseBrowserTts(); else audioRef.current?.pause();
-      setBoth("paused"); updateSleepMediaSession({ title: reference, subtitle: reference, setId: reference }, "paused"); return;
+      setBoth("paused"); updateSleepMediaSession({ title: reference, subtitle: reference }, "paused"); return;
     }
     if (statusRef.current === "paused") {
       const session = generation.current;
       try {
         if (usingBrowser.current) resumeBrowserTts(); else await audioRef.current?.play();
         if (session !== generation.current) return;
-        setBoth("playing"); updateSleepMediaSession({ title: reference, subtitle: reference, setId: reference }, "playing");
+        setBoth("playing"); updateSleepMediaSession({ title: reference, subtitle: reference }, "playing");
       } catch { if (session === generation.current) { stop(); toast({ variant: "destructive", title: "Could not resume audio" }); } }
       return;
     }
@@ -96,6 +95,18 @@ export function useReaderAudio(reference: string, passage: Passage | null | unde
     setBoth("loading");
     await playChunk(0, session, controller.signal);
   }, [passage, playChunk, reference, stop, setBoth]);
+  // Bind reader media actions.
+  useEffect(() => {
+    if (status === "idle") return;
+    const unbind = bindSleepMediaSession({
+      onPlay: () => { if (statusRef.current === "paused") void toggle(); },
+      onPause: () => { if (statusRef.current === "playing") void toggle(); },
+      onStop: stop,
+    });
+    updateSleepMediaSession({ title: reference, subtitle: reference, artist: "YourBible" }, status === "playing" ? "playing" : status === "paused" ? "paused" : "none");
+    return unbind;
+  }, [status, reference, stop, toggle]);
+
   const cycleSpeed = useCallback(() => {
     const r = rate.current, next = r >= 1.5 ? 0.85 : r >= 1.25 ? 1.5 : r >= 1 ? 1.25 : 1;
     rate.current = next; setPlaybackRate(next);
