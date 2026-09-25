@@ -40,7 +40,7 @@ export function SceneRehearsalPlayer({ scene, minutes, variant, value, onChange,
   });
   const [finished, setFinished] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
-  const [showScript, setShowScript] = useState("");
+  const [showScript, setShowScript] = useState(false);
 
   if (!player.beat) return null;
 
@@ -70,7 +70,7 @@ export function SceneRehearsalPlayer({ scene, minutes, variant, value, onChange,
       await navigator.clipboard.writeText(script);
       setCopyStatus("Copied");
     } catch {
-      setShowScript("show");
+      setShowScript(true);
       setCopyStatus("Select the script below to copy it.");
     }
   };
@@ -202,7 +202,7 @@ export function SceneRehearsalPlayer({ scene, minutes, variant, value, onChange,
           <Copy className="h-4 w-4" /> Copy guided script
         </Button>
         <span role="status" className="ml-3">{copyStatus}</span>
-        <Button type="button" variant="ghost" className="min-h-11" onClick={() => setShowScript((value) => value ? "" : "show")}>
+        <Button type="button" variant="ghost" className="min-h-11" onClick={() => setShowScript((value) => !value)}>
           Show / hide script
         </Button>
         {showScript ? (
