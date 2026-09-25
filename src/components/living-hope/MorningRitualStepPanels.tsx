@@ -28,7 +28,7 @@ import { MorningConversationPanel } from "@/components/living-hope/MorningConver
 import { MorningFormulaInlineJournal } from "@/components/living-hope/MorningFormulaInlineJournal";
 import { MORNING_FORMULA_WORSHIP_RETURN } from "@/lib/bible/readerNavigation";
 import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
-import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
+import { VisionActionBridge } from "@/components/living-hope/VisionActionBridge";
 import { MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
 import type { SessionDurationMin } from "@/lib/livingHope/morningFormulaTimer";
 import { lh } from "@/lib/livingHope/themeClasses";
@@ -104,12 +104,6 @@ export function MorningRitualStepPanels({
   letter,
   workbook,
   manifestoItem,
-  storySuggestedIndex,
-  storySelectedIndex,
-  onStorySelectedIndexChange,
-  onAddStory,
-  onUpdateStory,
-  onDeleteStory,
   storyRecall,
   setStoryRecall,
   currentGoal,
@@ -232,7 +226,7 @@ export function MorningRitualStepPanels({
     return (
       <>
         <p className={cn(lh.bodySm, "mb-4")}>
-          Don&apos;t read the numbers — inhabit the life. Present tense. You already have it.
+          Pick one saved scene. Enter it in first person. See it, hear it, feel it, rehearse it, then bring one action back into today.
         </p>
         <VisionEmbodimentWalkthrough
           workbook={workbook}
@@ -243,21 +237,13 @@ export function MorningRitualStepPanels({
     );
   }
 
-  if (step.kind === "story" && workbook) {
+  if (step.kind === "story") {
     return (
-      <>
-        <MorningStoryPanel
-          stories={workbook.stories}
-          suggestedIndex={storySuggestedIndex}
-          selectedIndex={storySelectedIndex}
-          onSelectedIndexChange={onStorySelectedIndexChange}
-          onAddStory={onAddStory}
-          onUpdateStory={onUpdateStory}
-          onDeleteStory={onDeleteStory}
-          storyRecall={storyRecall}
-          onStoryRecallChange={setStoryRecall}
-        />
-      </>
+      <VisionActionBridge
+        visionRecall={visionRecall}
+        value={storyRecall}
+        onChange={setStoryRecall}
+      />
     );
   }
 
