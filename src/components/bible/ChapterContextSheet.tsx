@@ -1,4 +1,4 @@
-import { lazy, Suspense, useLayoutEffect, useRef } from "react";
+import { lazy, Suspense, useRef } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Palette, X } from "lucide-react";
 import type { ChapterContextBundle } from "@/data/biblePlates/types";
@@ -11,17 +11,24 @@ type Props = {
 /** The reader stays mounted. Catalog/map failures cannot replace the Scripture page. */
 export function ChapterContextSheet({ open, onOpenChange, context, bookName, ownerId, translation }: Props) {
   const returnFocus = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    if (open && document.activeElement instanceof HTMLElement) returnFocus.current = document.activeElement;
-  }, [open]);
   return <Dialog.Root open={open} onOpenChange={onOpenChange}>
     <Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-[200] bg-black/45 backdrop-blur-sm" />
       <Dialog.Content
+        data-visual-workspace-dialog
         className="fixed left-1/2 top-1/2 z-[201] flex h-[100dvh] w-full max-w-[1480px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden bg-background text-foreground shadow-2xl outline-none sm:h-[94dvh] sm:w-[96vw] sm:rounded-2xl sm:border"
         onKeyDown={event => event.stopPropagation()}
         onEscapeKeyDown={event => event.stopPropagation()}
-        onCloseAutoFocus={event => { event.preventDefault(); if (returnFocus.current?.isConnected) returnFocus.current.focus({ preventScroll: true }); }}
+        onOpenAutoFocus={() => {
+          // Capture before the focus scope moves into the dialog, not in a later effect.
+          const active = document.activeElement;
+          returnFocus.current = active instanceof HTMLElement && active !== document.body && !active.closest("[data-visual-workspace-dialog]") ? active : null;
+        }}
+        onCloseAutoFocus={event => {
+          event.preventDefault();
+          const trigger = returnFocus.current?.isConnected ? returnFocus.current : document.querySelector<HTMLElement>("[data-visual-explorer-trigger]");
+          trigger?.focus({ preventScroll: true });
+        }}
       >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6">
           <div className="min-w-0"><Dialog.Title className="flex items-center gap-2 font-serif text-xl"><Palette className="h-5 w-5 shrink-0" aria-hidden="true" />Explore the Bible</Dialog.Title><Dialog.Description className="mt-1 text-xs text-muted-foreground">Art, maps and places alongside {bookName} {context.chapter}.</Dialog.Description></div>
