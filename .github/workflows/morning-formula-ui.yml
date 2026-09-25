@@ -10,7 +10,9 @@ on:
       - 'src/pages/living-hope/**'
       - 'src/hooks/useMorning*'
       - 'src/lib/livingHope/**'
+      - 'public/images/morning-sunrise.svg'
       - 'scripts/*morning-formula*'
+      - 'scripts/verify-morning-sunrise-ui.mjs'
       - '.github/workflows/morning-formula-ui.yml'
 permissions:
   contents: read
@@ -24,7 +26,7 @@ env:
 jobs:
   regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,6 +46,20 @@ jobs:
       - name: File size limits
         if: ${{ !cancelled() }}
         run: npm run check:file-size
+      - name: Install browser checks
+        if: ${{ !cancelled() }}
+        run: |
+          npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test
+          npx playwright install --with-deps chromium
+      - name: Sunrise desktop and mobile browser checks
+        if: ${{ !cancelled() }}
+        run: node scripts/verify-morning-sunrise-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: morning-sunrise-browser
+          path: artifacts/morning-sunrise
+          retention-days: 7
       - name: Record validated source identities
         if: ${{ !cancelled() }}
         run: git ls-tree -r HEAD > "$RUNNER_TEMP/morning-formula-tree.txt"

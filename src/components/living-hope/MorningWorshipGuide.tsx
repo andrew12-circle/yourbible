@@ -46,37 +46,24 @@ function formatPhaseTime(totalMs: number, share: number) {
 
 export function MorningWorshipGuide({ stepBudgetMs }: Props) {
   return (
-    <section className="space-y-4" aria-labelledby="worship-guide-title">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-muted-foreground" aria-hidden />
-          <h2 id="worship-guide-title" className="text-[15px] font-semibold text-foreground">
-            Let worship become prayer
-          </h2>
+    <section className="morning-worship-guide" aria-labelledby="worship-guide-title">
+      <div className="morning-guide-heading">
+        <div>
+          <h2 id="worship-guide-title"><Sparkles className="h-5 w-5" aria-hidden="true" />Let worship become prayer</h2>
+          <p className={cn(lh.bodySm, "mb-0")}>Do not perform this. Use it as a posture guide and stay with any moment where you sense you should remain.</p>
         </div>
-        <p className={cn(lh.bodySm, "mb-0")}>
-          Do not perform this. Use it as a posture guide and stay with any moment where you sense you should remain.
-        </p>
+        <aside className="morning-guide-reminder">Presence, not performance.<span>Stay in the moment.</span></aside>
       </div>
-
-      <ol className="space-y-4">
+      <ol className="morning-phase-grid">
         {phases.map((phase, index) => {
           const Icon = phase.icon;
           return (
-            <li key={phase.title} className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
-                <Icon className="h-4 w-4 text-foreground/75" aria-hidden />
-              </div>
-              <div className="min-w-0 border-b border-border/50 pb-4 last:border-b-0">
-                <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                  <p className="font-medium text-foreground">
-                    {index + 1}. {phase.title}
-                  </p>
-                  {stepBudgetMs > 0 ? (
-                    <span className="text-[11px] tabular-nums text-muted-foreground">
-                      {formatPhaseTime(stepBudgetMs, phase.share)}
-                    </span>
-                  ) : null}
+            <li key={phase.title} className="morning-phase-card" data-phase={phase.title.toLowerCase()}>
+              <div className="morning-phase-icon"><Icon className="h-5 w-5" aria-hidden="true" /></div>
+              <div className="min-w-0">
+                <div className="morning-phase-title">
+                  <h3>{index + 1}. {phase.title}</h3>
+                  {stepBudgetMs > 0 && <span>{formatPhaseTime(stepBudgetMs, phase.share)}</span>}
                 </div>
                 <p className={cn(lh.bodySm, "mb-0 leading-relaxed")}>{phase.instruction}</p>
               </div>
@@ -84,8 +71,7 @@ export function MorningWorshipGuide({ stepBudgetMs }: Props) {
           );
         })}
       </ol>
-
-      <p className="text-[13px] italic leading-relaxed text-muted-foreground">
+      <p className="morning-guide-note">
         If a lyric, thought, Scripture, gratitude, conviction, or sense of God&apos;s nearness catches your attention,
         stop there. The goal is not to finish the guide. The goal is to give God your undivided attention.
       </p>
