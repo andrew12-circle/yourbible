@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { VerseSheet } from "@/components/bible/VerseSheet";
@@ -47,6 +48,8 @@ type Props = {
   chapterContextOpen: boolean;
   setChapterContextOpen: (open: boolean) => void;
   chapterCtx: ChapterContextBundle;
+  visualOwnerId?: string;
+  bibleAbbreviation?: string;
 };
 
 export function ReaderPageOverlays({
@@ -76,6 +79,8 @@ export function ReaderPageOverlays({
   chapterContextOpen,
   setChapterContextOpen,
   chapterCtx,
+  visualOwnerId,
+  bibleAbbreviation,
 }: Props) {
   const navigate = useNavigate();
 
@@ -150,6 +155,8 @@ export function ReaderPageOverlays({
       ) : null}
 
       <ChapterContextSheet
+        ownerId={visualOwnerId}
+        translation={bibleAbbreviation}
         open={chapterContextOpen}
         onOpenChange={setChapterContextOpen}
         context={chapterCtx}

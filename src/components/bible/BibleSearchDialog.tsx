@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { useEffect, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -148,6 +149,7 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
       <div
         role="dialog"
         aria-modal="true"
+        onKeyDown={(event) => { event.stopPropagation(); if (event.key === "Escape") { event.preventDefault(); onClose(); } }}
         aria-label="Search Scripture"
         className="w-full max-w-lg rounded-2xl bg-background border shadow-xl overflow-hidden"
       >
@@ -174,7 +176,7 @@ export function BibleSearchDialog({ open, onClose, bibleId }: Props) {
             <SelectTrigger className="h-8 text-xs" aria-label="Filter by book">
               <SelectValue placeholder="All books" />
             </SelectTrigger>
-            <SelectContent className="max-h-64">
+            <SelectContent className="z-[150] max-h-64">
               <SelectItem value="all">All books</SelectItem>
               {BOOKS.map((b) => (
                 <SelectItem key={b.abbr} value={b.abbr}>

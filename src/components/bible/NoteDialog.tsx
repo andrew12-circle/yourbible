@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { PolishedTextarea } from "@/components/writing/PolishedTextarea";
@@ -17,7 +18,7 @@ export function NoteDialog({ open, reference, initialBody, onClose, onSave, onDe
   useEffect(() => { setBody(initialBody ?? ""); }, [initialBody, open]);
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="paper-texture border-gold/40">
+      <DialogContent overlayClassName="z-[140]" className="z-[141] paper-texture border-gold/40">
         <DialogHeader>
           <div className="text-[10px] uppercase tracking-widest text-gold-deep">Note</div>
           <DialogTitle className="font-display text-leather">{reference}</DialogTitle>

@@ -55,6 +55,7 @@ export function speakBrowserTts(
   text: string,
   profile: BrowserVoiceProfile,
   signal: AbortSignal,
+  rate = 0.88,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
@@ -73,7 +74,7 @@ export function speakBrowserTts(
       }
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.88;
+      utterance.rate = Number.isFinite(rate) ? Math.max(0.1, Math.min(10, rate)) : 0.88;
       utterance.pitch =
         profile === "male-deep" ? 0.85 : profile === "female-low" ? 0.92 : 1;
       const voice = pickVoice(voices, profile);
