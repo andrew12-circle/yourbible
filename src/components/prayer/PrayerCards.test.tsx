@@ -9,10 +9,11 @@ import type { PrayerRequestRow } from "@/lib/prayer/types";
 const request: PrayerRequestRow = {
   id: "request-1", user_id: "test-user", title: "Family provision",
   prayer_text: "Please provide what our family needs.", purpose: "Cover household needs",
-  category: "family", status: "waiting", requested_at: "2026-07-02",
+  category: "family", status: "waiting", priority: "important", need_kind: "need",
+  consequence: "", provision_source: "", requested_at: "2026-07-02",
   deadline: "2026-07-31", answered_at: null, amount_requested: 2500, amount_provided: null,
   answer_text: null, private_notes: "", scripture_refs: [], praise_report_entry_id: null,
-  sort_order: 0, created_at: "2026-07-02T12:00:00Z", updated_at: "2026-07-02T12:00:00Z",
+  recurring_template_id: null, occurrence_month: null, sort_order: 0, created_at: "2026-07-02T12:00:00Z", updated_at: "2026-07-02T12:00:00Z",
 };
 const entry = {
   id: "praise-1", title: "Provision received", body: "We received the help we needed.",

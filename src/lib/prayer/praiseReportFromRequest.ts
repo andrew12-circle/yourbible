@@ -18,7 +18,8 @@ export function buildPraiseReportBody(
     | "amount_requested"
     | "amount_provided"
     | "deadline"
-  >,
+  > &
+    Partial<Pick<PrayerRequestRow, "consequence" | "provision_source">>,
   answerOverride?: string,
 ): string {
   const answeredAt = request.answered_at ?? new Date().toISOString().slice(0, 10);
@@ -43,6 +44,12 @@ export function buildPraiseReportBody(
   }
   if ((request.purpose ?? "").trim()) {
     amountLines.push(`**Purpose:** ${request.purpose!.trim()}`);
+  }
+  if ((request.consequence ?? "").trim()) {
+    amountLines.push(`**What was at stake:** ${request.consequence!.trim()}`);
+  }
+  if ((request.provision_source ?? "").trim()) {
+    amountLines.push(`**Provision source:** ${request.provision_source!.trim()}`);
   }
 
   return [

@@ -30,6 +30,10 @@ export default function PrayerRequestNewPage() {
               requestedAt: values.requestedAt,
               deadline: values.deadline || null,
               amountRequested: values.amountRequestedNum,
+              priority: values.priority,
+              needKind: values.needKind,
+              consequence: values.consequence,
+              provisionSource: values.provisionSource,
               scriptureRefs: values.scriptureRefs,
               privateNotes: values.privateNotes,
             });
