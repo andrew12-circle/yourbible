@@ -110,15 +110,15 @@ describe("Artifacts library landing", () => {
     expect(within(region).getByRole("status")).toHaveTextContent("16 artifacts");
   });
 
-  it.each([
-    ["Videos", 2],
-    ["Podcasts", 2],
-    ["Documents", 4],
-    ["Chats", 2],
-    ["Notes", 2],
-    ["Voice", 4],
-    ["Unwatched", 1],
-  ])("filters %s without switching away from the cover grid", async (label, count) => {
+  it.each<{ label: string; count: number }>([
+    { label: "Videos", count: 2 },
+    { label: "Podcasts", count: 2 },
+    { label: "Documents", count: 4 },
+    { label: "Chats", count: 2 },
+    { label: "Notes", count: 2 },
+    { label: "Voice", count: 4 },
+    { label: "Unwatched", count: 1 },
+  ])("filters $label without switching away from the cover grid", async ({ label, count }) => {
     mountLibrary();
     const region = await collection();
     fireEvent.click(screen.getByRole("tab", { name: label, exact: true }));
