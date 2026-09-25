@@ -55,6 +55,41 @@ export interface WorkbookMetric {
   unit?: string;
 }
 
+
+export type MorningFormulaStepKind =
+  | "worship"
+  | "thanksgiving"
+  | "scripture"
+  | "prayer"
+  | "manifesto"
+  | "vision"
+  | "story"
+  | "surrender"
+  | "covering"
+  | "assignment"
+  | "goals"
+  | "metrics";
+
+export interface MorningFormulaStepConfig {
+  kind: MorningFormulaStepKind;
+  enabled: boolean;
+}
+
+export const DEFAULT_MORNING_FORMULA_STEPS: MorningFormulaStepConfig[] = [
+  { kind: "worship", enabled: true },
+  { kind: "thanksgiving", enabled: true },
+  { kind: "scripture", enabled: true },
+  { kind: "prayer", enabled: true },
+  { kind: "manifesto", enabled: true },
+  { kind: "vision", enabled: true },
+  { kind: "story", enabled: true },
+  { kind: "surrender", enabled: true },
+  { kind: "covering", enabled: true },
+  { kind: "assignment", enabled: true },
+  { kind: "goals", enabled: true },
+  { kind: "metrics", enabled: true },
+];
+
 /** Saved worship / praise music link for quick replay in the morning ritual. */
 export interface WorshipMusicHistoryItem {
   id: string;
@@ -87,6 +122,8 @@ export interface LivingHopeWorkbookContent {
   worship_music_history: WorshipMusicHistoryItem[];
   /** Private voice recordings of personal prayers stored in voice-memos. */
   prayer_recordings: { surrender?: string; covering?: string };
+  /** Reusable ordering and visibility for future Morning Formula sessions. */
+  morning_formula_steps: MorningFormulaStepConfig[];
 }
 
 export type WorkbookSection =
@@ -167,6 +204,7 @@ export function emptyWorkbook(): LivingHopeWorkbookContent {
     worship_playlist_url: "",
     worship_music_history: [],
     prayer_recordings: {},
+    morning_formula_steps: DEFAULT_MORNING_FORMULA_STEPS.map((step) => ({ ...step })),
   };
 }
 
@@ -196,7 +234,35 @@ export function mergeWorkbook(raw: unknown): LivingHopeWorkbookContent {
     worship_playlist_url: String(o.worship_playlist_url ?? base.worship_playlist_url),
     worship_music_history: parseWorshipMusicHistory(o.worship_music_history, String(o.worship_playlist_url ?? "")),
     prayer_recordings: parsePrayerRecordings(o.prayer_recordings),
+    morning_formula_steps: parseMorningFormulaSteps(o.morning_formula_steps),
   };
+}
+
+function parseMorningFormulaSteps(raw: unknown): MorningFormulaStepConfig[] {
+  const valid = new Set<MorningFormulaStepKind>(
+    DEFAULT_MORNING_FORMULA_STEPS.map((step) => step.kind),
+  );
+  const parsed = Array.isArray(raw)
+    ? raw
+        .filter((item): item is Record<string, unknown> => typeof item === "object" && item !== null)
+        .map((item) => ({
+          kind: String(item.kind ?? "") as MorningFormulaStepKind,
+          enabled: item.enabled !== false,
+        }))
+        .filter((item) => valid.has(item.kind))
+    : [];
+
+  const seen = new Set<MorningFormulaStepKind>();
+  const result: MorningFormulaStepConfig[] = [];
+  for (const item of parsed) {
+    if (seen.has(item.kind)) continue;
+    seen.add(item.kind);
+    result.push(item);
+  }
+  for (const fallback of DEFAULT_MORNING_FORMULA_STEPS) {
+    if (!seen.has(fallback.kind)) result.push({ ...fallback });
+  }
+  return result;
 }
 
 function parsePrayerRecordings(raw: unknown): { surrender?: string; covering?: string } {

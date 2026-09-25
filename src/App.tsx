@@ -108,6 +108,7 @@ const ChildrenBooksPage = lazy(() => import("./pages/children-books/ChildrenBook
 const LivingHopeHubPage = lazy(() => import("./pages/living-hope/LivingHopeHubPage"));
 const FutureLetterPage = lazy(() => import("./pages/living-hope/FutureLetterPage"));
 const MorningReviewPage = lazy(() => import("./pages/living-hope/MorningReviewPage"));
+const MorningFormulaBuilderPage = lazy(() => import("./pages/living-hope/MorningFormulaBuilderPage"));
 const WorkbookSectionPage = lazy(() => import("./pages/living-hope/WorkbookSectionPage"));
 const PrayerHubPage = lazy(() => import("./pages/prayer/PrayerHubPage"));
 const PrayerRequestsListPage = lazy(() => import("./pages/prayer/PrayerRequestsListPage"));
@@ -163,6 +164,7 @@ const App = () => (
                   <Route path="/living-hope" element={<LivingHopeHubPage />} />
                   <Route path="/living-hope/letter" element={<FutureLetterPage />} />
                   <Route path="/living-hope/review" element={<MorningReviewPage />} />
+                  <Route path="/living-hope/builder" element={<MorningFormulaBuilderPage />} />
                   <Route path="/living-hope/workbook/:section" element={<WorkbookSectionPage />} />
                   <Route path="/life-weeks" element={<LifeWeeksPage />} />
                   <Route path="/life/week-reviews" element={<LifeWeekReviewLogPage />} />

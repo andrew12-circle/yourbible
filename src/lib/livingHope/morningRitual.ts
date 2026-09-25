@@ -1,5 +1,8 @@
 import type { LivingHopeGoalRow } from "@/lib/livingHope/api";
-import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
+import {
+  DEFAULT_MORNING_FORMULA_STEPS,
+  type LivingHopeWorkbookContent,
+} from "@/lib/livingHope/workbookTypes";
 
 /** Connection-phase notes stored on `living_hope_reviews.connection_notes`. */
 export interface DailyAssignment {
@@ -332,18 +335,54 @@ export function buildRitualSteps(
   if (expressMode) return buildExpressRitualSteps();
 
   const steps: RitualStep[] = [{ kind: "intro" }];
-  steps.push(
-    { kind: "worship" },
-    { kind: "thanksgiving" },
-    { kind: "scripture" },
-    { kind: "prayer" },
-  );
-  if (workbook?.manifesto.length) steps.push({ kind: "manifesto" });
-  if (workbook?.vision_headline || workbook?.income_lines.length) steps.push({ kind: "vision" });
-  if (workbook) steps.push({ kind: "story" });
-  steps.push({ kind: "surrender" }, { kind: "covering" }, { kind: "assignment" });
-  for (const g of activeGoals) steps.push({ kind: "goal", goalId: g.id });
-  if (workbook?.metrics.length) steps.push({ kind: "metrics" });
+  const configured =
+    workbook?.morning_formula_steps?.length
+      ? workbook.morning_formula_steps
+      : DEFAULT_MORNING_FORMULA_STEPS;
+
+  for (const config of configured) {
+    if (!config.enabled) continue;
+    switch (config.kind) {
+      case "worship":
+        steps.push({ kind: "worship" });
+        break;
+      case "thanksgiving":
+        steps.push({ kind: "thanksgiving" });
+        break;
+      case "scripture":
+        steps.push({ kind: "scripture" });
+        break;
+      case "prayer":
+        steps.push({ kind: "prayer" });
+        break;
+      case "manifesto":
+        if (workbook?.manifesto.length) steps.push({ kind: "manifesto" });
+        break;
+      case "vision":
+        if (workbook?.vision_headline || workbook?.income_lines.length) steps.push({ kind: "vision" });
+        break;
+      case "story":
+        if (workbook) steps.push({ kind: "story" });
+        break;
+      case "surrender":
+        steps.push({ kind: "surrender" });
+        break;
+      case "covering":
+        steps.push({ kind: "covering" });
+        break;
+      case "assignment":
+        steps.push({ kind: "assignment" });
+        break;
+      case "goals": {
+        for (const g of activeGoals) steps.push({ kind: "goal", goalId: g.id });
+        break;
+      }
+      case "metrics":
+        if (workbook?.metrics.length) steps.push({ kind: "metrics" });
+        break;
+    }
+  }
+
   steps.push({ kind: "done" });
   return steps;
 }
