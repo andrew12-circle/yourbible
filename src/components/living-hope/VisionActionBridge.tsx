@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
-import { parseRehearsalNote, rehearsalAction } from "@/lib/livingHope/sceneRehearsal";
+import { parseActionBridge, parseRehearsalNote, rehearsalAction, writeActionBridge } from "@/lib/livingHope/sceneRehearsal";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
@@ -13,10 +13,11 @@ type Props = {
 export function VisionActionBridge({ visionRecall, value, onChange }: Props) {
   const practice = parseRehearsalNote(visionRecall);
   const suggestedAction = rehearsalAction(visionRecall);
+  const bridgeAction = parseActionBridge(value);
 
   useEffect(() => {
-    if (!value.trim() && suggestedAction) onChange(suggestedAction);
-  }, [onChange, suggestedAction, value]);
+    if (!bridgeAction && suggestedAction) onChange(writeActionBridge(value, suggestedAction));
+  }, [bridgeAction, onChange, suggestedAction, value]);
 
   return (
     <section className="space-y-5">
@@ -42,8 +43,8 @@ export function VisionActionBridge({ visionRecall, value, onChange }: Props) {
         <p className={cn(lh.labelUpper, "mb-2")}>One question</p>
         <h3 className="mb-3 text-lg font-semibold">What does the man you just saw do today?</h3>
         <MorningVoiceField
-          value={value}
-          onChange={onChange}
+          value={bridgeAction}
+          onChange={(next) => onChange(writeActionBridge(value, next))}
           label="What does the man you just saw do today?"
           placeholder="One specific action you control today…"
           multiline
