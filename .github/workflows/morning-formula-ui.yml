@@ -49,7 +49,7 @@ jobs:
       - name: Install browser checks
         if: ${{ !cancelled() }}
         run: |
-          npm install --no-save --package-lock=false @playwright/test
+          npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test
           npx playwright install --with-deps chromium
       - name: Sunrise desktop and mobile browser checks
         if: ${{ !cancelled() }}
