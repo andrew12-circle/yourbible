@@ -1,36 +1,36 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { Palette, X } from "lucide-react";
 import type { ChapterContextBundle } from "@/data/biblePlates/types";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
-const VisualBibleLibrary = lazy(() => import("./visual/VisualBibleLibrary").then((module) => ({ default: module.VisualBibleLibrary })));
-
-type Props = { open: boolean; onOpenChange: (open: boolean) => void; context: ChapterContextBundle; bookName: string };
-export function ChapterContextSheet({ open, onOpenChange, context, bookName }: Props) {
-  return <Sheet open={open} onOpenChange={onOpenChange}>
-    <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-3xl">
-      <SheetHeader className="border-b border-border/60 px-4 pb-3 pt-4 pr-12">
-        <SheetTitle className="text-left font-serif">{bookName} {context.chapter}</SheetTitle>
-        <SheetDescription className="text-left">Visualize this passage through art, maps, artifacts and historical context.</SheetDescription>
-      </SheetHeader>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-8 px-4 py-5">
-          {/* Closed overlays never mount the catalog or request its thumbnails. */}
-          {open ? <Suspense fallback={<p role="status">Opening chapter visuals…</p>}>
-            <VisualBibleLibrary book={context.bookAbbr} chapter={context.chapter} onNavigate={() => onOpenChange(false)} />
-          </Suspense> : null}
-          {context.timeline.length ? <section>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Existing chronology notes</h3>
-            <p className="mb-2 text-xs text-muted-foreground">Inherited study chronology; dates may reflect particular historical reconstructions.</p>
-            <ul className="space-y-2 text-sm">{context.timeline.map((event) => <li key={event.id} className="rounded-md border p-3">
-              <p className="font-medium">{event.label}</p><p className="text-xs text-muted-foreground">{event.approxYear}{event.empire ? ` · ${event.empire}` : ""}</p>
-            </li>)}</ul>
-          </section> : null}
-          {context.relatedPassages.length ? <section>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Related Scriptures</h3>
-            <ul className="flex flex-wrap gap-2">{context.relatedPassages.map((ref) => <li key={ref} className="rounded-full border px-3 py-1 text-sm">{ref}</li>)}</ul>
-          </section> : null}
+import { VisualExplorerBoundary } from "./visual/explorer/VisualExplorerBoundary";
+const Workspace = lazy(() => import("./visual/explorer/VisualLibraryWorkspace"));
+type Props = {
+  open: boolean; onOpenChange: (open: boolean) => void; context: ChapterContextBundle; bookName: string;
+  ownerId?: string; translation?: string;
+};
+/** The reader stays mounted. Catalog/map failures cannot replace the Scripture page. */
+export function ChapterContextSheet({ open, onOpenChange, context, bookName, ownerId, translation }: Props) {
+  const returnFocus = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    if (open && document.activeElement instanceof HTMLElement) returnFocus.current = document.activeElement;
+  }, [open]);
+  return <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Portal>
+      <Dialog.Overlay className="fixed inset-0 z-[200] bg-black/45 backdrop-blur-sm" />
+      <Dialog.Content
+        className="fixed left-1/2 top-1/2 z-[201] flex h-[100dvh] w-full max-w-[1480px] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden bg-background text-foreground shadow-2xl outline-none sm:h-[94dvh] sm:w-[96vw] sm:rounded-2xl sm:border"
+        onKeyDown={event => event.stopPropagation()}
+        onEscapeKeyDown={event => event.stopPropagation()}
+        onCloseAutoFocus={event => { event.preventDefault(); if (returnFocus.current?.isConnected) returnFocus.current.focus({ preventScroll: true }); }}
+      >
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6">
+          <div className="min-w-0"><Dialog.Title className="flex items-center gap-2 font-serif text-xl"><Palette className="h-5 w-5 shrink-0" aria-hidden="true" />Explore the Bible</Dialog.Title><Dialog.Description className="mt-1 text-xs text-muted-foreground">Art, maps and places alongside {bookName} {context.chapter}.</Dialog.Description></div>
+          <Dialog.Close asChild><button type="button" className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border px-3 text-sm hover:bg-muted" aria-label="Return to Bible"><span className="hidden sm:inline">Return to reading</span><X className="h-4 w-4" aria-hidden="true" /></button></Dialog.Close>
+        </header>
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)]">
+          {open && <VisualExplorerBoundary onClose={() => onOpenChange(false)}><Suspense fallback={<p role="status" className="p-6 text-sm">Opening your visual library…</p>}><Workspace book={context.bookAbbr} chapter={context.chapter} ownerId={ownerId} translation={translation} context={context} onNavigate={() => onOpenChange(false)} /></Suspense></VisualExplorerBoundary>}
         </div>
-      </ScrollArea>
-    </SheetContent>
-  </Sheet>;
+      </Dialog.Content>
+    </Dialog.Portal>
+  </Dialog.Root>;
 }
