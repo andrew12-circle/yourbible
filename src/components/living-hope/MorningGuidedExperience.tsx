@@ -9,9 +9,9 @@ import { TodayAssignmentPanel } from "@/components/living-hope/TodayAssignmentPa
 import { MorningGuidedCoach } from "@/components/living-hope/MorningGuidedCoach";
 import { MorningFormulaDurationPicker } from "@/components/living-hope/MorningFormulaSessionTimer";
 import { MorningConversationPanel } from "@/components/living-hope/MorningConversationPanel";
-import { MorningStoryPanel } from "@/components/living-hope/MorningStoryPanel";
 import { ThanksgivingListsInput } from "@/components/living-hope/ThanksgivingListsInput";
 import { VisionEmbodimentWalkthrough } from "@/components/living-hope/VisionEmbodimentWalkthrough";
+import { VisionActionBridge } from "@/components/living-hope/VisionActionBridge";
 import type { MorningScripture } from "@/hooks/useMorningScripture";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
@@ -102,12 +102,6 @@ export function MorningGuidedExperience({
   letter,
   workbook,
   manifestoItem,
-  storySuggestedIndex,
-  storySelectedIndex,
-  onStorySelectedIndexChange,
-  onAddStory,
-  onUpdateStory,
-  onDeleteStory,
   storyRecall,
   setStoryRecall,
   currentGoal,
@@ -148,11 +142,6 @@ export function MorningGuidedExperience({
   onPrayerRecordingChange,
 }: Props) {
   const beat = guidedCoachBeatForStep(step);
-  const selectedStory =
-    storySelectedIndex != null && workbook?.stories[storySelectedIndex]
-      ? workbook.stories[storySelectedIndex]
-      : null;
-
   const introMessage = useMemo(() => buildGuidedIntroMessage(formalName), [formalName]);
 
   return (
@@ -197,32 +186,18 @@ export function MorningGuidedExperience({
       ) : null}
 
       {step.kind === "vision" && workbook ? (
-        <div className="space-y-4">
-          <VisionEmbodimentWalkthrough
-            workbook={workbook}
-            visionRecall={visionRecall}
-            onVisionRecallChange={setVisionRecall}
-          />
-          {selectedStory ? (
-            <div className={cn(lh.cardAmber, "p-4")}>
-              <p className={cn(lh.labelUpper, "mb-2")}>Your story today</p>
-              <p className={cn(lh.bodySm, "mb-0 italic")}>{selectedStory.text}</p>
-            </div>
-          ) : null}
-        </div>
+        <VisionEmbodimentWalkthrough
+          workbook={workbook}
+          visionRecall={visionRecall}
+          onVisionRecallChange={setVisionRecall}
+        />
       ) : null}
 
-      {step.kind === "story" && workbook ? (
-        <MorningStoryPanel
-          stories={workbook.stories}
-          suggestedIndex={storySuggestedIndex}
-          selectedIndex={storySelectedIndex}
-          onSelectedIndexChange={onStorySelectedIndexChange}
-          onAddStory={onAddStory}
-          onUpdateStory={onUpdateStory}
-          onDeleteStory={onDeleteStory}
-          storyRecall={storyRecall}
-          onStoryRecallChange={setStoryRecall}
+      {step.kind === "story" ? (
+        <VisionActionBridge
+          visionRecall={visionRecall}
+          value={storyRecall}
+          onChange={setStoryRecall}
         />
       ) : null}
 
