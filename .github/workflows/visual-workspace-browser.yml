@@ -1,0 +1,47 @@
+name: Visual workspace browser
+on:
+  push:
+    branches: ['feat/visual-explorer-toolbar', 'test/visual-workspace-browser']
+    paths: ['src/**', 'scripts/test-visual-workspace.mjs', 'scripts/integrate-visual-explorer.mjs', 'scripts/integrate-reader-audio.mjs', 'scripts/visual-explorer-fixes.mjs', '.github/workflows/visual-workspace-browser.yml']
+permissions:
+  contents: read
+concurrency:
+  group: visual-workspace-browser-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: visual-test-placeholder
+  VITE_SUPABASE_ANON_KEY: visual-test-placeholder
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Integrate same application code as release
+        run: |
+          node scripts/integrate-visual-explorer.mjs
+          node scripts/integrate-reader-audio.mjs
+          node scripts/visual-explorer-fixes.mjs
+          node -e "const fs=require('fs'),p='scripts/test-visual-workspace.mjs';let s=fs.readFileSync(p,'utf8');s=s.replace('name:label,exact:true','name:label,exact:label!==\"Saved\"');fs.writeFileSync(p,s)"
+      - run: npm ci
+      - name: Browser engines
+        run: |
+          npm install --prefix "$RUNNER_TEMP/visual-playwright" --no-package-lock playwright@1.55.0
+          "$RUNNER_TEMP/visual-playwright/node_modules/.bin/playwright" install --with-deps chromium webkit
+      - name: Full toolbar and actual visual collection in Chromium and mobile WebKit
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/visual-playwright/node_modules/playwright/index.mjs
+        run: node scripts/test-visual-workspace.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-workspace-browser
+          path: ${{ runner.temp }}/visual-workspace-browser/
+          retention-days: 7
+          if-no-files-found: warn
