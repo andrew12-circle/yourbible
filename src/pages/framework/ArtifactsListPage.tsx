@@ -13,13 +13,9 @@ import {
   artifactDisplayTitle,
   filterRowsBySearch,
   isUnwatchedSubscriptionRow,
-  readLibrarySortKey,
-  readLibraryViewMode,
-  RECENT_SHELF_LIMIT,
+  LIBRARY_CATEGORY_CHIPS,
   rowMatchesLibraryCategory,
   sortRows,
-  writeLibrarySortKey,
-  writeLibraryViewMode,
   type LibraryCategoryId,
   type LibrarySortKey,
   type LibraryViewMode,
@@ -27,11 +23,12 @@ import {
 } from "./artifacts/artifactLibraryModel";
 import { ArtifactsLibraryMobileMenu } from "./artifacts/ArtifactsLibraryMobileMenu";
 import { LibraryToolbar } from "./artifacts/LibraryToolbar";
-import { ArtifactShelf } from "./artifacts/ArtifactShelf";
 import { ArtifactGrid } from "./artifacts/ArtifactGrid";
 import { ArtifactListRow } from "./artifacts/ArtifactListRow";
 import { ArtifactLibrarySkeleton } from "./artifacts/ArtifactLibrarySkeleton";
 import { warmYouTubeIframeApi } from "@/lib/youtube/warmEmbed";
+
+const LIBRARY_WIDTH = "max-w-[min(92rem,calc(100vw-1.25rem))]";
 
 export default function ArtifactsListPage() {
   const { user, loading } = useAuth();
@@ -40,8 +37,10 @@ export default function ArtifactsListPage() {
   const [listReady, setListReady] = useState(false);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [viewMode, setViewMode] = useState<LibraryViewMode>(() => readLibraryViewMode());
-  const [sortKey, setSortKey] = useState<LibrarySortKey>(() => readLibrarySortKey());
+  // Every fresh visit opens the whole library, newest first. A previous list,
+  // sort, or type selection must not hide the cover-grid landing experience.
+  const [viewMode, setViewMode] = useState<LibraryViewMode>("grid");
+  const [sortKey, setSortKey] = useState<LibrarySortKey>("recent");
   const [category, setCategory] = useState<LibraryCategoryId>("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [indexOpen, setIndexOpen] = useState(false);
@@ -99,7 +98,7 @@ export default function ArtifactsListPage() {
         void reloadLibrary();
         toast({
           title: `${imported} new video${imported === 1 ? "" : "s"} from subscriptions`,
-          description: "Find them in the Unwatched shelf.",
+          description: "Find them with the Unwatched filter.",
         });
       })
       .catch((e) => console.warn("[ArtifactsListPage] subscription sync", e));
@@ -107,16 +106,6 @@ export default function ArtifactsListPage() {
       cancelled = true;
     };
   }, [user, reloadLibrary]);
-
-  const setViewModePersist = useCallback((m: LibraryViewMode) => {
-    setViewMode(m);
-    writeLibraryViewMode(m);
-  }, []);
-
-  const setSortKeyPersist = useCallback((s: LibrarySortKey) => {
-    setSortKey(s);
-    writeLibrarySortKey(s);
-  }, []);
 
   const searchFiltered = useMemo(() => filterRowsBySearch(rows, debouncedSearch), [rows, debouncedSearch]);
 
@@ -126,48 +115,6 @@ export default function ArtifactsListPage() {
   }, [searchFiltered, category, seenIds]);
 
   const sortedRows = useMemo(() => sortRows(scopedRows, sortKey), [scopedRows, sortKey]);
-
-  const shelfData = useMemo(() => {
-    const base = searchFiltered;
-    const recent = sortRows(base, "recent").slice(0, RECENT_SHELF_LIMIT);
-    const pick = (pred: (r: Row) => boolean) => sortRows(base.filter(pred), sortKey);
-    return {
-      recent,
-      unwatched: pick((r) => isUnwatchedSubscriptionRow(r, seenIds)),
-      videos: pick((r) => r.kind === "youtube"),
-      podcasts: pick((r) => r.kind === "podcast"),
-      documents: pick((r) => r.kind === "pdf" || r.kind === "text_file"),
-      chats: pick((r) => r.kind === "chat_export"),
-      notes: pick((r) => r.kind === "text"),
-      voice: pick((r) => r.kind === "voice" || r.kind === "audio"),
-    };
-  }, [searchFiltered, sortKey, seenIds]);
-
-  const shelfRowIdsKey = useMemo(
-    () =>
-      [
-        shelfData.recent.map((r) => r.id).join(","),
-        shelfData.unwatched.map((r) => r.id).join(","),
-        shelfData.videos.map((r) => r.id).join(","),
-        shelfData.podcasts.map((r) => r.id).join(","),
-        shelfData.documents.map((r) => r.id).join(","),
-        shelfData.chats.map((r) => r.id).join(","),
-        shelfData.notes.map((r) => r.id).join(","),
-        shelfData.voice.map((r) => r.id).join(","),
-      ].join("|"),
-    [shelfData],
-  );
-
-  const sortedRowIdsKey = useMemo(() => sortedRows.map((r) => r.id).join(","), [sortedRows]);
-
-  const handleSeeAll = useCallback(
-    (cat: LibraryCategoryId) => {
-      if (cat === "all") return;
-      setCategory(cat);
-      setViewModePersist("grid");
-    },
-    [setViewModePersist],
-  );
 
   const deleteArtifact = useCallback(
     async (id: string, title: string | null) => {
@@ -209,23 +156,15 @@ export default function ArtifactsListPage() {
     [user, rows],
   );
 
-  const tileHandlers = useMemo(
-    () => ({
-      onDelete: deleteArtifact,
-      onRename: renameArtifact,
-    }),
-    [deleteArtifact, renameArtifact],
-  );
-
-  const mobileMenuShell = (
+  const mobileMenu = (
     <ArtifactsLibraryMobileMenu
       open={mobileMenuOpen}
       onOpenChange={setMobileMenuOpen}
-      showNewArtifact={false}
+      showNewArtifact={!loading && listReady && rows.length > 0}
       viewMode={viewMode}
-      onViewModeChange={setViewModePersist}
+      onViewModeChange={setViewMode}
       sortKey={sortKey}
-      onSortKeyChange={setSortKeyPersist}
+      onSortKeyChange={setSortKey}
       category={category}
       onCategoryChange={setCategory}
     />
@@ -233,49 +172,30 @@ export default function ArtifactsListPage() {
 
   if (loading) {
     return (
-      <FrameworkLayout title="Artifacts" back="/framework" headerTrailing={mobileMenuShell}>
+      <FrameworkLayout
+        title="Artifacts"
+        back="/framework"
+        contentClassName={LIBRARY_WIDTH}
+        headerContentClassName={LIBRARY_WIDTH}
+        headerTrailing={mobileMenu}
+      >
         <ArtifactLibrarySkeleton />
       </FrameworkLayout>
     );
   }
   if (!user) return <Navigate to="/auth" replace />;
 
-  const showHeaderNew = listReady && rows.length > 0;
-
-  const toolbar = (
-    <LibraryToolbar
-      search={search}
-      onSearchChange={setSearch}
-      viewMode={viewMode}
-      onViewModeChange={setViewModePersist}
-      sortKey={sortKey}
-      onSortKeyChange={setSortKeyPersist}
-      category={category}
-      onCategoryChange={setCategory}
-      showNewArtifact
-      onOpenIndex={() => setIndexOpen(true)}
-    />
-  );
+  const collectionTitle = category === "all"
+    ? sortKey === "recent" ? "Recently added" : "All artifacts"
+    : LIBRARY_CATEGORY_CHIPS.find((chip) => chip.id === category)?.label ?? "Artifacts";
 
   return (
     <FrameworkLayout
       title="Artifacts"
       back="/framework"
-      contentClassName="max-w-[min(92rem,calc(100vw-1.25rem))]"
-      headerContentClassName="max-w-[min(92rem,calc(100vw-1.25rem))]"
-      headerTrailing={
-        <ArtifactsLibraryMobileMenu
-          open={mobileMenuOpen}
-          onOpenChange={setMobileMenuOpen}
-          showNewArtifact={showHeaderNew}
-          viewMode={viewMode}
-          onViewModeChange={setViewModePersist}
-          sortKey={sortKey}
-          onSortKeyChange={setSortKeyPersist}
-          category={category}
-          onCategoryChange={setCategory}
-        />
-      }
+      contentClassName={LIBRARY_WIDTH}
+      headerContentClassName={LIBRARY_WIDTH}
+      headerTrailing={mobileMenu}
     >
       {!listReady ? (
         <ArtifactLibrarySkeleton />
@@ -304,7 +224,18 @@ export default function ArtifactsListPage() {
         </div>
       ) : (
         <>
-          {toolbar}
+          <LibraryToolbar
+            search={search}
+            onSearchChange={setSearch}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            sortKey={sortKey}
+            onSortKeyChange={setSortKey}
+            category={category}
+            onCategoryChange={setCategory}
+            showNewArtifact
+            onOpenIndex={() => setIndexOpen(true)}
+          />
           <Link
             to="/framework/library-standing"
             className="mt-6 flex items-center gap-3 rounded-xl border border-border/60 bg-card/40 px-4 py-3 text-sm transition-colors hover:border-border hover:bg-card/70"
@@ -315,131 +246,37 @@ export default function ArtifactsListPage() {
               <span className="text-muted-foreground"> — see how every source compares to your beliefs and each other.</span>
             </span>
           </Link>
-          {viewMode === "list" ? (
-            <div className="mt-8 space-y-3">
-              {sortedRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No matching artifacts.</p>
-              ) : (
-                <ul key={sortedRowIdsKey} className="flex flex-col gap-3">
-                  {sortedRows.map((r) => (
-                    <ArtifactListRow
-                      key={r.id}
-                      r={r}
-                      deletingId={deletingId}
-                      onDelete={deleteArtifact}
-                      isUnwatched={isUnwatchedSubscriptionRow(r, seenIds)}
-                    />
-                  ))}
-                </ul>
-              )}
+          <section className="mt-8" aria-label="Artifact collection">
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <h2 className="text-lg font-semibold tracking-tight">{collectionTitle}</h2>
+              <p className="shrink-0 text-xs text-muted-foreground" role="status">
+                {sortedRows.length} artifact{sortedRows.length === 1 ? "" : "s"}
+              </p>
             </div>
-          ) : category !== "all" ? (
-            <div className="mt-8">
-              {sortedRows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No matching artifacts.</p>
-              ) : (
-                <ArtifactGrid
-                  key={sortedRowIdsKey}
-                  rows={sortedRows}
-                  deletingId={deletingId}
-                  onDelete={tileHandlers.onDelete}
-                  onRename={tileHandlers.onRename}
-                  seenIds={seenIds}
-                />
-              )}
-            </div>
-          ) : (
-            <div key={shelfRowIdsKey} className="mt-10 space-y-12">
-              {shelfData.unwatched.length > 0 ? (
-                <ArtifactShelf
-                  shelfKey="unwatched"
-                  title="Unwatched"
-                  rows={shelfData.unwatched}
-                  seeAllCategory="unwatched"
-                  onSeeAll={handleSeeAll}
-                  deletingId={deletingId}
-                  onDelete={tileHandlers.onDelete}
-                  onRename={tileHandlers.onRename}
-                  seenIds={seenIds}
-                />
-              ) : null}
-              <ArtifactShelf
-                shelfKey="recent"
-                title="Recently added"
-                rows={shelfData.recent}
+            {sortedRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No matching artifacts.</p>
+            ) : viewMode === "list" ? (
+              <ul className="flex flex-col gap-3">
+                {sortedRows.map((r) => (
+                  <ArtifactListRow
+                    key={r.id}
+                    r={r}
+                    deletingId={deletingId}
+                    onDelete={deleteArtifact}
+                    isUnwatched={isUnwatchedSubscriptionRow(r, seenIds)}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ArtifactGrid
+                rows={sortedRows}
                 deletingId={deletingId}
-                onDelete={tileHandlers.onDelete}
-                onRename={tileHandlers.onRename}
+                onDelete={deleteArtifact}
+                onRename={renameArtifact}
                 seenIds={seenIds}
               />
-              <ArtifactShelf
-                shelfKey="videos"
-                title="Videos"
-                rows={shelfData.videos}
-                seeAllCategory="videos"
-                onSeeAll={handleSeeAll}
-                deletingId={deletingId}
-                onDelete={tileHandlers.onDelete}
-                onRename={tileHandlers.onRename}
-                seenIds={seenIds}
-              />
-              <ArtifactShelf
-                shelfKey="podcasts"
-                title="Podcasts"
-                rows={shelfData.podcasts}
-                seeAllCategory="podcasts"
-                onSeeAll={handleSeeAll}
-                deletingId={deletingId}
-                onDelete={tileHandlers.onDelete}
-                onRename={tileHandlers.onRename}
-                seenIds={seenIds}
-              />
-              <ArtifactShelf
-                shelfKey="documents"
-                title="Documents"
-                rows={shelfData.documents}
-                seeAllCategory="documents"
-                onSeeAll={handleSeeAll}
-                deletingId={deletingId}
-                onDelete={tileHandlers.onDelete}
-                onRename={tileHandlers.onRename}
-                seenIds={seenIds}
-              />
-              <ArtifactShelf
-                shelfKey="chats"
-                title="Conversations"
-                rows={shelfData.chats}
-                seeAllCategory="chats"
-                onSeeAll={handleSeeAll}
-                deletingId={deletingId}
-                onDelete={tileHandlers.onDelete}
-                onRename={tileHandlers.onRename}
-                seenIds={seenIds}
-              />
-              <ArtifactShelf
-                shelfKey="notes"
-                title="Notes"
-                rows={shelfData.notes}
-                seeAllCategory="notes"
-                onSeeAll={handleSeeAll}
-                deletingId={deletingId}
-                onDelete={tileHandlers.onDelete}
-                onRename={tileHandlers.onRename}
-                seenIds={seenIds}
-              />
-              <ArtifactShelf
-                shelfKey="voice"
-                title="Voice"
-                rows={shelfData.voice}
-                seeAllCategory="voice"
-                onSeeAll={handleSeeAll}
-                deletingId={deletingId}
-                onDelete={tileHandlers.onDelete}
-                onRename={tileHandlers.onRename}
-                seenIds={seenIds}
-              />
-            </div>
-          )}
+            )}
+          </section>
         </>
       )}
       <LibraryIndexDialog open={indexOpen} onOpenChange={setIndexOpen} />
