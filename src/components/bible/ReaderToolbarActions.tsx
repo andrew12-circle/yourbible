@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { Link } from "react-router-dom";
 import {
   BookmarkPlus,
@@ -139,7 +140,7 @@ export function ReaderToolbarActions({
   const scaleIcon = compact ? "w-3 h-3" : "w-3 h-3";
 
   return (
-    <div className={cn("flex items-center gap-0.5 shrink-0", compact && "pr-0.5")}>
+    <div role="group" aria-label="Reading tools" className={cn("flex items-center gap-0.5 shrink-0", compact && "pr-0.5")}>
       <div className={cn(readerFontScaleGroup, compact ? "mr-0.5" : "mr-1")}>
         <button
           type="button"
@@ -197,7 +198,7 @@ export function ReaderToolbarActions({
               <Type className="w-[18px] h-[18px]" strokeWidth={2} />
             </ReaderIconButton>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-56 p-3">
+          <PopoverContent align="end" className="z-[150] w-56 p-3">
             <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-2">
               Scripture font
             </p>
@@ -269,7 +270,7 @@ export function ReaderToolbarActions({
       {showChapterContext && onChapterContext ? (
         <ReaderIconButton
           onClick={onChapterContext}
-          title="Art, maps & context for this chapter"
+          title="Explore artwork, maps and places"
           active={false}
         >
           <Palette className="w-[18px] h-[18px]" strokeWidth={2} />
@@ -304,6 +305,8 @@ export function ReaderToolbarActions({
           )}
         </ReaderIconButton>
       ) : null}
+
+      {onCycleAudioSpeed && onToggleAudio ? <button type="button" onClick={onCycleAudioSpeed} disabled={audioDisabled || audioLoading} aria-label={`Audio speed ${audioPlaybackRate} times; change speed`} title="Change audio speed. Device speech updates at the next segment." className="min-h-9 min-w-9 shrink-0 rounded-full px-1 text-xs text-zinc-600 hover:bg-white/60 disabled:opacity-40">{audioPlaybackRate}×</button> : null}
 
       <ReaderIconButton onClick={onBookmark} title="Bookmark this page">
         <BookmarkPlus className="w-[18px] h-[18px]" strokeWidth={2} />
@@ -342,13 +345,13 @@ export function ReaderToolbarActions({
             <Settings className="w-[18px] h-[18px]" strokeWidth={2} />
           </ReaderIconButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="z-[150] max-h-[75dvh] w-64 overflow-y-auto">
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="gap-2">
               <Languages className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="flex-1 truncate">{current?.abbreviation ?? "Translation"}</span>
             </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+            <DropdownMenuSubContent className="z-[151] max-h-72 overflow-y-auto">
               {bibles.length === 0 && <DropdownMenuItem disabled>Loading…</DropdownMenuItem>}
               {bibles.map((b) => (
                 <DropdownMenuItem
@@ -370,7 +373,7 @@ export function ReaderToolbarActions({
                   <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
                   <span className="flex-1 truncate">Study notes layout</span>
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-64">
+                <DropdownMenuSubContent className="z-[151] w-64">
                   <DropdownMenuRadioGroup
                     value={studyLayoutPreference}
                     onValueChange={(value) =>

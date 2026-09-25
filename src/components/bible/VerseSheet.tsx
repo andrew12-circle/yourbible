@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { useEffect, useRef, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -160,7 +161,7 @@ export function VerseSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] paper-texture border-t-2 border-gold/40 p-0 flex flex-col">
+      <SheetContent overlayClassName="z-[140]" side="bottom" className="z-[141] h-[85vh] paper-texture border-t-2 border-gold/40 p-0 flex flex-col">
         <SheetHeader className="px-6 pt-6 pb-3 border-b border-paper-edge">
           <div className="text-[10px] uppercase tracking-widest text-gold-deep flex items-center gap-2">
             <Sparkles className="w-3 h-3" /> Tap to understand

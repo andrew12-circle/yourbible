@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { Link } from "react-router-dom";
 import { BibleEarthButton } from "@/components/bible/earth/BibleEarthButton";
 import {
@@ -7,6 +8,7 @@ import {
   Eye,
   EyeOff,
   Home,
+  Palette,
   Maximize2,
   Minimize2,
   X,
@@ -212,6 +214,7 @@ export function TopBar({
   const pickerPopoverClass = cn(
     "p-0 border-0",
     readerGlassPanel,
+    "z-[150]",
     singlePage ? "w-[min(calc(100vw-1.5rem),560px)]" : "w-[min(94vw,560px)]",
   );
 
@@ -246,7 +249,7 @@ export function TopBar({
     onSettingsDropdownOpenChange: setSettingsDropdownOpen,
     compact: singlePage,
     onChapterContext,
-    showChapterContext,
+    showChapterContext: false,
   };
 
   return (
@@ -275,6 +278,8 @@ export function TopBar({
       )}
 
       <header
+        aria-hidden={!open || (singlePage && focusMode)}
+        style={{ visibility: open && !(singlePage && focusMode) ? "visible" : "hidden" }}
         className={`${overlayPos} top-0 inset-x-0 z-30 ${readerHeaderSafePaddingClass(hubCompactChrome)} transition-[transform,opacity] duration-300 ease-out ${
           open && !(singlePage && focusMode)
             ? "translate-y-0 opacity-100"
@@ -284,12 +289,12 @@ export function TopBar({
         {!(singlePage && focusMode) ? (
           <div
             className={cn(
-              "mx-3 mt-2 max-w-3xl sm:mx-auto sm:px-2 flex items-center gap-2 rounded-2xl px-2 sm:px-3 py-2",
+              "mx-auto mt-2 flex w-[calc(100%-1.5rem)] max-w-6xl flex-wrap items-center gap-2 rounded-2xl px-2 py-2 sm:px-3",
               readerGlassBar,
               !singlePage && "py-2.5 gap-3",
             )}
           >
-            <div className="flex items-center gap-1 min-w-0 shrink max-w-[42%] sm:max-w-none">
+            <div className="flex min-w-0 flex-[1_0_15rem] items-center gap-1">
               {homeControl}
               <Popover open={pickerOpen} onOpenChange={onOpenPicker} modal={singlePage}>
                 <PopoverTrigger asChild>
@@ -444,16 +449,16 @@ export function TopBar({
                   )}
                 </PopoverContent>
               </Popover>
+              {!focusMode && onChapterContext ? <button type="button" data-visual-explorer-trigger onClick={(event) => { event.currentTarget.focus({ preventScroll: true }); onChapterContext(); }} title="Explore artwork, maps and places" aria-label="Explore artwork, maps and places" className="ml-auto inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-zinc-800 px-3 text-sm font-medium text-white hover:bg-zinc-700 focus-visible:ring-2 focus-visible:ring-ring"><Palette className="h-4 w-4" aria-hidden="true" />Explore</button> : null}
             </div>
 
             <div
               className={cn(
-                "flex items-center min-w-0 flex-1 justify-end",
-                singlePage && "overflow-x-auto scrollbar-hide touch-pan-x",
+                "flex min-w-0 max-w-full flex-[1_1_38rem] items-center justify-start overflow-x-auto scrollbar-hide touch-pan-x",
               )}
             >
               {!focusMode ? (<>
-                <BibleEarthButton book={currentBook.abbr} chapter={currentChapter} translation={bibles.find((entry) => entry.id === bibleId)?.abbreviation} />
+                {!onChapterContext && <BibleEarthButton book={currentBook.abbr} chapter={currentChapter} translation={bibles.find((entry) => entry.id === bibleId)?.abbreviation} />}
                 <ReaderToolbarActions {...toolbarProps} />
               </>) : null}
               <ReaderIconButton onClick={onToggleFocus} title={focusMode ? "Exit focus mode" : "Secret Place"}>

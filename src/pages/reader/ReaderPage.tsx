@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { useReaderContinuationMarks } from "@/hooks/useReaderContinuationMarks";
 import { useReaderContinuation } from "@/hooks/useReaderContinuation";
 import { readerNeedsContinuation } from "@/lib/bible/readerContinuation";
@@ -1115,7 +1116,7 @@ export default function ReaderPage() {
       return;
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
+      if (e.key !== "Escape" || e.defaultPrevented || (e.target instanceof Element && e.target.closest('[role="dialog"]'))) return;
       if (inkToolbarCollapsed) {
         toggleInkMode();
       } else {
@@ -1806,6 +1807,8 @@ export default function ReaderPage() {
       ) : null}
 
       <ReaderPageOverlays
+        visualOwnerId={user?.id}
+        bibleAbbreviation={displayBibles.find((entry) => entry.id === bibleId)?.abbreviation}
         overlayPos={overlayPos}
         focusMode={focusMode}
         readerSpread={readerSpread}

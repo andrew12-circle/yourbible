@@ -1,3 +1,4 @@
+// visual-explorer-toolbar-v1
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,7 @@ export function BookmarkDialog({ open, position, defaultLabel, defaultColor, def
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="paper-texture border-gold/40">
+      <DialogContent overlayClassName="z-[140]" className="z-[141] paper-texture border-gold/40">
         <DialogHeader>
           <div className="text-[10px] uppercase tracking-widest text-gold-deep">Ribbon {position}</div>
           <DialogTitle className="font-display text-leather">Bookmark this page</DialogTitle>

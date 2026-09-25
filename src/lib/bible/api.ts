@@ -310,7 +310,7 @@ export async function streamVerseAI(opts: {
   }
 }
 
-export async function fetchSleepAudio(text: string, voiceId?: string): Promise<Blob> {
+export async function fetchSleepAudio(text: string, voiceId?: string, signal?: AbortSignal): Promise<Blob> {
   const headers = {
     "Content-Type": "application/json",
     ...(await edgeFunctionAuthHeaders()),
@@ -319,6 +319,7 @@ export async function fetchSleepAudio(text: string, voiceId?: string): Promise<B
     method: "POST",
     headers,
     body: JSON.stringify({ text, voiceId }),
+    signal,
   });
   const ct = r.headers.get("content-type") ?? "";
   if (!r.ok) {

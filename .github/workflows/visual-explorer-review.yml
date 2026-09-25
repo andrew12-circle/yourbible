@@ -1,0 +1,84 @@
+name: Visual explorer review
+on:
+  push:
+    branches: ['feat/visual-explorer-toolbar']
+permissions:
+  contents: read
+concurrency:
+  group: visual-explorer-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: visual-review-placeholder
+      VITE_SUPABASE_ANON_KEY: visual-review-placeholder
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Integrate isolated reader changes
+        id: integration
+        run: |
+          node scripts/integrate-visual-explorer.mjs
+          node scripts/integrate-reader-audio.mjs
+          node scripts/visual-explorer-fixes.mjs
+      - name: Export tracked text for implementation review
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import subprocess, tarfile, re, os
+          paths = subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          with tarfile.open(os.environ['RUNNER_TEMP']+'/visual-source.tar.gz','w:gz') as out:
+            for p in paths:
+              if re.search(r'\.(tsx?|m?js|cjs|json|md|mdc|yml|css|html)$',p) and not p.startswith('.env'):
+                out.add(p, arcname=p)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-explorer-source
+          path: ${{ runner.temp }}/visual-source.tar.gz
+          retention-days: 3
+      - run: npm ci
+      - name: Lint
+        id: lint
+        continue-on-error: true
+        run: npm run lint > "$RUNNER_TEMP/visual-lint.log" 2>&1
+      - name: Tests
+        id: tests
+        continue-on-error: true
+        run: npm run test > "$RUNNER_TEMP/visual-tests.log" 2>&1
+      - name: Production build
+        id: build
+        continue-on-error: true
+        run: npm run build > "$RUNNER_TEMP/visual-build.log" 2>&1
+      - name: TypeScript regression audit
+        id: types
+        continue-on-error: true
+        run: |
+          git fetch origin 9350031f422bbc3bc55b0e1f9c80883d629c013d --depth=1
+          node scripts/check-journal-type-regressions.mjs 9350031f422bbc3bc55b0e1f9c80883d629c013d > "$RUNNER_TEMP/visual-types.log" 2>&1
+      - name: Require verification
+        run: test '${{ steps.lint.outcome }}' = success && test '${{ steps.tests.outcome }}' = success && test '${{ steps.build.outcome }}' = success && test '${{ steps.types.outcome }}' = success
+      - name: Commit verified integration on feature branch
+        if: github.ref == 'refs/heads/feat/visual-explorer-toolbar'
+        run: |
+          git add src
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Wire verified visual workspace and accessible reader controls'
+            git push origin HEAD:feat/visual-explorer-toolbar
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-explorer-checks
+          path: ${{ runner.temp }}/visual-*.log
+          retention-days: 7
