@@ -27,6 +27,7 @@ jobs:
         run: |
           node scripts/integrate-visual-explorer.mjs
           node scripts/integrate-reader-audio.mjs
+          node scripts/visual-explorer-fixes.mjs
       - name: Export tracked text for implementation review
         if: always()
         run: |
