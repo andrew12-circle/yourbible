@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import {
   DAILY_ASSIGNMENT_FIELDS,
@@ -35,6 +36,12 @@ export function TodayAssignmentPanel({
   const bridgeAction = parseActionBridge(storyRecall);
   const action = bridgeAction || rehearsalAction(visionRecall, storyRecall);
   const alreadyIncluded = Boolean(action && assignment.mustDo.includes(action));
+
+  useEffect(() => {
+    if (bridgeAction && !assignment.mustDo.trim()) {
+      onChange({ mustDo: bridgeAction });
+    }
+  }, [assignment.mustDo, bridgeAction, onChange]);
   const cues = [
     scriptureReflection.trim() ? { label: "Scripture", text: short(scriptureReflection) } : null,
     visionRecall.trim() ? { label: "Vision", text: short(practice.title ? `${practice.title}: ${practice.identity || practice.action || "Guided rehearsal"}` : visionRecall) } : null,
@@ -56,7 +63,7 @@ export function TodayAssignmentPanel({
         <h3 className="text-base font-semibold">Your action from rehearsal</h3>
         {practice.identity && <p className="text-sm text-muted-foreground">Practice: {practice.identity}</p>}
         <p className="text-base leading-relaxed">{action}</p>
-        {bridgeAction ? <p className="text-xs text-muted-foreground">Refined in Step 6.</p> : null}
+        {bridgeAction ? <p className="text-xs text-muted-foreground">Refined in Step 6 and carried into today&apos;s anchor when that field is empty.</p> : null}
         {practice.obstacle && practice.response && <p className="text-sm leading-relaxed">If {practice.obstacle}, then {practice.response}</p>}
         <Button type="button" variant="outline" className="min-h-11" disabled={alreadyIncluded} onClick={() => {
           if (!alreadyIncluded) onChange({ mustDo: [assignment.mustDo.trim(), action].filter(Boolean).join("\n") });
