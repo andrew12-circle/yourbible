@@ -59,7 +59,7 @@ export interface MorningConnectionNotes {
   prayer_note?: string;
   scripture_ref?: string;
   scripture_reflection?: string;
-  /** Embodied playthrough for today's chosen story scene. */
+  /** Step 6 action bridge carried forward from the guided vision. */
   story_recall?: string;
   /** Covering / warfare prayer prayed aloud after surrender. */
   covering_note?: string;
@@ -163,10 +163,10 @@ export const CONVERSATION_LISTEN_PROMPT = "God, what do you want me to know toda
 
 /** Unified marketing copy — matches the full ritual arc (abbreviated on small surfaces). */
 export const MORNING_FORMULA_TAGLINE =
-  "Worship · thanks · scripture · pray · align · surrender · assign · execute";
+  "Worship · thanks · scripture · pray · align · live it · act · surrender · assign · execute";
 
 export const MORNING_FORMULA_INTRO_FLOW =
-  "Worship → thank → read → pray → align → surrender → cover → assign → execute";
+  "Worship → thank → read → pray → align → live it → act → surrender → cover → assign → execute";
 
 export const ASSIGNMENT_VS_GOALS_HINT =
   "Today's assignment is what God wants today. Goal steps align each long-term aim with one obedience step.";
@@ -177,8 +177,8 @@ export const RITUAL_STEP_LABELS = [
   { key: "scripture", label: "Scripture" },
   { key: "pray", label: "Pray" },
   { key: "manifesto", label: "Manifesto" },
-  { key: "vision", label: "Vision" },
-  { key: "story", label: "Story" },
+  { key: "vision", label: "Live it" },
+  { key: "story", label: "Act" },
   { key: "surrender", label: "Surrender" },
   { key: "covering", label: "Covering" },
   { key: "assignment", label: "Today" },
@@ -339,7 +339,7 @@ export function buildRitualSteps(
     { kind: "prayer" },
   );
   if (workbook?.manifesto.length) steps.push({ kind: "manifesto" });
-  if (workbook?.vision_headline || workbook?.income_lines.length) steps.push({ kind: "vision" });
+  if (workbook && (workbook.vision_headline || workbook.income_lines.length || workbook.stories.some((story) => story.text.trim()))) steps.push({ kind: "vision" });
   if (workbook) steps.push({ kind: "story" });
   steps.push({ kind: "surrender" }, { kind: "covering" }, { kind: "assignment" });
   for (const g of activeGoals) steps.push({ kind: "goal", goalId: g.id });
@@ -372,9 +372,9 @@ export function ritualStepLabel(
     case "manifesto":
       return "Manifesto";
     case "vision":
-      return "Vision";
+      return "Live it";
     case "story":
-      return "Story";
+      return "Act";
     case "assignment":
       return "Today";
     case "goal":
@@ -417,9 +417,9 @@ export function ritualStepSubtitle(step: RitualStep, goalIndex?: number, goalTot
     case "manifesto":
       return "Manifesto";
     case "vision":
-      return "Embodied vision";
+      return "Live the Vision";
     case "story":
-      return "Play a scene";
+      return "Bring it into today";
     case "assignment":
       return "Today's assignment";
     case "goal":

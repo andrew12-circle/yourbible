@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRehearsalBeats, dailyRehearsalVariant, deepRehearsalDue, emptyRehearsalNote,
-  isProtectedRehearsalScene, OPEN_HANDED_PRAYER, parseRehearsalNote, readRehearsalHistory,
+  isProtectedRehearsalScene, OPEN_HANDED_PRAYER, parseActionBridge, parseRehearsalNote, readRehearsalHistory,
   recordRehearsalVisit, rehearsalAction, rehearsalDay, rehearsalNarration, sceneFocus,
-  suggestRehearsalScene, withoutRehearsalNote, writeRehearsalNote,
+  suggestRehearsalScene, withoutActionBridge, withoutRehearsalNote, writeActionBridge, writeRehearsalNote,
   type RehearsalMinutes, type RehearsalScene, type RehearsalVariant, type RehearsalVisit,
 } from "./sceneRehearsal";
 const day = "2026-09-23";
@@ -13,7 +13,7 @@ const other: RehearsalScene = { id: "other", title: "Financial peace", text: "I 
 const visit = (sceneId: string, date = day): RehearsalVisit => ({ sceneId, day: date, minutes: 5, variant: "process" });
 
 describe("scene rehearsal", () => {
-  it("protects both named originals and the stable house ID", () => {
+  it("keeps protected originals identifiable while allowing read-only morning rehearsal", () => {
     for (const value of [
       { id: "ace", title: "Renamed", text: "Original" },
       { id: "custom", title: " ACE  IS WORKING ", text: "Original" },
@@ -21,8 +21,8 @@ describe("scene rehearsal", () => {
       { id: "a81e37b7-37e2-42da-924c-0837868cea2f", title: "Renamed", text: "Original" },
     ]) {
       expect(isProtectedRehearsalScene(value)).toBe(true);
-      expect(buildRehearsalBeats(value, 15, "recovery")).toEqual([]);
-      expect(suggestRehearsalScene([value], "all", [], day)).toBeNull();
+      expect(buildRehearsalBeats(value, 15, "recovery")).toHaveLength(11);
+      expect(suggestRehearsalScene([value], "all", [], day)?.id).toBe(value.id);
     }
   });
   it("does not mutate source scenes or stored recordings", () => {
@@ -97,6 +97,14 @@ describe("scene rehearsal", () => {
     expect(parseRehearsalNote(raw).action).toContain("One small action");
     expect(withoutRehearsalNote(raw)).toBe("Existing notes");
   });
+  it("round-trips the Step 6 action bridge without deleting legacy story notes", () => {
+    const legacy = "Older story reflection stays here.";
+    const raw = writeActionBridge(legacy, "Call the first borrower before opening email");
+    expect(parseActionBridge(raw)).toBe("Call the first borrower before opening email");
+    expect(withoutActionBridge(raw)).toBe(legacy);
+    expect(writeActionBridge(raw, "")).toBe(legacy);
+  });
+
   it("does not invent an action when only a scene was viewed", () => {
     expect(rehearsalAction("I imagined a peaceful room.")).toBe("");
     expect(rehearsalAction(writeRehearsalNote("", emptyRehearsalNote()))).toBe("");

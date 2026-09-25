@@ -1,37 +1,37 @@
-# Guided scene rehearsal
+# Morning Formula: Live the Vision
 
-Embodied Vision provides an optional paced practice. Play a Scene keeps the full
-story library and the existing uploaded recordings. The gallery, ACE defaults,
-ACE local-storage key, covers, and uploaded audio are not rewritten by this feature.
-The two protected originals are excluded by title and stable ID from all generated
-practice variants. Generic engine code contains no personal scene narratives.
+Step 5 is the Morning Formula's guided visualization. It uses the saved scene
+library without rewriting scene text, covers, uploaded audio, or recordings.
+A user picks one scene, chooses a 3, 5, 10, or 15 minute practice, and enters the
+scene in first person. The protected ACE and House originals remain identifiable
+by stable ID/title for preservation checks, but they may be read during this
+morning practice because the rehearsal never mutates the source scene.
 
-Daily practice offers 3 or 5 minute targets and six combined cues. Deep Vision
-provides 10 or 15 minute targets and all eleven cues. Process, recovery, and
-perspective emphases rotate by local calendar date. Suggestions use the chosen
-focus and completed practice history stored under an account-scoped device key.
-This is deterministic selection, not AI assessment. Weekly Deep Vision is an
-in-app suggestion, not a scheduled notification.
+The cue sequence is designed around one job: see it, hear and feel it, live it,
+rehearse the real behavior required, handle one realistic obstacle, practice the
+qualities of the person living that life, surrender timing and outcome, and return
+to the actual day with one controllable action. Daily practice uses six compact
+cues; Deep Vision uses all eleven. Device voice is optional and does not call
+ElevenLabs.
 
-Timers are practice pacing, never delivery deadlines. Device voice is opt-in,
-uses no ElevenLabs endpoint, and can extend a target rather than cutting a cue
-short. Hiding the app, starting another media recording, and unmounting stop or
-pause the guide. Cues can be skipped. Emotion need not be forced; words or sound
-can substitute for clear mental images. Surrender is followed by one controllable
-action and an optional if-then plan. No manifestation, prediction, diagnosis, or
-automatic claim of divine direction is made.
+Step 6 is deliberately not another scene player. It is the action bridge:
+"What does the man you just saw do today?" The action selected in Step 5 is
+carried forward automatically, can be refined in Step 6, and is then surfaced
+inside Today's Assignment. Existing story notes and existing assignment text are
+preserved rather than overwritten.
 
-Notes are added to the existing visionRecall field in one delimited block.
-Unrelated reflections are preserved. Today's Assignment offers a user-confirmed
-append, never an overwrite of an existing assignment. Completion is explicit.
-The 4,750 character cap applies to generated practice scripts and the targeted
-new scene edits; the protected original scripts are not trimmed to enforce it.
+Practice history is stored under an account-scoped device key and is used only
+for deterministic scene suggestions and the optional weekly Deep Vision prompt.
+Timers are pacing aids, not delivery deadlines. Hiding the app or starting
+competing media pauses/stops playback. No outcome, timing, provision, or divine
+instruction is predicted by the visualization.
 
-Personal script revisions are made separately in a row-locked transaction with
-per-scene preflight hashes, a private owner-readable recovery table, length checks,
-unchanged scene counts/order, and an equality assertion for every untargeted scene.
-No private scripts belong in this public repository or in migrations.
+Structured rehearsal notes remain in the existing visionRecall field in a
+delimited block. The Step 6 action uses its own delimited action-bridge block
+inside the existing storyRecall field so legacy content survives intact.
+The 4,750 character cap still applies to generated rehearsal narration.
 
-Validation: sceneRehearsal.test.ts covers protection, durations, script lengths,
-rotation, history, note preservation and actions. useSceneRehearsalPlayback.test.tsx
-covers opt-in playback, background pausing, competing audio, navigation and cleanup.
+Validation is covered by sceneRehearsal.test.ts and
+useSceneRehearsalPlayback.test.tsx, including durations, script length,
+rotation/history, preservation of source scenes, structured note round-trips,
+and the Step 6 action bridge.

@@ -45,7 +45,7 @@ export function dailyRehearsalVariant(day: string): RehearsalVariant {
 export function suggestRehearsalScene(
   scenes: readonly RehearsalScene[], focus: RehearsalFocus, history: readonly RehearsalVisit[], day: string,
 ): RehearsalScene | null {
-  const eligible = scenes.filter((s) => !isProtectedRehearsalScene(s) && s.text.trim());
+  const eligible = scenes.filter((s) => s.text.trim());
   const focused = focus === "all" ? eligible : eligible.filter((s) => sceneFocus(s) === focus);
   const pool = focused.length ? focused : eligible;
   const sorted = [...pool].sort((a, b) => a.id.localeCompare(b.id));
@@ -82,20 +82,19 @@ function excerpt(text: string, max: number): string {
 }
 /** Timing is practice pacing, never a deadline or prediction for the desired outcome. */
 export function buildRehearsalBeats(scene: RehearsalScene, minutes: RehearsalMinutes, variant: RehearsalVariant): RehearsalBeat[] {
-  if (isProtectedRehearsalScene(scene)) return [];
   const deep = minutes >= 10;
   const all = [
-    { key: "arrive", title: "Arrive", weight: 1, text: "Sit somewhere safe, not while driving. Let your breathing remain comfortable. You may keep your eyes open. This is an imagined possibility, not a promise or a demand on God." },
-    { key: "embody", title: "Take your place", weight: 1, text: "Find a comfortable version of the posture you would use in this scene. Feel the chair and floor. Notice your hands and shoulders. No special breathing or intense feeling is required." },
-    { key: "enter", title: "Enter one ordinary moment", weight: 4, text: `See through your own eyes. Notice what happened just before this moment, and what you will do next. ${excerpt(scene.text, deep ? 1200 : 650)}` },
-    { key: "sense", title: "Notice the senses", weight: 2, text: "Notice the light and distance. Listen for one nearby sound. Feel the temperature and one surface. Is there a familiar smell? Choose only what comes naturally. Words, sounds, or a felt sense count when pictures are faint." },
-    { key: "inhabit", title: "Live a few seconds", weight: 2, text: "Let one small action unfold at its ordinary speed. Do not race to the ending. Reach for the cup, listen to the person, or take the next careful step. Choose a realistic detail that belongs to this moment." },
-    { key: "feel", title: "Let the meaning land", weight: 2, text: "Notice what matters here: closeness, stewardship, service, or rest. Notice any gentle feeling or change in your body. It is also fine to feel neutral. Stay with one meaningful detail without trying to intensify it." },
-    { key: "rehearse", title: "Practice the steps", weight: 3, text: "Now rehearse the behavior that helps create this life. See yourself beginning one small task, doing it carefully, and finishing it. Use realistic tools and a realistic pace. The practice is your action, not controlling another person or guaranteeing results." },
-    { key: "overcome", title: "Practice a recovery", weight: 3, text: "Introduce one manageable obstacle, not your worst fear. What do you tend to do that gets in your way? See yourself pause, name the next useful step, and resume. Form a specific plan: If this cue happens, then I will take this action. Skip this part if it feels overwhelming." },
-    { key: "observe", title: "Observe, then return", weight: 2, text: "Briefly watch yourself from outside the scene. Notice patience, honesty, pace, and how you treat people. Name one quality you can practice today. Return to seeing through your own eyes and do one small action with that quality. Stay in first person if switching is unhelpful." },
-    { key: "surrender", title: "Hold it open-handed", weight: 2, text: OPEN_HANDED_PRAYER },
-    { key: "act", title: "Return to today", weight: 2, text: "Feel the chair and notice the room you are actually in. Choose one action you control today, and a cue or time to begin. Keep real goal dates in your plan; the scene does not set God's timing. Capture your if-then plan and next action below." },
+    { key: "arrive", title: "Arrive", weight: 1, text: "Put on headphones if you have them. Sit somewhere safe, not while driving. Let your body settle. Close your eyes if that helps, or keep them open. You are rehearsing a possible life, not demanding an outcome." },
+    { key: "embody", title: "Enter the scene", weight: 1, text: "Step into this moment in first person. Where are you? What time of day is it? What happened just before this? Notice your posture, your hands, the chair or floor, and the space around you." },
+    { key: "enter", title: "See it", weight: 4, text: `Look through your own eyes. Let the scene become specific instead of abstract. Notice the room, the people, the light, and what you are doing next. ${excerpt(scene.text, deep ? 1200 : 650)}` },
+    { key: "sense", title: "Hear and feel it", weight: 2, text: "Listen for nearby sounds and voices. Notice the temperature, clothing, surfaces, and one familiar smell if it comes naturally. You do not need a perfect mental picture; words, sounds, and felt details count." },
+    { key: "inhabit", title: "Live it", weight: 2, text: "Let several ordinary seconds unfold at normal speed. Move through the moment instead of watching a highlight reel. Notice how you speak, listen, work, lead, rest, and treat the people around you." },
+    { key: "feel", title: "Feel the result", weight: 2, text: "Let the meaning of this life land: gratitude, peace, provision, service, closeness, confidence, or rest. Do not force emotion. Notice what matters most about this scene and why you want to live this way." },
+    { key: "rehearse", title: "Rehearse reality", weight: 3, text: "Now rehearse the behavior that helps create this life. See yourself beginning the real work, making a good decision, staying present, and finishing the next useful step. Practice the process, not just the outcome." },
+    { key: "overcome", title: "Handle resistance", weight: 3, text: "Introduce one realistic obstacle: distraction, pressure, fatigue, fear, delay, or a hard conversation. See yourself respond well. If this happens, what will you do next instead of falling back into the old pattern?" },
+    { key: "observe", title: "Become it", weight: 2, text: "Notice the qualities of the person living this scene: patience, discipline, courage, generosity, calm, honesty, focus. Pick one quality you can practice today, then return to first person and act from it." },
+    { key: "surrender", title: "Surrender it", weight: 2, text: OPEN_HANDED_PRAYER },
+    { key: "act", title: "Return to today", weight: 2, text: "Come back to the room you are actually in. Feel the chair and floor. Ask one question: What does the man you just saw do today? Choose one specific action you control and carry it into the next step." },
   ];
   const chosen = deep ? all : [
     { ...all[0], title: "Arrive and embody", text: `${all[0].text} ${all[1].text}` },
@@ -140,6 +139,29 @@ export function writeRehearsalNote(raw: string, note: RehearsalNote): string {
   const block = [START, "**Scene rehearsal**", ...lines, `**Practice status:** ${note.completed ? "Completed" : "In progress"}`, "**Surrender:** Outcome and timing held open-handed before God.", END].join("\n");
   return [withoutRehearsalNote(raw), block].filter(Boolean).join("\n\n");
 }
+const ACTION_BRIDGE_START = "<!-- vision-action-bridge:v1 -->";
+const ACTION_BRIDGE_END = "<!-- /vision-action-bridge -->";
+const ACTION_BRIDGE_BLOCK = /<!-- vision-action-bridge:v1 -->[\s\S]*?<!-- \/vision-action-bridge -->/g;
+
+export function parseActionBridge(raw: string): string {
+  const block = raw.match(ACTION_BRIDGE_BLOCK)?.[0];
+  if (!block) return "";
+  const prefix = "**Today's action:** ";
+  return block.split("\n").find((line) => line.startsWith(prefix))?.slice(prefix.length).trim() ?? "";
+}
+
+export function withoutActionBridge(raw: string): string {
+  return raw.replace(ACTION_BRIDGE_BLOCK, "").trim();
+}
+
+export function writeActionBridge(raw: string, action: string): string {
+  const cleanAction = action.replace(/<!--|-->/g, "").replace(/\s+/g, " ").trim();
+  const existing = withoutActionBridge(raw);
+  if (!cleanAction) return existing;
+  const block = [ACTION_BRIDGE_START, `**Today's action:** ${cleanAction}`, ACTION_BRIDGE_END].join("\n");
+  return [existing, block].filter(Boolean).join("\n\n");
+}
+
 export function rehearsalAction(visionRecall: string, storyRecall = ""): string {
   const a = parseRehearsalNote(visionRecall), b = parseRehearsalNote(storyRecall);
   const note = b.action ? b : a;
