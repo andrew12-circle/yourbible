@@ -1,0 +1,46 @@
+name: Visual explorer review
+on:
+  push:
+    branches: ['feat/visual-explorer-toolbar']
+permissions:
+  contents: read
+concurrency:
+  group: visual-explorer-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: visual-review-placeholder
+      VITE_SUPABASE_ANON_KEY: visual-review-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Export tracked text for implementation review
+        run: |
+          python3 - <<'PY'
+          import subprocess, tarfile, re, os
+          paths = subprocess.check_output(['git','ls-files','-z']).decode().split('\0')
+          with tarfile.open(os.environ['RUNNER_TEMP']+'/visual-source.tar.gz','w:gz') as out:
+            for p in paths:
+              if re.search(r'\.(tsx?|m?js|cjs|json|md|mdc|yml|css|html)$',p) and not p.startswith('.env'):
+                out.add(p, arcname=p)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-explorer-source
+          path: ${{ runner.temp }}/visual-source.tar.gz
+          retention-days: 3
+      - run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm run test
+      - name: Production build
+        run: npm run build
