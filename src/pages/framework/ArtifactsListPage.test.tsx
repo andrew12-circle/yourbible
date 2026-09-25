@@ -101,7 +101,7 @@ describe("Artifacts library landing", () => {
     const region = await collection();
 
     expect(screen.getByRole("tab", { name: "All" })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("button", { name: "Grid", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Grid" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("combobox", { name: "Sort artifacts" })).toHaveValue("recent");
     expect(within(region).getByRole("heading", { name: "Recently added" })).toBeInTheDocument();
     expect(within(region).getAllByRole("list")).toHaveLength(1);
@@ -121,9 +121,9 @@ describe("Artifacts library landing", () => {
   ])("filters $label without switching away from the cover grid", async ({ label, count }) => {
     mountLibrary();
     const region = await collection();
-    fireEvent.click(screen.getByRole("tab", { name: label, exact: true }));
+    fireEvent.click(screen.getByRole("tab", { name: label }));
     await waitFor(() => expect(coverIds(region)).toHaveLength(count));
-    expect(screen.getByRole("button", { name: "Grid", exact: true })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Grid" })).toHaveAttribute("aria-pressed", "true");
     fireEvent.click(screen.getByRole("tab", { name: "All" }));
     expect(coverIds(region)).toHaveLength(16);
   });
@@ -159,10 +159,10 @@ describe("Artifacts library landing", () => {
     const region = await collection();
     fireEvent.click(screen.getByRole("tab", { name: "Videos" }));
     fireEvent.change(screen.getByRole("combobox", { name: "Sort artifacts" }), { target: { value: "az" } });
-    fireEvent.click(screen.getByRole("button", { name: "List", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
     expect(within(region).getAllByRole("listitem")).toHaveLength(2);
     expect(within(region).queryByRole("link", { name: /^Open / })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Grid", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Grid" }));
     expect(coverIds(region)).toEqual(["artifact-0", "artifact-8"]);
     firstVisit.unmount();
 
