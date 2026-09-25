@@ -139,6 +139,29 @@ export function writeRehearsalNote(raw: string, note: RehearsalNote): string {
   const block = [START, "**Scene rehearsal**", ...lines, `**Practice status:** ${note.completed ? "Completed" : "In progress"}`, "**Surrender:** Outcome and timing held open-handed before God.", END].join("\n");
   return [withoutRehearsalNote(raw), block].filter(Boolean).join("\n\n");
 }
+const ACTION_BRIDGE_START = "<!-- vision-action-bridge:v1 -->";
+const ACTION_BRIDGE_END = "<!-- /vision-action-bridge -->";
+const ACTION_BRIDGE_BLOCK = /<!-- vision-action-bridge:v1 -->[\s\S]*?<!-- \/vision-action-bridge -->/g;
+
+export function parseActionBridge(raw: string): string {
+  const block = raw.match(ACTION_BRIDGE_BLOCK)?.[0];
+  if (!block) return "";
+  const prefix = "**Today's action:** ";
+  return block.split("\n").find((line) => line.startsWith(prefix))?.slice(prefix.length).trim() ?? "";
+}
+
+export function withoutActionBridge(raw: string): string {
+  return raw.replace(ACTION_BRIDGE_BLOCK, "").trim();
+}
+
+export function writeActionBridge(raw: string, action: string): string {
+  const cleanAction = action.replace(/<!--|-->/g, "").replace(/\s+/g, " ").trim();
+  const existing = withoutActionBridge(raw);
+  if (!cleanAction) return existing;
+  const block = [ACTION_BRIDGE_START, `**Today's action:** ${cleanAction}`, ACTION_BRIDGE_END].join("\n");
+  return [existing, block].filter(Boolean).join("\n\n");
+}
+
 export function rehearsalAction(visionRecall: string, storyRecall = ""): string {
   const a = parseRehearsalNote(visionRecall), b = parseRehearsalNote(storyRecall);
   const note = b.action ? b : a;
