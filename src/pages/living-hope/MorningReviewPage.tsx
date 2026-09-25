@@ -10,7 +10,7 @@ import { flushMorningInlineJournals } from "@/components/living-hope/MorningForm
 import { MorningSessionFooter } from "@/components/living-hope/MorningSessionFooter";
 import { MorningSessionComplete } from "@/components/living-hope/MorningSessionComplete";
 import { flushJournalDocument, peekJournalDocument } from "@/lib/journal/journalDocuments";
-import { MorningRitualStepNav } from "@/components/living-hope/MorningRitualStepNav";
+import { MorningSessionHero } from "@/components/living-hope/MorningSessionHero";
 import { MorningRitualStepPanels } from "@/components/living-hope/MorningRitualStepPanels";
 import { MorningGuidedExperience } from "@/components/living-hope/MorningGuidedExperience";
 import { appendWorkbookStory } from "@/components/living-hope/MorningStoryPanel";
@@ -520,6 +520,12 @@ export default function MorningReviewPage() {
       session
       stepKey={`${ritualStepKey(step)}:${busy || wbBusy}`}
       title="Morning formula"
+      hero={!loadingAll && step.kind !== "done" ? <MorningSessionHero
+        steps={steps} stepIndex={stepIndex} goalTotal={activeGoals.length}
+        onStepIndexChange={setStepIndex} disabled={saving || advancing}
+        title={step.kind === "intro" ? "Make room for your morning." : ritualStepSubtitle(step, goalIndex, activeGoals.length)}
+        subtitle={step.kind === "worship" ? "Put on your worship music. Take a breath and turn your attention to God." : undefined}
+      /> : undefined}
       footer={!loadingAll && step.kind !== "done" ? <MorningSessionFooter steps={steps} stepIndex={stepIndex} saving={saving || advancing}
         onBack={() => setStepIndex((i) => Math.max(0, i - 1))} onContinue={() => void goToNextStep()} /> : undefined}
       right={
@@ -539,8 +545,6 @@ export default function MorningReviewPage() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col py-3">
-          {step.kind !== "done" && <MorningRitualStepNav steps={steps} stepIndex={stepIndex} goalTotal={activeGoals.length} onStepIndexChange={setStepIndex} disabled={saving || advancing} />}
-          {step.kind !== "done" && <h1 data-morning-heading tabIndex={-1} className="mb-4 text-3xl font-semibold tracking-tight outline-none">{step.kind === "intro" ? "Make room for your morning." : ritualStepSubtitle(step, goalIndex, activeGoals.length)}</h1>}
           {step.kind === "thanksgiving" && <details className="mb-4 text-sm text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">Need more time?</summary><Button type="button" variant="ghost" className="min-h-11" onClick={formulaTimer.addFiveMinutes}>Add 5 minutes for thanks</Button></details>}
           <AnimatePresence mode="wait">
             <motion.div

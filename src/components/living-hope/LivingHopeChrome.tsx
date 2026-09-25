@@ -1,4 +1,5 @@
 import "./morningFormula.css";
+import "./morningAtmosphere.css";
 import { useEffect, useRef } from "react";
 import { useVisualViewportMetrics } from "@/hooks/useKeyboardInset";
 import { Link } from "react-router-dom";
@@ -12,6 +13,7 @@ type Props = {
   session?: boolean;
   stepKey?: string;
   footer?: React.ReactNode;
+  hero?: React.ReactNode;
   title?: string;
   subtitle?: string;
   backTo?: string;
@@ -27,6 +29,7 @@ export function LivingHopeChrome({
   session = false,
   stepKey,
   footer,
+  hero,
   title = "Morning formula",
   subtitle,
   backTo = "/living-hope",
@@ -39,6 +42,7 @@ export function LivingHopeChrome({
   const { showHubShell } = useAppShellMode();
   const viewport = useVisualViewportMetrics();
   const content = useRef<HTMLElement>(null);
+  const hasHero = session && Boolean(hero);
   useEffect(() => {
     if (!session) return;
     content.current?.scrollTo?.({ top: 0, behavior: "instant" });
@@ -65,29 +69,31 @@ export function LivingHopeChrome({
           : fillHeight
             ? "min-h-[100dvh]"
             : "",
-        session && "min-h-0 bg-background",
+        session && "morning-session min-h-0 bg-background",
+        hasHero && "morning-session-with-hero",
         className,
       )}
+      data-morning-step={session ? stepKey?.split(":")[0] : undefined}
       style={session && !showHubShell ? { height: viewport.viewportHeight || "100dvh", minHeight: 0 } : undefined}
     >
       {showNav ? (
-        <header className="relative z-10 flex items-center justify-between px-4 md:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 shrink-0">
+        <header className={cn("relative z-10 flex items-center justify-between px-4 md:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 shrink-0", session && "morning-session-topbar")}>
           {showBack ? (
-              <Button asChild
-                variant="ghost"
-                size="sm"
-                className="text-primary hover:text-primary -ml-2 h-11 px-2 font-normal text-[17px] gap-0.5 max-w-[42vw] sm:max-w-none"
-              >
-                <Link to={effectiveBackTo} aria-label={session ? "Exit morning" : backLabel}>
-                  <ChevronLeft className="w-5 h-5 shrink-0" aria-hidden strokeWidth={2.5} />
-                  <span className={session ? "sr-only" : "truncate"}>{backLabel}</span>
-                </Link>
-              </Button>
+            <Button asChild
+              variant="ghost"
+              size="sm"
+              className="text-primary hover:text-primary -ml-2 h-11 px-2 font-normal text-[17px] gap-0.5 max-w-[42vw] sm:max-w-none"
+            >
+              <Link to={effectiveBackTo} aria-label={session ? "Exit morning" : backLabel}>
+                <ChevronLeft className="w-5 h-5 shrink-0" aria-hidden strokeWidth={2.5} />
+                <span className={session ? "sr-only" : "truncate"}>{backLabel}</span>
+              </Link>
+            </Button>
           ) : (
             <div className="w-9 shrink-0" aria-hidden />
           )}
           <span className="text-[15px] font-semibold tracking-tight truncate max-w-[50%]">{title}</span>
-          <div className="flex justify-end shrink-0 min-w-[3.25rem] -mr-1 pt-0.5">{right}</div>
+          <div className={cn("flex justify-end shrink-0 min-w-[3.25rem] -mr-1 pt-0.5", session && "morning-session-tools")}>{right}</div>
         </header>
       ) : null}
 
@@ -105,14 +111,17 @@ export function LivingHopeChrome({
       <main ref={content}
         className={cn(
           "relative z-10 flex-1 flex flex-col w-full min-w-0 min-h-0",
-          session ? "mx-auto w-full max-w-3xl px-5 sm:px-8 lg:max-w-[92rem] lg:px-10 xl:px-12 2xl:px-14 pb-6 overflow-y-auto overscroll-contain" : showHubShell
-            ? "max-w-none mx-0 px-4 md:px-6 lg:px-8 pb-6 overflow-y-auto scrollbar-hide"
-            : "max-w-lg mx-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
+          session ? hasHero
+            ? "morning-session-scroll overflow-y-auto overscroll-contain"
+            : "mx-auto w-full max-w-3xl px-5 sm:px-8 lg:max-w-[92rem] lg:px-10 xl:px-12 2xl:px-14 pb-6 overflow-y-auto overscroll-contain"
+            : showHubShell
+              ? "max-w-none mx-0 px-4 md:px-6 lg:px-8 pb-6 overflow-y-auto scrollbar-hide"
+              : "max-w-lg mx-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
         )}
       >
-        {children}
+        {hasHero ? <>{hero}<div className="morning-session-width morning-session-content">{children}</div></> : children}
       </main>
-      {session && footer && <footer className="shrink-0 border-t border-border/40 bg-background px-5 lg:px-10 xl:px-12 2xl:px-14 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><div className="mx-auto w-full max-w-3xl lg:max-w-[92rem]">{footer}</div></footer>}
+      {session && footer && <footer className="morning-session-footer shrink-0 border-t border-border/40 bg-background px-5 lg:px-10 xl:px-12 2xl:px-14 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><div className="mx-auto w-full max-w-3xl lg:max-w-[92rem]">{footer}</div></footer>}
     </div>
   );
 }
