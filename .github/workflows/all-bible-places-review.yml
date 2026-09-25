@@ -1,0 +1,23 @@
+name: All Bible places review
+on:
+  push:
+    branches: ['fix/all-bible-places-directory']
+permissions:
+  contents: read
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: places-test-placeholder
+  VITE_SUPABASE_ANON_KEY: places-test-placeholder
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test
+      - run: npm run build
