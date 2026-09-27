@@ -1,13 +1,25 @@
 import "./morningFormula.css";
 import "./morningAtmosphere.css";
-import { useEffect, useRef } from "react";
+import "./morningSanctuary.css";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { useVisualViewportMetrics } from "@/hooks/useKeyboardInset";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppShellMode } from "@/hooks/useAppShellMode";
 import { hubShellPageHeight } from "@/lib/shell/hubShellClasses";
 import { cn } from "@/lib/utils";
+import { MorningPageHero } from "./MorningPageHero";
+import { MorningFoundationNav } from "./MorningFoundationNav";
+
+// The timer sits on an intentionally light surface in both themes. Its nested
+// foreground and hover tokens must follow that surface, not the dark page.
+const timerSurfaceTokens = {
+  "--foreground": "222 22% 16%",
+  "--muted-foreground": "220 8% 43%",
+  "--muted": "38 22% 92%",
+  "--ring": "34 76% 35%",
+} as CSSProperties;
 
 type Props = {
   session?: boolean;
@@ -21,107 +33,59 @@ type Props = {
   children: React.ReactNode;
   className?: string;
   fillHeight?: boolean;
-  /** Hub landing: large title lives in page body, not the nav bar. */
   hubLanding?: boolean;
 };
 
-export function LivingHopeChrome({
-  session = false,
-  stepKey,
-  footer,
-  hero,
-  title = "Morning formula",
-  subtitle,
-  backTo = "/living-hope",
-  right,
-  children,
-  className,
-  fillHeight = true,
-  hubLanding = false,
-}: Props) {
+export function LivingHopeChrome({ session = false, stepKey, footer, hero, title = "Morning formula", subtitle,
+  backTo = "/living-hope", right, children, className, fillHeight = true, hubLanding = false }: Props) {
   const { showHubShell } = useAppShellMode();
+  const { pathname } = useLocation();
   const viewport = useVisualViewportMetrics();
   const content = useRef<HTMLElement>(null);
   const hasHero = session && Boolean(hero);
+  const workspace = !session && !hubLanding;
   useEffect(() => {
-    if (!session) return;
+    if (!session && !workspace) return;
     content.current?.scrollTo?.({ top: 0, behavior: "instant" });
     content.current?.querySelector<HTMLElement>("[data-morning-heading]")?.focus({ preventScroll: true });
-  }, [session, stepKey]);
+  }, [session, workspace, stepKey, pathname]);
   const showNav = !hubLanding || !showHubShell;
-  /** Native/mobile landings need a real Home action; Hub landings use the sidebar. */
-  const showBack = !hubLanding || !showHubShell;
   const effectiveBackTo = hubLanding && !showHubShell ? "/home" : backTo;
-  const backLabel =
-    effectiveBackTo === "/home"
-      ? "Home"
-      : effectiveBackTo === "/living-hope"
-        ? "Morning formula"
-        : "Back";
+  const backLabel = effectiveBackTo === "/home" ? "Home" : effectiveBackTo === "/living-hope" ? "Morning formula" : "Back";
 
-  return (
-    <div
-      className={cn(
-        "living-hope-root flex flex-col relative overflow-hidden",
-        showHubShell ? "bg-background text-foreground" : "bg-background text-foreground min-h-[100dvh]",
-        showHubShell
-          ? hubShellPageHeight(showHubShell)
-          : fillHeight
-            ? "min-h-[100dvh]"
-            : "",
-        session && "morning-session min-h-0 bg-background",
-        hasHero && "morning-session-with-hero",
-        className,
-      )}
-      data-morning-step={session ? stepKey?.split(":")[0] : undefined}
-      style={session && !showHubShell ? { height: viewport.viewportHeight || "100dvh", minHeight: 0 } : undefined}
+  return <div
+    className={cn("living-hope-root morning-theme flex flex-col relative overflow-hidden bg-background text-foreground",
+      showHubShell ? hubShellPageHeight(showHubShell) : fillHeight ? "min-h-[100dvh]" : "",
+      session && "morning-session min-h-0", hasHero && "morning-session-with-hero",
+      hubLanding && "morning-hub-page", workspace && "morning-workspace-page", className)}
+    data-morning-step={session ? stepKey?.split(":")[0] : undefined}
+    style={{ color: "hsl(var(--foreground))", ...((session || fillHeight) && !showHubShell ? { height: viewport.viewportHeight || "100dvh", minHeight: 0 } : {}) }}
+  >
+    {showNav && <header className="morning-theme-topbar relative z-30 flex items-center justify-between gap-2 px-4 md:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 shrink-0">
+      <Button asChild variant="ghost" size="sm" className="morning-topbar-back -ml-2 h-11 px-2 font-normal text-[15px] gap-0.5 max-w-[42vw] sm:max-w-none">
+        <Link to={effectiveBackTo} aria-label={session ? "Exit morning" : backLabel}>
+          <ChevronLeft className="h-5 w-5 shrink-0" aria-hidden="true" strokeWidth={2} />
+          <span className={session ? "sr-only" : "truncate"}>{backLabel}</span>
+        </Link>
+      </Button>
+      <span className="min-w-0 truncate text-[14px] font-medium">{session ? title : "Morning formula"}</span>
+      <div className={cn("flex min-w-[2rem] shrink-0 justify-end", session && "morning-session-tools")} style={session ? timerSurfaceTokens : undefined}>{right}</div>
+    </header>}
+    <main ref={content} className={cn("morning-theme-scroll relative z-10 flex-1 flex flex-col w-full min-w-0 min-h-0 overflow-y-auto overscroll-contain",
+      session && !hasHero && "morning-session-width morning-no-hero")}
     >
-      {showNav ? (
-        <header className={cn("relative z-10 flex items-center justify-between px-4 md:px-6 pt-[max(0.5rem,env(safe-area-inset-top))] pb-1 shrink-0", session && "morning-session-topbar")}>
-          {showBack ? (
-            <Button asChild
-              variant="ghost"
-              size="sm"
-              className="text-primary hover:text-primary -ml-2 h-11 px-2 font-normal text-[17px] gap-0.5 max-w-[42vw] sm:max-w-none"
-            >
-              <Link to={effectiveBackTo} aria-label={session ? "Exit morning" : backLabel}>
-                <ChevronLeft className="w-5 h-5 shrink-0" aria-hidden strokeWidth={2.5} />
-                <span className={session ? "sr-only" : "truncate"}>{backLabel}</span>
-              </Link>
-            </Button>
-          ) : (
-            <div className="w-9 shrink-0" aria-hidden />
-          )}
-          <span className="text-[15px] font-semibold tracking-tight truncate max-w-[50%]">{title}</span>
-          <div className={cn("flex justify-end shrink-0 min-w-[3.25rem] -mr-1 pt-0.5", session && "morning-session-tools")}>{right}</div>
-        </header>
-      ) : null}
-
-      {subtitle && showNav ? (
-        <p
-          className={cn(
-            "relative z-10 px-4 md:px-6 -mt-0.5 mb-2 text-[13px] text-muted-foreground text-center",
-            showHubShell && "md:text-left md:px-6 lg:px-8",
-          )}
-        >
-          {subtitle}
-        </p>
-      ) : null}
-
-      <main ref={content}
-        className={cn(
-          "relative z-10 flex-1 flex flex-col w-full min-w-0 min-h-0",
-          session ? hasHero
-            ? "morning-session-scroll overflow-y-auto overscroll-contain"
-            : "mx-auto w-full max-w-3xl px-5 sm:px-8 lg:max-w-[92rem] lg:px-10 xl:px-12 2xl:px-14 pb-6 overflow-y-auto overscroll-contain"
-            : showHubShell
-              ? "max-w-none mx-0 px-4 md:px-6 lg:px-8 pb-6 overflow-y-auto scrollbar-hide"
-              : "max-w-lg mx-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]",
-        )}
-      >
-        {hasHero ? <>{hero}<div className="morning-session-width morning-session-content">{children}</div></> : children}
-      </main>
-      {session && footer && <footer className="morning-session-footer shrink-0 border-t border-border/40 bg-background px-5 lg:px-10 xl:px-12 2xl:px-14 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><div className="mx-auto w-full max-w-3xl lg:max-w-[92rem]">{footer}</div></footer>}
-    </div>
-  );
+      {hasHero ? <>{hero}<div className="morning-session-width morning-session-content">{children}</div></>
+        : workspace ? <>
+          <MorningPageHero compact title={title} subtitle={subtitle} eyebrow="My foundation" reminder="Build once. Return each morning." />
+          <div className="morning-session-width morning-workspace-layout">
+            <aside className="morning-workspace-index"><MorningFoundationNav /></aside>
+            <div className="morning-workspace-body">{children}</div>
+          </div>
+          <details className="morning-workspace-mobile-nav morning-session-width"><summary>Explore foundation sections</summary><MorningFoundationNav /></details>
+        </> : children}
+    </main>
+    {session && footer && <footer className="morning-session-footer shrink-0 border-t border-border/40 bg-background text-foreground pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]" style={{ color: "hsl(var(--foreground))" }}>
+      <div className="morning-session-width">{footer}</div>
+    </footer>}
+  </div>;
 }
