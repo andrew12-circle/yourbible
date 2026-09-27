@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { Passage } from "@/lib/bible/api";
 import { getNextChapterRef, getPrevChapterRef } from "@/lib/bible/chapterNav";
 import { usePassage } from "@/hooks/usePassage";
+import { readerBookNeighbors } from "@/lib/bible/readerBookBoundary";
 
 export interface AdjacentPassages {
   prev: Passage | undefined;
@@ -21,8 +22,9 @@ export function useAdjacentPassages(
   enabled: boolean,
   bibleEditionAbbr?: string,
 ): AdjacentPassages {
-  const prevRef = useMemo(() => getPrevChapterRef(bookAbbr, chapter), [bookAbbr, chapter]);
-  const nextRef = useMemo(() => getNextChapterRef(bookAbbr, chapter), [bookAbbr, chapter]);
+  const { prev: prevRef, next: nextRef } = useMemo(
+    () => readerBookNeighbors(bookAbbr, chapter), [bookAbbr, chapter],
+  );
 
   const currentQuery = usePassage(bibleId, bookAbbr, chapter, true, bibleEditionAbbr);
   const prevQuery = usePassage(

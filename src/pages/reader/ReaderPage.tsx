@@ -158,7 +158,7 @@ import {
 } from "@/lib/bible/holmanStudyLayout";
 import { PASSAGE_PARSER_REVISION } from "@/lib/bible/textRevision";
 import { chapterStudyParseReliable } from "@/lib/bible/studyParseQuality";
-import { BookIntroductionBlock } from "@/components/bible/BookIntroductionBlock";
+import { ReaderBookOpening } from "@/components/bible/ReaderBookOpening";
 import { ReaderSelectionChrome } from "@/pages/reader/ReaderSelectionChrome";
 import { ReaderPageOverlays } from "@/pages/reader/ReaderPageOverlays";
 import {
@@ -173,7 +173,6 @@ import { readerPageSideFromRect } from "@/lib/bible/verseSelection";
 import { buildDocumentBlocks } from "@/lib/bible/documentModel";
 import { passageToCanonicalChapter } from "@/lib/bible/canonical/passageToCanonical";
 import { createReaderVerseRenderer } from "@/lib/bible/readerVerseNode";
-import { useBookIntroduction } from "@/hooks/useBookIntroduction";
 import { useReaderToolbarSelection } from "@/hooks/useReaderToolbarSelection";
 import { useReaderSelectionMarks } from "@/hooks/useReaderSelectionMarks";
 import { useBibleScrollWheel } from "@/hooks/useBibleScrollWheel";
@@ -280,7 +279,6 @@ export default function ReaderPage() {
     isError: passageError,
     refetch: refetchPassage,
   } = usePassage(bibleId, book.abbr, chapter, true, bibleEditionAbbr);
-  const { data: bookIntro } = useBookIntroduction(bibleId, book.abbr, chapter);
   const showCachedHint = !online || (passageError && !!passage);
   const [searchOpen, setSearchOpen] = useState(false);
   const {
@@ -661,7 +659,7 @@ export default function ReaderPage() {
   const continuation = useReaderContinuation({
     bibleId, bibleAbbr: bibleEditionAbbr,
     scope: `${bibleId}|${book.abbr}|${chapter}|${windowFlow?.startId ?? ""}|${windowFlow?.endId ?? ""}`,
-    after: { bookAbbr: nextChapterRef?.book.abbr ?? book.abbr, chapter: nextChapterRef?.chapter ?? chapter },
+    after: { bookAbbr: book.abbr, chapter: adjacentPassages.nextRef?.chapter ?? chapter },
     baseChapters: baseStreamChapters,
     baseReady: adjacentPassages.streamReady,
     enabled: readerSpread && !scrollMode,
@@ -1275,7 +1273,6 @@ export default function ReaderPage() {
       scrollMode &&
       pageChapter === 1 &&
       pageBookAbbr === book.abbr &&
-      bookIntro?.html &&
       pageIdx === chapterPage;
     if (scrollMode && pageIdx !== chapterPage) {
       return <div className="h-full min-h-0" aria-hidden />;
@@ -1388,7 +1385,7 @@ export default function ReaderPage() {
               style={articleStyle}
             >
               {showBookIntro ? (
-                <BookIntroductionBlock title={bookIntro!.title} html={bookIntro!.html} />
+                <ReaderBookOpening bookAbbr={pageBookAbbr} />
               ) : null}
               {renderReaderPageScripture({
                 scrollMode,

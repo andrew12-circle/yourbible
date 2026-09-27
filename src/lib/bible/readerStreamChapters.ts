@@ -31,7 +31,7 @@ export function buildAdjacentStreamChapters(
   nextPassage: Passage | undefined,
 ): ReaderChapterPassage[] {
   const chapters: ReaderChapterPassage[] = [];
-  if (prevRef) {
+  if (prevRef?.book.abbr === currentBookAbbr) {
     const prev = passageToStreamChapter(
       prevRef.book.abbr,
       prevRef.book.name,
@@ -47,7 +47,7 @@ export function buildAdjacentStreamChapters(
     currentPassage,
   );
   if (current) chapters.push(current);
-  if (nextRef) {
+  if (nextRef?.book.abbr === currentBookAbbr) {
     const next = passageToStreamChapter(
       nextRef.book.abbr,
       nextRef.book.name,

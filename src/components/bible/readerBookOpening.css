@@ -1,0 +1,44 @@
+/* Included with the shared component: hidden measurement and live pages must
+   see exactly the same typography. The book opener is not a verse/heading. */
+[data-reading-area] .reader-book-opening {
+  margin: 0 0 1.25em;
+  padding: 1.1em 0 0;
+  text-align: center;
+  text-indent: 0;
+  break-inside: avoid;
+  break-after: avoid;
+  -webkit-column-break-inside: avoid;
+  -webkit-column-break-after: avoid;
+}
+[data-reading-area] .reader-book-opening-kicker {
+  margin: 0 0 0.65em;
+  font-size: 0.62em;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+[data-reading-area] .reader-book-opening-title {
+  margin: 0 0 0.55em;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.6em;
+  font-weight: 400;
+  line-height: 1.12;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+[data-reading-area] .reader-book-opening-summary {
+  margin: 0;
+  font-size: 0.82em;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: start;
+  text-indent: 0;
+}
+[data-reading-area] .reader-book-opening-rule {
+  width: 3em;
+  margin: 1.2em auto 0;
+  border-top: 1px solid currentColor;
+  opacity: 0.25;
+}

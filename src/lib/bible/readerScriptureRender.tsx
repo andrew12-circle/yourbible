@@ -1,4 +1,5 @@
 import { sourceParagraphsForReader } from "./readerSourceParagraphs";
+import { ReaderBookOpening } from "@/components/bible/ReaderBookOpening";
 import { readerVerseFragment } from "./readerVerseFragments";
 import type { CSSProperties, ReactNode } from "react";
 import type { PassageVerse, PoetryBlock } from "@/lib/bible/api";
@@ -36,6 +37,8 @@ import { cn } from "@/lib/utils";
 
 export interface ScriptureRenderOptions {
   studyLayout?: ResolvedStudyLayout;
+  /** Scroll mode supplies its opener above the continuous document. */
+  showBookOpening?: boolean;
 }
 
 export type HolmanVerseGroup = { chapter: number; verses: PassageVerse[] };
@@ -267,8 +270,12 @@ export function renderScriptureParagraphNodes(
     const paragraphStartSet = resolveParagraphStarts(verseGroup.bookAbbr, verseGroup.chapter);
     const headingMap = resolveHeading(verseGroup.bookAbbr, verseGroup.chapter);
     const poetryBlocks = resolvePoetryBlocks?.(verseGroup.bookAbbr, verseGroup.chapter) ?? [];
+    const firstVerse = verseGroup.verses[0];
+    const opening: ReactNode[] = options?.showBookOpening !== false && verseGroup.chapter === 1
+      && firstVerse?.number === 1 && (readerVerseFragment(firstVerse)?.start ?? 0) === 0
+      ? [<ReaderBookOpening key={`book-opening-${verseGroup.bookAbbr}`} bookAbbr={verseGroup.bookAbbr} />] : [];
     const sourceParagraphs = sourceParagraphsForReader(verseGroup.verses);
-    if (sourceParagraphs) return sourceParagraphs.flatMap((group) => {
+    if (sourceParagraphs) return [...opening, ...sourceParagraphs.flatMap((group) => {
       const first = group.verses[0], start = readerVerseFragment(first)?.start ?? 0;
       const heading = start === 0 ? headingMap.get(first.number) : undefined;
       const key = `${verseGroup.bookAbbr}-${verseGroup.chapter}-${first.number}-${start}`;
@@ -279,14 +286,14 @@ export function renderScriptureParagraphNodes(
           {group.verses.map((v,index) => renderVerse(v,{bookAbbr:verseGroup.bookAbbr,chapter:verseGroup.chapter,paragraphIsContinuation:group.isContinuation,startsPrintedParagraph:index===0}))}
         </ScriptureParagraph>,
       ];
-    });
+    })];
     // Headings and publisher poetry transitions are paragraph boundaries too.
     // Poetry has a verse-number gutter; prose keeps its existing paragraph flow.
     const printStarts = new Set([...paragraphStartSet, ...headingMap.keys(), ...poetryBlocks.map(block => block.beforeVerse)]);
     for (const verse of verseGroup.verses) {
       if (poetryLevelForVerse(poetryBlocks, verse.number) > 0) printStarts.add(verse.number);
     }
-    return groupVersesIntoParagraphs(verseGroup.verses, printStarts).flatMap((group) => {
+    return [...opening, ...groupVersesIntoParagraphs(verseGroup.verses, printStarts).flatMap((group) => {
       const nodes: ReactNode[] = [];
       const first = group.verses[0]?.number;
       const continuesVerse = (readerVerseFragment(group.verses[0])?.start ?? 0) > 0;
@@ -322,6 +329,6 @@ export function renderScriptureParagraphNodes(
         </ScriptureParagraph>,
       );
       return nodes;
-    });
+    })];
   });
 }

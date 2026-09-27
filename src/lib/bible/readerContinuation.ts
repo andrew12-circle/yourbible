@@ -10,7 +10,7 @@ export function continuationChapterRefs(after: ReaderChapterIdentity, count: num
   let edge = after;
   for (let i = 0; i < Math.min(MAX_READER_CONTINUATION_CHAPTERS, Math.max(0, count)); i++) {
     const next = getNextChapterRef(edge.bookAbbr, edge.chapter);
-    if (!next) break;
+    if (!next || next.book.abbr !== after.bookAbbr) break;
     refs.push(next);
     edge = { bookAbbr: next.book.abbr, chapter: next.chapter };
   }

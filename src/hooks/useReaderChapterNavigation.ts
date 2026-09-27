@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { passageQueryKey } from "@/hooks/usePassage";
 import { fetchPassageWithCache } from "@/lib/bible/fetchPassageWithCache";
-import { getNextChapterRef, getPrevChapterRef } from "@/lib/bible/chapterNav";
+import { readerBookNeighbors } from "@/lib/bible/readerBookBoundary";
 import { toast } from "@/hooks/use-toast";
 
 /** Keep the current, correctly labelled chapter until the target text is available. */
@@ -24,7 +24,8 @@ export function useReaderChapterNavigation(bibleId: string, bibleAbbr?: string) 
         queryFn: ({ signal }) => fetchPassageWithCache(bibleId, book, ch, signal, bibleAbbr),
         staleTime: 7 * 24 * 60 * 60 * 1000,
       });
-      const neighbors = prepareSpread ? [getPrevChapterRef(bookAbbr, chapter), getNextChapterRef(bookAbbr, chapter)] : [];
+      const sameBook = readerBookNeighbors(bookAbbr, chapter);
+      const neighbors = prepareSpread ? [sameBook.prev, sameBook.next] : [];
       await Promise.all([load(bookAbbr, chapter), ...neighbors.filter((ref) => ref != null).map((ref) => load(ref.book.abbr, ref.chapter))]);
       if (request !== sequence.current) return;
       const previous = state ?? location.state;

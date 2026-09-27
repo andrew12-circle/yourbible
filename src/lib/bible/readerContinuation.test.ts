@@ -10,9 +10,9 @@ describe("short-chapter read-ahead", () => {
     expect(readerNeedsContinuation([0, 10, 20, 30, 40, 50], 50, 2, 2)).toBe(true);
     expect(readerNeedsContinuation([0], 130, 0, 2)).toBe(false);
   });
-  it("continues Psalms in order and crosses book boundaries without fetching the whole book", () => {
+  it("continues Psalms in order but stops read-ahead at book boundaries", () => {
     expect(continuationChapterRefs({ bookAbbr: "Psa", chapter: 7 }, 3).map(ref => ref.chapter)).toEqual([8, 9, 10]);
-    expect(continuationChapterRefs({ bookAbbr: "Psa", chapter: 150 }, 1)[0].book.abbr).toBe("Pro");
+    expect(continuationChapterRefs({ bookAbbr: "Psa", chapter: 150 }, 1)).toEqual([]);
     expect(continuationChapterRefs({ bookAbbr: "Rev", chapter: 22 }, 8)).toEqual([]);
     expect(continuationChapterRefs({ bookAbbr: "Psa", chapter: 7 }, 1000)).toHaveLength(MAX_READER_CONTINUATION_CHAPTERS);
   });

@@ -27,7 +27,18 @@ export function readReaderWindowFlow(state: unknown, bibleId: string, bookAbbr: 
     || !Number.isInteger(flow.firstPageNumber) || flow.firstPageNumber < 1) return;
   for (const id of [flow.startId, flow.endId, flow.restoreId]) if (id != null && typeof id !== "string") return;
   if (flow.through && (typeof flow.through.bookAbbr !== "string" || !Number.isInteger(flow.through.chapter) || flow.through.chapter < 1)) return;
-  return flow;
+  // Old history may describe a window that flowed across a book boundary.
+  // A fresh edition of the layout cannot wait forever for that foreign anchor.
+  if (flow.startId && !flow.startId.startsWith(`${bookAbbr}|`)) return;
+  if ((!flow.endId || flow.endId.startsWith(`${bookAbbr}|`))
+    && (!flow.restoreId || flow.restoreId.startsWith(`${bookAbbr}|`))
+    && (!flow.through || flow.through.bookAbbr === bookAbbr)) return flow;
+  return {
+    ...flow,
+    endId: flow.endId?.startsWith(`${bookAbbr}|`) ? flow.endId : undefined,
+    restoreId: flow.restoreId?.startsWith(`${bookAbbr}|`) ? flow.restoreId : undefined,
+    through: flow.through?.bookAbbr === bookAbbr ? flow.through : undefined,
+  };
 }
 /** Both the paginator and live pages receive this same exact reading window. */
 export function readerWindowStream(stream: ReaderStreamUnit[], flow?: ReaderWindowFlow): ReaderStreamUnit[] {
@@ -66,7 +77,8 @@ export function readerWindowTurn(options: ReaderWindowTurnOptions): ReaderWindow
     if (!previous) return null;
     return { bookAbbr: previous.book.abbr, chapter: previous.chapter, enterAtEnd: true,
       flow: { bibleId, bookAbbr: previous.book.abbr, chapter: previous.chapter,
-        endId: readerStreamUnitId(edge), firstPageNumber, forward: frame } };
+        ...(previous.book.abbr === edge.bookAbbr ? { endId: readerStreamUnitId(edge) } : {}),
+        firstPageNumber, forward: frame } };
   }
   if (delta <= 0 || nextPage + pagesPerTurn < pageCount) return null;
   if (nextPage >= pageCount && flow?.forward) {
@@ -76,6 +88,15 @@ export function readerWindowTurn(options: ReaderWindowTurnOptions): ReaderWindow
   const following = getNextChapterRef(edge.bookAbbr, edge.chapter);
   if (!following || flow?.endId) return null;
   const unread = stream[splits[nextPage]];
+  // Finish the last spread of this book, including a naturally blank facing
+  // page. Only the NEXT turn starts the next book at its opening, never early.
+  if (following.book.abbr !== edge.bookAbbr) {
+    if (nextPage < pageCount) return null;
+    return { bookAbbr: following.book.abbr, chapter: following.chapter,
+      flow: { bibleId, bookAbbr: following.book.abbr, chapter: following.chapter,
+        firstPageNumber: firstPageNumber + nextPage,
+        startId: `${following.book.abbr}|${following.chapter}|start`, back: frame } };
+  }
   // Shift the three-chapter window by one, not beyond the whole next chapter.
   // Include its unfinished tail at the left, then fill across the new chapter.
   // Read-ahead can cover more than three short chapters. Recenter close to the
