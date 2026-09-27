@@ -1,0 +1,30 @@
+name: Export book opening workspace
+on:
+  push:
+    branches: [fix/bible-book-openings-20260927]
+    paths: [.github/workflows/export-book-opening-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            src
+            scripts
+            public/bibles
+      - name: Export tracked source, not credentials or private data
+        run: |
+          git rev-parse HEAD > "$RUNNER_TEMP/source-sha.txt"
+          git archive --format=tar.gz -o "$RUNNER_TEMP/book-opening-source.tar.gz" HEAD src scripts .github package.json package-lock.json index.html vite.config.ts vitest.config.ts tsconfig.json tsconfig.app.json tsconfig.node.json tailwind.config.ts postcss.config.js eslint.config.js public/bibles
+      - uses: actions/upload-artifact@v4
+        with:
+          name: book-opening-workspace
+          path: |
+            ${{ runner.temp }}/source-sha.txt
+            ${{ runner.temp }}/book-opening-source.tar.gz
+          retention-days: 3
