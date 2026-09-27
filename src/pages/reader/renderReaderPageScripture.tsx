@@ -1,3 +1,4 @@
+import { readerPageEndsBook } from "@/lib/bible/readerBookEnd";
 import { useState, type ReactNode } from "react";
 import { renderReaderScrollStream } from "./renderReaderScrollStream";
 import { ScripturePlate } from "@/components/bible/ScripturePlate";
@@ -219,6 +220,11 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
   // An illustration occupies its own page, never a Scripture column or footnote stack.
   if (!scrollMode && streamSlice?.isPlatePage && pageContentReady) return scriptureContent;
 
+  const balanceColumns = !scrollMode && readerPageEndsBook(
+    streamSlice?.verseGroups ?? (slice ? [{ bookAbbr: book.abbr, chapter, verses: slice }] : []),
+    streamChapters,
+  );
+
   if (useStudyPageStack) {
     return wrapHolmanStudyContent(
       spreadColumnLayout,
@@ -229,6 +235,7 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
       showHolmanConnections,
       scrollMode ? undefined : stackContentHeightPx,
       holmanNavigateRef,
+      balanceColumns,
     );
   }
 
@@ -237,5 +244,6 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
     scrollMode,
     scriptureContent,
     scriptureColumnHeightPx,
+    balanceColumns,
   );
 }

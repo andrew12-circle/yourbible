@@ -1,3 +1,4 @@
+import { readerStreamEndsBook } from "@/lib/bible/readerBookEnd";
 import { useEffect, useMemo, useRef } from "react";
 import { useFontLoadRevision } from "@/hooks/useFontLoadRevision";
 import { splitJesusSpeechForChapter } from "@/lib/bible/redLetter";
@@ -65,7 +66,9 @@ export function BookPaginator({ chapters, readerStream, plateFocus, pageWidth, p
       const slice = stream.slice(start, end);
       const html = buildStreamSliceMeasureHtml(slice, chapters, redByChapter, studyLayout);
       const notes = readerPageFootnotesEnabled(false) ? buildStreamSliceFootnotesMeasureHtml(slice) : "";
-      const options = spreadMode && columnsClassName ? { columnCount: 2 as const, measureWidthPx: pageWidth } : undefined;
+      const options = { balanceColumns: readerStreamEndsBook(slice, chapters),
+        ...(spreadMode && columnsClassName ? { columnCount: 2 as const, measureWidthPx: pageWidth } : {}),
+      };
       if (studyLayout === "holman" || notes) applyHolmanStudyMeasureHtml(node, html, "", notes, columnsClassName, limit, options);
       else applyScriptureColumnMeasureHtml(node, html, columnsClassName, limit, options);
       return scriptureContentFitsPage(node, limit, columnsClassName);

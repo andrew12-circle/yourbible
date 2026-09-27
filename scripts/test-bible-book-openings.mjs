@@ -1,3 +1,4 @@
+import { verifyBookPrintGeometry } from "./reader-book-print-geometry.mjs";
 import { verifyReaderChromeGeometry } from "./reader-chrome-geometry.mjs";
 import { verifyReaderPrintGeometry } from "./reader-print-geometry.mjs";
 import { waitForReaderLayout } from "./reader-browser-settled.mjs";
@@ -12,7 +13,10 @@ import { createServer } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 const { chromium, webkit } = await import(process.env.PLAYWRIGHT_MODULE ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright');
 // Images are local placeholders in this book-transition test, never downloads.
-const testBook=process.env.READER_TEST_BOOK||'Mat', testChapter=Number(process.env.READER_TEST_CHAPTER||28), endChapter=Number(process.env.READER_TEST_END_CHAPTER||9);
+const testBook=process.env.READER_TEST_BOOK||'Mat', testChapter=Number(process.env.READER_TEST_CHAPTER||28);
+const nextBook=process.env.READER_TEST_NEXT_BOOK||'Mrk';
+const bookName=nextBook==='Jhn'?'John':'Mark';
+const previousSlug=testBook==='Luk'?'luke':'matthew', nextSlug=nextBook==='Jhn'?'john':'mark';
 const root=process.cwd(), scratch=mkdtempSync(join(root,'.reader-browser-')), output=process.env.RUNNER_TEMP||scratch;
 mkdirSync(output,{recursive:true});
 writeFileSync(join(scratch,'index.html'),'<html><body><div id="root"></div><script type="module" src="./fixture.tsx"></script></body></html>');
@@ -197,48 +201,51 @@ try {
     const collected=[];let finalMatthew;let reachedMark=false;
     for(let step=0;step<45;step++) {
       const geometry=await inspect();const words=await inspectWords();
+      const printGeometry=await verifyBookPrintGeometry(page);
+      steps.push({scenario:scenario.name,step,printGeometry});
       assert.deepEqual(geometry.issues,[],scenario.name+': '+geometry.issues.join('\n'));
       verifyWords(words);
       const books=[...new Set(words.map(w=>w.id.split(':').slice(-3)[0]))];
-      if(books.includes('Mrk')) {
-        assert(!books.includes('Mat'),'A spread must not mix Matthew and Mark');
+      if(books.includes(nextBook)) {
+        assert(!books.includes(testBook),'A spread must not mix Matthew and Mark');
         assert(collected.length,'Mark opened before Matthew finished');
         const actual=verifyConsecutiveFragments(collected,lookupVerse,{complete:true});
-        const expected=syntheticPassage('Mat',28).verses.map(v=>`Mat:28:${v.number}`);
+        const expected=syntheticPassage(testBook,testChapter).verses.map(v=>`${testBook}:${testChapter}:${v.number}`);
         assert.deepEqual(actual.map(id=>id.split(':').slice(-3).join(':')),expected,'All Matthew 28 must precede Mark');
         const visiblePrefix = scenario.name === 'phone-pages' ? '[data-reader-page-side="left"] ' : '';
-        assert.equal(await page.locator(visiblePrefix+'[data-reader-book-opening="Mrk"]').count(),1,'First Mark text page needs its book title');
-        assert.equal(await page.locator(visiblePrefix+'[data-reader-book-opening="Mrk"] h2').textContent(),'Mark');
-        await page.screenshot({path:join(output,'mark-opening-'+scenario.name+'.png')});
+        assert.equal(await page.locator(visiblePrefix+'[data-reader-book-opening="'+nextBook+'"]').count(),1,'First Mark text page needs its book title');
+        assert.equal(await page.locator(visiblePrefix+'[data-reader-book-opening="'+nextBook+'"] h2').textContent(),bookName);
+        await page.screenshot({path:join(output,nextSlug+'-opening-'+scenario.name+'.png')});
         record(scenario.name+': Matthew ends; a page turn opens Mark with a local introduction; prior text preserved');
         reachedMark=true;
         let back;
-        for(let i=0;i<4;i++){await turn(-1);back=await inspectWords();if(back.some(w=>w.id.includes(':Mat:')))break;}
+        for(let i=0;i<4;i++){await turn(-1);back=await inspectWords();if(back.some(w=>w.id.includes(':'+testBook+':')))break;}
         assert.deepEqual(back,finalMatthew,'Backward turn must restore the final Matthew page/spread');
         let forward;
-        for(let i=0;i<4;i++){await turn(1);forward=await inspectWords();if(forward.some(w=>w.id.includes(':Mrk:')))break;}
-        assert(forward.length && forward.every(w=>w.id.split(':').slice(-3)[0]==='Mrk'));
+        for(let i=0;i<4;i++){await turn(1);forward=await inspectWords();if(forward.some(w=>w.id.includes(':'+nextBook+':')))break;}
+        assert(forward.length && forward.every(w=>w.id.split(':').slice(-3)[0]===nextBook));
         record(scenario.name+': reverse/forward book turns preserve their positions');
         break;
       }
       if(words.length) {
-        assert.deepEqual(books,['Mat']);
-        assert(!requests.some(r=>r.scenario===scenario.name&&r.book==='Mrk'),'Read-ahead loaded Mark before a book turn');
+        assert.deepEqual(books,[testBook]);
+        assert(!requests.some(r=>r.scenario===scenario.name&&r.book===nextBook),'Read-ahead loaded Mark before a book turn');
         collected.push(...words);finalMatthew=words;
-        await page.screenshot({path:join(output,'matthew-ending-'+scenario.name+'.png')});
+        await page.screenshot({path:join(output,previousSlug+'-ending-'+scenario.name+'.png')});
       }
       await turn(1);
     }
-    assert(reachedMark,'Could not reach Mark by turning pages');
-    await page.evaluate(()=>window.__navigate('/read/Mrk/1'));await settled();
-    assert(!(await inspectWords()).some(w=>w.id.includes(':Mat:')),'Direct entry pulled in cached Matthew');
-    await page.evaluate(()=>window.__navigate('/read/Mrk/2'));await settled();
+    assert(reachedMark,'Could not reach next book by turning pages');
+    if(scenario.columns==='double') assert(steps.some(s=>s.scenario===scenario.name && s.printGeometry.some(r=>r.terminal)), 'Ending-page balancing was not exercised');
+    await page.evaluate(b=>window.__navigate('/read/'+b+'/1'),nextBook);await settled();
+    assert(!(await inspectWords()).some(w=>w.id.includes(':'+testBook+':')),'Direct entry pulled in cached Matthew');
+    await page.evaluate(b=>window.__navigate('/read/'+b+'/2'),nextBook);await settled();
     assert.equal(await page.locator('[data-reader-book-opening]').count(),0,'Book introduction repeated at chapter 2');
     record(scenario.name+': direct entry stays inside the book; ordinary chapters do not repeat the title');
     await page.close();
   }
   assert.deepEqual(browserErrors,[]);
-  writeFileSync(join(output,'book-opening-results.json'),JSON.stringify({reports,requests,actualBibleProviderRequests:0,browserErrors,browser:process.env.READER_BROWSER||'chromium'},null,2));
+  writeFileSync(join(output,'book-opening-results.json'),JSON.stringify({reports,requests,steps,actualBibleProviderRequests:0,browserErrors,browser:process.env.READER_BROWSER||'chromium'},null,2));
 } catch(error) {
   if(page&&!page.isClosed()) {
     await page.screenshot({path:join(output,'book-opening-failure.png')}).catch(()=>{});

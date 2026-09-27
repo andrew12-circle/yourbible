@@ -7,6 +7,8 @@ export const SPREAD_MEASURE_GAP_PX = 112;
 export interface ScriptureColumnMeasureOptions {
   /** Override column count (e.g. 4 for an open-book spread). */
   columnCount?: number;
+  /** The final physical page of a book balances its already-measured text. */
+  balanceColumns?: boolean;
   /** Fixed width for the column wrapper during measurement. */
   measureWidthPx?: number;
 }
@@ -227,12 +229,12 @@ export function readerHolmanStackContentHeightPx(
 }
 
 /** Inline styles for the live `.scripture-columns-2` wrapper (matches paginator). */
-export function scriptureColumnWrapperStyle(contentHeightPx?: number): CSSProperties {
+export function scriptureColumnWrapperStyle(contentHeightPx?: number, balanceColumns = false): CSSProperties {
   const base: CSSProperties = {
     overflow: "hidden",
     boxSizing: "border-box",
-    columnFill: "auto",
-    WebkitColumnFill: "auto",
+    columnFill: balanceColumns ? "balance" : "auto",
+    WebkitColumnFill: balanceColumns ? "balance" : "auto",
     width: "100%",
   };
   if (!contentHeightPx || contentHeightPx <= 0) return base;
@@ -258,12 +260,13 @@ export function applyHolmanStudyMeasureHtml(
     + (footnotesHtml ? READER_HOLMAN_FOOTNOTES_BAND_PX : 0);
   const columnH = readerScriptureColumnsHeightPx(h, chromeBelow);
   const columnCount = options?.columnCount ?? 2;
+  const fill = options?.balanceColumns ? "balance" : "auto";
   const width =
     options?.measureWidthPx != null && options.measureWidthPx > 0
       ? `width:${Math.round(options.measureWidthPx)}px;`
       : "width:100%;";
   const columnsInner = columnsClassName
-    ? `<div class="${columnsClassName}" style="height:100%;max-height:100%;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">${scriptureHtml}</div>`
+    ? `<div class="${columnsClassName}" style="height:100%;max-height:100%;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:${fill};-webkit-column-fill:${fill};columns:${columnCount}">${scriptureHtml}</div>`
     : `<div style="flex:1 1 0%;min-height:0;overflow:hidden">${scriptureHtml}</div>`;
   // Match the live fixed Scripture section, including its clipped single-column
   // child. Flex shrinking a different hidden tree used to accept whole chapters.
@@ -286,12 +289,13 @@ export function applyScriptureColumnMeasureHtml(
   }
   const columnH = readerScriptureColumnsHeightPx(contentHeightPx);
   const columnCount = options?.columnCount ?? 2;
+  const fill = options?.balanceColumns ? "balance" : "auto";
   const width =
     options?.measureWidthPx != null && options.measureWidthPx > 0
       ? `width:${Math.round(options.measureWidthPx)}px;`
       : "width:100%;";
   node.innerHTML =
-    `<div class="${columnsClassName}" style="height:${columnH}px;max-height:${columnH}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:auto;-webkit-column-fill:auto;columns:${columnCount}">` +
+    `<div class="${columnsClassName}" style="height:${columnH}px;max-height:${columnH}px;overflow:hidden;${width}min-height:0;box-sizing:border-box;column-fill:${fill};-webkit-column-fill:${fill};columns:${columnCount}">` +
     `${bodyHtml}</div>`;
 }
 
