@@ -1,0 +1,64 @@
+name: Bible print columns
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/reader-book-print-geometry.mjs'
+      - 'scripts/test-bible-book-openings.mjs'
+      - '.github/workflows/bible-print-columns.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/bible/**'
+      - 'src/components/bible/**'
+      - 'src/pages/reader/**'
+      - 'scripts/reader-book-print-geometry.mjs'
+      - 'scripts/test-bible-book-openings.mjs'
+      - '.github/workflows/bible-print-columns.yml'
+permissions:
+  contents: read
+concurrency:
+  group: print-columns-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  print:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Final-page and title contracts
+        run: npx vitest run src/lib/bible/readerBookEnd.test.ts src/components/bible/ReaderBookOpening.test.tsx src/lib/bible/readerBookBoundary.test.ts src/lib/bible/readerColumnMeasure.test.ts
+      - name: Browser tooling
+        run: |
+          npm install --prefix "$RUNNER_TEMP/print-tools" --no-save playwright
+          "$RUNNER_TEMP/print-tools/node_modules/.bin/playwright" install --with-deps ${{ matrix.browser }}
+      - name: Luke ending and John opening match the print layout
+        env:
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: test
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/print-tools/node_modules/playwright/index.mjs
+          READER_BROWSER: ${{ matrix.browser }}
+          READER_TEST_BOOK: Luk
+          READER_TEST_CHAPTER: '24'
+          READER_TEST_NEXT_BOOK: Jhn
+        run: node scripts/test-bible-book-openings.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: print-columns-${{ matrix.browser }}
+          path: |
+            ${{ runner.temp }}/book-opening-*.json
+            ${{ runner.temp }}/book-opening-*.png
+            ${{ runner.temp }}/john-opening-*.png
+            ${{ runner.temp }}/luke-ending-*.png
