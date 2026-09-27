@@ -1,6 +1,14 @@
+import type { MouseEvent } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+function keepEditorFocus(event: MouseEvent<HTMLButtonElement>) {
+  // Blurring the editor can resize the keyboard viewport and move this card
+  // between press and click. Keep focus in place; dismiss on click so a
+  // cancelled touch/scroll gesture does not accidentally dismiss the prompt.
+  if (event.button === 0) event.preventDefault();
+}
 
 export function NewJournalEntryPhotoSuggestion({
   onAddPhotos,
@@ -34,7 +42,7 @@ export function NewJournalEntryPhotoSuggestion({
             This sounds like an event worth remembering — pull pictures straight from your iPhone camera roll.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" size="sm" className="h-10 gap-1.5 px-4 text-[15px]" onClick={onAddPhotos}>
+            <Button type="button" size="sm" className="h-11 gap-1.5 px-4 text-[15px]" onClick={onAddPhotos}>
               <ImagePlus className="h-4 w-4" />
               Choose photos
             </Button>
@@ -42,21 +50,34 @@ export function NewJournalEntryPhotoSuggestion({
               type="button"
               size="sm"
               variant="outline"
-              className="h-10 gap-1.5 px-4 text-[15px]"
+              className="h-11 gap-1.5 px-4 text-[15px]"
               onClick={onTakePhoto}
             >
               <Camera className="h-4 w-4" />
               Take photo
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-11 touch-manipulation px-4 text-[15px]"
+              onPointerDown={keepEditorFocus}
+              onMouseDown={keepEditorFocus}
+              onClick={onDismiss}
+            >
+              Not now
+            </Button>
           </div>
         </div>
         <button
           type="button"
+          onPointerDown={keepEditorFocus}
+          onMouseDown={keepEditorFocus}
           onClick={onDismiss}
-          className="shrink-0 rounded-full p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+          className="flex h-11 min-w-11 shrink-0 touch-manipulation items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="Dismiss photo suggestion"
         >
-          <X className="h-4 w-4" />
+          <X className="pointer-events-none h-4 w-4" aria-hidden />
         </button>
       </div>
     </div>
