@@ -1623,6 +1623,7 @@ export default function ReaderPage() {
           onRedo={() => runInkAction("redo")}
           onClear={() => runInkAction("clear")}
           onClearChapterInk={clearChapterInk}
+          onDone={toggleInkMode}
         />
       ) : null}
 
