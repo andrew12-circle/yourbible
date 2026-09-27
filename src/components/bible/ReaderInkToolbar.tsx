@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Check } from "lucide-react";
 import SketchInkToolbar, { type SketchPaper } from "@/components/journal/sketch/SketchInkToolbar";
 import { useCompactInkLayout, useReaderSpread } from "@/hooks/use-reader-layout";
 import { INK_TOOL_PRESETS } from "@/lib/ink/toolPresets";
@@ -24,6 +25,7 @@ type Props = {
   onRedo: () => void;
   onClear: () => void;
   onClearChapterInk?: () => void;
+  onDone: () => void;
 };
 
 const NOOP_PAPER: SketchPaper = "blank";
@@ -45,6 +47,7 @@ export function ReaderInkToolbar({
   onRedo,
   onClear,
   onClearChapterInk,
+  onDone,
 }: Props) {
   const customColorRef = useRef<HTMLInputElement | null>(null);
   const penColors = getSketchPenColors(false);
@@ -63,7 +66,7 @@ export function ReaderInkToolbar({
   };
 
   const shellClass = cn(
-    "pointer-events-none fixed z-[36] flex",
+    "pointer-events-none fixed z-[60] flex",
     useMobileBar
       ? "left-[max(0.5rem,env(safe-area-inset-left,0px))] right-[max(0.5rem,env(safe-area-inset-right,0px))]"
       : "inset-x-0 px-3",
@@ -91,10 +94,20 @@ export function ReaderInkToolbar({
       />
       <div
         className={cn(
-          "pointer-events-auto flex min-w-0 w-full",
+          "pointer-events-auto flex min-w-0 w-full items-start gap-2",
           collapsed ? "justify-end" : "justify-center",
         )}
       >
+        <button
+          type="button"
+          onClick={onDone}
+          className="order-last inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/95 px-3 text-sm font-semibold text-zinc-900 shadow-md backdrop-blur hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          aria-label="Done writing"
+          title="Done writing"
+        >
+          <Check className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+          <span>Done</span>
+        </button>
         <SketchInkToolbar
           variant="reader"
           isNightMode={false}
