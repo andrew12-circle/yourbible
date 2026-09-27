@@ -1,0 +1,59 @@
+name: Artifact library
+
+on:
+  pull_request:
+    paths:
+      - 'src/pages/framework/ArtifactsListPage*'
+      - 'src/pages/framework/artifacts/**'
+      - '.github/workflows/artifact-library.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/pages/framework/ArtifactsListPage*'
+      - 'src/pages/framework/artifacts/**'
+      - '.github/workflows/artifact-library.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artifact-library-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: artifact-test-placeholder
+      VITE_SUPABASE_ANON_KEY: artifact-test-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        id: install
+        run: npm ci
+      - name: Lint
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run lint 2>&1 | tee "$RUNNER_TEMP/artifact-library-lint.log"
+      - name: Tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test 2>&1 | tee "$RUNNER_TEMP/artifact-library-tests.log"
+      - name: Production build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run build 2>&1 | tee "$RUNNER_TEMP/artifact-library-build.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artifact-library-checks
+          path: ${{ runner.temp }}/artifact-library-*.log
+          if-no-files-found: ignore

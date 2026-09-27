@@ -52,6 +52,8 @@ function YoutubeStack({ artifactId, url, metadata }: Pick<Row, "url" | "metadata
       src={thumbUrls[index]}
       alt=""
       className="h-full w-full object-cover"
+      loading="lazy"
+      decoding="async"
       draggable={false}
       onError={() => setIndex((i) => i + 1)}
     />
@@ -83,6 +85,8 @@ export const ArtifactTile = memo(function ArtifactTile({
   const detailPath = `/framework/artifacts/${r.id}`;
   const shelfW = wide ? "w-[min(46vw,260px)] sm:w-[272px]" : "w-[min(34vw,158px)] sm:w-[168px]";
   const aspect = wide ? "aspect-video" : "aspect-[2/3]";
+  // A grid scrolls vertically; only horizontal shelves should restrict panning.
+  const touchClass = layout === "grid" ? "touch-auto" : "touch-pan-x";
   const who = channelAndAuthorLine(merged);
   const ready = r.status === "ready";
   const unwatched = isUnwatchedSubscriptionRow(r, seenIds ?? new Set());
@@ -100,7 +104,7 @@ export const ArtifactTile = memo(function ArtifactTile({
       );
     }
     if (thumb) {
-      return <img src={thumb} alt="" className="h-full w-full object-cover" draggable={false} />;
+      return <img src={thumb} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" draggable={false} />;
     }
     return <GeneratedCover artifactId={r.id} title={title} variant={generatedVariant(r.kind)} />;
   })();
@@ -117,7 +121,8 @@ export const ArtifactTile = memo(function ArtifactTile({
   const tileBody = (
     <div
       className={cn(
-        "group/tile relative touch-pan-x select-none overflow-hidden rounded-2xl border border-border/50 bg-card/40 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)] transition-[transform,box-shadow,scale] duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_14px_32px_-14px_rgba(0,0,0,0.45)]",
+        "group/tile relative select-none overflow-hidden rounded-2xl border border-border/50 bg-card/40 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.35)] transition-[transform,box-shadow,scale] duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[0_14px_32px_-14px_rgba(0,0,0,0.45)]",
+        touchClass,
         layout === "grid" ? "w-full" : shelfW,
       )}
     >
@@ -141,7 +146,10 @@ export const ArtifactTile = memo(function ArtifactTile({
       </div>
       <Link
         to={detailPath}
-        className="absolute inset-0 z-10 touch-pan-x rounded-2xl outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className={cn(
+          "absolute inset-0 z-10 rounded-2xl outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          touchClass,
+        )}
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
         onPointerEnter={primeNavigation}
@@ -164,7 +172,7 @@ export const ArtifactTile = memo(function ArtifactTile({
               type="button"
               variant="secondary"
               size="icon"
-              className="h-8 w-8 rounded-full border border-border/50 bg-background/85 text-foreground shadow-sm backdrop-blur-sm opacity-0 transition-opacity group-hover/tile:opacity-100 focus-visible:opacity-100"
+              className="h-8 w-8 rounded-full border border-border/50 bg-background/85 text-foreground shadow-sm backdrop-blur-sm opacity-100 transition-opacity md:opacity-0 group-hover/tile:opacity-100 focus-visible:opacity-100"
               aria-label={`More actions for ${title}`}
               onPointerDown={(e) => e.stopPropagation()}
             >
