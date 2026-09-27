@@ -17,28 +17,27 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - name: Apply exact inspected patch
+      - name: Apply exact inspected application patch
         shell: python
         run: |
           import base64, gzip, hashlib, pathlib, subprocess
-          assert subprocess.check_output(['git','rev-parse','HEAD^'],text=True).strip() == '11c207d9a537f0a48e7a97cb834d387dea70ed50'
+          assert subprocess.check_output(['git','rev-parse','HEAD^'],text=True).strip() == 'd57921bd338e8190da12ea9b3836e6afdade8a3e'
           encoded = ''.join(pathlib.Path(f'scripts/.book-opening-patch-{i}').read_text() for i in range(1,6))
           packed = base64.b64decode(encoded, validate=True)
           assert hashlib.sha256(packed).hexdigest() == '7c611c72323ad8d8f25cadbb23f8b493fd790c1bb801e78dd92f2849c632eda9'
           patch = gzip.decompress(packed)
-          subprocess.run(['git','apply','--check','-'],input=patch,check=True)
-          subprocess.run(['git','apply','-'],input=patch,check=True)
+          subprocess.run(['git','apply','--exclude=.github/workflows/*','--check','-'],input=patch,check=True)
+          subprocess.run(['git','apply','--exclude=.github/workflows/*','-'],input=patch,check=True)
           for i in range(1,6): pathlib.Path(f'scripts/.book-opening-patch-{i}').unlink()
-          pathlib.Path('.github/workflows/apply-book-opening-repair.yml').unlink()
       - run: npm ci
       - name: Focused book-boundary, opening and text-preservation tests
         run: npx vitest run src/lib/bible/readerBookBoundary.test.ts src/components/bible/ReaderBookOpening.test.tsx src/lib/bible/readerContinuation.test.ts src/lib/bible/readerWindowFlow.test.ts src/lib/bible/sourceStructure.test.ts src/lib/bible/readerPrintTypography.test.tsx
-      - name: Commit requested changes without transfer tooling
+      - name: Commit requested application source only
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -u
-          git add .github/workflows/bible-book-openings.yml scripts/test-bible-book-openings.mjs src/components/bible/ReaderBookOpening.tsx src/components/bible/ReaderBookOpening.test.tsx src/components/bible/readerBookOpening.css src/lib/bible/readerBookBoundary.ts src/lib/bible/readerBookBoundary.test.ts
+          git add -u src scripts
+          git add scripts/test-bible-book-openings.mjs src/components/bible/ReaderBookOpening.tsx src/components/bible/ReaderBookOpening.test.tsx src/components/bible/readerBookOpening.css src/lib/bible/readerBookBoundary.ts src/lib/bible/readerBookBoundary.test.ts
           git diff --cached --check
           git commit -m 'Start each Bible book after a page turn with a local introduction'
           git push origin HEAD:fix/bible-book-openings-20260927
