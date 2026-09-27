@@ -1,0 +1,50 @@
+name: Approved app artwork
+on:
+  push:
+    branches: [main, fix/approved-illustrated-app-artwork]
+    paths:
+      - 'public/app-icons/illustrated-v1/**'
+      - 'src/lib/home/**'
+      - 'src/components/home/**'
+      - 'src/components/shell/HubSidebar.tsx'
+      - 'src/components/mini-phone/MiniPhoneHomeGrid.tsx'
+      - 'scripts/verify-approved-app-artwork*'
+      - '.github/workflows/approved-app-artwork.yml'
+  pull_request:
+    paths:
+      - 'public/app-icons/illustrated-v1/**'
+      - 'src/lib/home/**'
+      - 'src/components/home/**'
+      - 'src/components/shell/HubSidebar.tsx'
+      - 'src/components/mini-phone/MiniPhoneHomeGrid.tsx'
+      - 'scripts/verify-approved-app-artwork*'
+      - '.github/workflows/approved-app-artwork.yml'
+permissions:
+  contents: read
+concurrency:
+  group: approved-artwork-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/verify-approved-app-artwork.mjs
+      - run: npx eslint src/lib/home/appIconArtwork.ts src/components/home/IosAppIcon.tsx src/components/home/ApprovedAppArtwork.test.tsx src/components/shell/HubSidebar.tsx
+      - run: npx vitest run src/components/home/ApprovedAppArtwork.test.tsx
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.55.1
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/verify-approved-app-artwork-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: approved-app-artwork-${{ github.sha }}
+          path: artifacts/approved-app-artwork/
+          if-no-files-found: ignore

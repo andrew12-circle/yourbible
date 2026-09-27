@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
 import { openYouTubeAppOrWeb } from "@/lib/home/openYouTubeAppOrWeb";
+import { getAppIconArtwork } from "@/lib/home/appIconArtwork";
 
 export const LAST_READ_KEY = "yb_last_read";
 
@@ -67,7 +68,7 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
   const lastRead = typeof window !== "undefined" ? localStorage.getItem(LAST_READ_KEY) : null;
   const promptBadge = !counts.journalToday ? 1 : undefined;
 
-  return [
+  const apps: HomeAppIcon[] = [
     { label: "Bible", to: bibleTo, icon: Cross, color: IOS_APP_BG.bible, iconColor: "#F4D58A", badge: lastRead?.replace("/", " ") },
     {
       label: "Children's books",
@@ -155,4 +156,7 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     },
     { label: "Settings", to: "/settings", icon: Settings, color: IOS_APP_BG.settings },
   ];
+
+  // Both the home launcher and mini-phone consume this single image assignment.
+  return apps.map((app) => ({ ...app, imageSrc: app.imageSrc ?? getAppIconArtwork(app.label) }));
 }

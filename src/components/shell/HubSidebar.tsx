@@ -4,11 +4,13 @@ import {
   BookOpen, Sun, Sunrise, StickyNote, Brain, Sprout, Network, FileStack, Share2, Sparkles,
   GraduationCap, Mail, Moon, Images, Cross, PenLine, ListChecks, Leaf, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
-  Grid3X3, BookMarked, ChevronRight, HandHeart,
+  Grid3X3, BookMarked, ChevronRight, HandHeart, type LucideIcon,
 } from "lucide-react";
 import { APP_WORDMARK, APP_WORDMARK_SUBTITLE } from "@/lib/appBrand";
 import { cn } from "@/lib/utils";
 import { getBibleRoute } from "@/lib/home/homeApps";
+import { getAppIconArtwork } from "@/lib/home/appIconArtwork";
+import { IosAppIcon } from "@/components/home/IosAppIcon";
 import { mobileSheetSafeTop } from "@/lib/shell/mobileShellClasses";
 import { useAuth } from "@/contexts/AuthContext";
 import { useHomeDashboard } from "@/contexts/HomeDashboardContext";
@@ -60,7 +62,7 @@ const appIconVisuals: Record<string, { background: string; color: string }> = {
 
 interface SidebarItem {
   title: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   to: string;
   badge?: number;
 }
@@ -231,15 +233,15 @@ function NavItem({ item, isActive }: { item: SidebarItem; isActive: boolean }) {
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
-        <Link to={item.to}>
-          <span
-            className="ios-icon flex h-6 w-6 shrink-0 items-center justify-center"
-            style={{ background: visual.background, color: visual.color }}
-            aria-hidden
-          >
-            <Icon className="relative z-[1] h-[13px] w-[13px] drop-shadow-[0_1px_1px_rgba(0,0,0,0.14)]" />
-          </span>
+      <SidebarMenuButton asChild isActive={isActive} tooltip={item.title} className="h-9 gap-2.5">
+        <Link to={item.to} aria-current={isActive ? "page" : undefined}>
+          <IosAppIcon
+            icon={Icon}
+            background={visual.background}
+            iconColor={visual.color}
+            imageSrc={getAppIconArtwork(item.title)}
+            pixelSize={28}
+          />
           <span>{item.title}</span>
           {item.badge !== undefined && item.badge > 0 && (
             <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
