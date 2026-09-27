@@ -102,9 +102,9 @@ createRoot(document.getElementById('root')!).render(
   assert.equal(await gallery.locator('svg').count(), 0);
   assert.equal(await page.getByRole('link', { name: 'Notes', exact: true }).getAttribute('aria-current'), 'page');
   assert.equal(await page.getByRole('link', { name: 'Journal', exact: true }).getAttribute('aria-current'), null);
-  await page.screenshot({ path: path.join(output, 'desktop-light.png'), fullPage: true });
+  await page.screenshot({ path: path.join(output, 'desktop-light.png'), fullPage: true, animations: 'disabled' });
   await page.evaluate(() => document.documentElement.classList.add('dark'));
-  await page.screenshot({ path: path.join(output, 'desktop-dark.png'), fullPage: true });
+  await page.screenshot({ path: path.join(output, 'desktop-dark.png'), fullPage: true, animations: 'disabled' });
   await page.getByRole('button', { name: 'Framework', exact: true }).click();
   assert.equal(await page.getByRole('link', { name: 'Beliefs', exact: true }).count(), 1);
   for (const width of [390, 320]) {
@@ -113,15 +113,25 @@ createRoot(document.getElementById('root')!).render(
     await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
     await page.getByRole('link', { name: 'Notes', exact: true }).waitFor();
     await waitForArt();
+    // An attached/visible link can still be moving in from offscreen. Check the
+    // actual drawer bounds before validating artwork or taking a screenshot.
+    await page.waitForFunction(() => {
+      const panel = document.querySelector('[role="dialog"]');
+      const rect = panel?.getBoundingClientRect();
+      return rect && Math.abs(rect.left) <= 1 && rect.width > 200 && rect.right <= innerWidth + 1;
+    });
     const bible = page.locator('a[href="/read/Gen/2"] img');
     assert.equal(await bible.getAttribute('src'), '/app-icons/illustrated-v1/bible.webp');
-    await page.screenshot({ path: path.join(output, `mobile-${width}.png`), fullPage: true });
+    const bounds = await bible.boundingBox();
+    assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, 'Mobile artwork must be inside the viewport');
+    assert.equal(Math.round(bounds.width), 28);
+    await page.screenshot({ path: path.join(output, `mobile-${width}.png`), fullPage: true, animations: 'disabled' });
     await page.keyboard.press('Escape');
     await page.getByRole('link', { name: 'Notes', exact: true }).waitFor({ state: 'hidden' });
     await page.goto(url + '?phone=1');
     await waitForArt();
     assert.ok(await page.locator('[data-mini-phone-screen] img[src*="illustrated-v1"]').count() > 1);
-    await page.screenshot({ path: path.join(output, `mini-phone-${width}.png`), fullPage: true });
+    await page.screenshot({ path: path.join(output, `mini-phone-${width}.png`), fullPage: true, animations: 'disabled' });
   }
   assert.deepEqual(failures, [], 'Browser exceptions');
   await writeFile(path.join(output, 'result.json'), JSON.stringify({ status: 'passed', verifiedImages: sources.length, viewports: [1200, 390, 320], renderer: 'real sidebar, launcher and mini-phone with fixture data', backendVerified: false }, null, 2));
