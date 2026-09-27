@@ -16,20 +16,22 @@ function render(chapter = ch, showBookOpening = true) {
   return renderToStaticMarkup(renderScriptureParagraphNodes([chapter], () => new Set(chapter.paragraphStarts), () => new Map(chapter.headings.map(h => [h.beforeVerse, h.text])), renderVerse, () => chapter.poetryBlocks, { showBookOpening }));
 }
 describe("printed book opening", () => {
-  it("supplies a title and local introduction for every standard book without a query", () => {
+  it("supplies a compact title for every book without decorative introduction copy or a query", () => {
     for (const book of BOOKS) {
       const page = root(renderToStaticMarkup(<ReaderBookOpening bookAbbr={book.abbr} />));
       expect(page.querySelector("h2")?.textContent).toBe(book.name);
-      expect(page.querySelector(".reader-book-opening-summary")?.textContent?.length).toBeGreaterThan(30);
+      expect(page.querySelector(".reader-book-opening-summary")).toBeNull();
+      expect(page.querySelector(".reader-book-opening-kicker")).toBeNull();
       expect(page.querySelector("[data-verse-id]" )).toBeNull();
     }
   });
-  it("places MARK and its introduction before chapter one, outside the Scripture character stream", () => {
+  it("places MARK before chapter one, outside the Scripture character stream", () => {
     const page = root(render());
     expect(page.firstElementChild?.getAttribute("data-reader-book-opening")).toBe("Mrk");
     expect(page.querySelectorAll("[data-reader-book-opening]")).toHaveLength(1);
     expect(page.querySelector("[data-verse-body]")?.textContent).toBe(verse.text);
-    expect(page.querySelector(".reader-book-opening-kicker")?.textContent).toBe("The Gospel according to");
+    expect(page.querySelector("h2")?.textContent).toBe("Mark");
+    expect(page.querySelector(".reader-book-opening-rule")).toBeNull();
   });
   it("measures exactly the opening and Scripture markup that the reader displays", () => {
     const stream = buildReaderStream([ch], { plateFocus: { bookAbbr: "NONE", chapter: 0 } });

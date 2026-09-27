@@ -148,6 +148,7 @@ export function wrapHolmanStudyContent(
   showConnections = true,
   contentHeightPx?: number,
   onNavigateRef?: (book: string, chapter: number, verse: number) => void,
+  balanceColumns = false,
 ): ReactNode {
   const columnsClass = readerColumnClassName(columnLayout);
   const hasColumns = Boolean(columnsClass);
@@ -187,11 +188,11 @@ export function wrapHolmanStudyContent(
     !scrollMode && hasColumns
       ? columnHeightPx != null && columnHeightPx > 0
         ? {
-            ...scriptureColumnWrapperStyle(columnHeightPx),
+            ...scriptureColumnWrapperStyle(columnHeightPx, balanceColumns),
             height: "100%",
             maxHeight: "100%",
           }
-        : scriptureColumnWrapperStyle(columnHeightPx)
+        : scriptureColumnWrapperStyle(columnHeightPx, balanceColumns)
       : undefined;
 
   return (
@@ -214,6 +215,7 @@ export function wrapHolmanStudyContent(
         {columnsClass ? (
           <div
             className={cn(columnsClass, !scrollMode && "min-h-0 overflow-hidden flex-1")}
+            data-reader-terminal-columns={balanceColumns || undefined}
             style={columnsStyle}
           >
             {scripture}
@@ -240,6 +242,7 @@ export function wrapScriptureColumns(
   scrollMode: boolean,
   children: ReactNode,
   contentHeightPx?: number,
+  balanceColumns = false,
 ): ReactNode {
   const columnsClass = readerColumnClassName(layout);
   if (!columnsClass) return children;
@@ -247,7 +250,8 @@ export function wrapScriptureColumns(
   return (
     <div
       className={cn(columnsClass, !scrollMode && !sized && "h-full w-full min-h-0")}
-      style={scrollMode ? undefined : scriptureColumnWrapperStyle(contentHeightPx)}
+      data-reader-terminal-columns={balanceColumns || undefined}
+      style={scrollMode ? undefined : scriptureColumnWrapperStyle(contentHeightPx, balanceColumns)}
     >
       {children}
     </div>
