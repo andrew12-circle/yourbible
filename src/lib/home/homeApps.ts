@@ -1,5 +1,5 @@
 import {
-  BookOpen, BookMarked, ListTodo, CheckSquare, MessageCircleHeart,
+  BookOpen, BookMarked, ListTodo, CheckSquare, MessageCircleHeart, Cross, PenLine, ListChecks, Leaf,
   Sun, GraduationCap, Sparkles, Mail, Moon, Settings, NotebookPen, Brain,
   Youtube, HeartHandshake, Sprout, ClipboardList, FileStack, Clock, Share2, Network, Users, CircleHelp,
   Sunrise, Grid3X3, HandHeart, Images,
@@ -68,7 +68,7 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
   const promptBadge = !counts.journalToday ? 1 : undefined;
 
   return [
-    { label: "Bible", to: bibleTo, icon: BookOpen, color: IOS_APP_BG.bible, badge: lastRead?.replace("/", " ") },
+    { label: "Bible", to: bibleTo, icon: Cross, color: IOS_APP_BG.bible, iconColor: "#F4D58A", badge: lastRead?.replace("/", " ") },
     {
       label: "Children's books",
       to: "/children-books",
@@ -105,7 +105,7 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     { label: "Research later", to: "/framework/research-later", icon: Clock, color: IOS_APP_BG.research, ariaLabel: "Research later" },
     { label: "Questions for God", to: "/framework/questions-for-god", icon: HandHeart, color: IOS_APP_BG.partner, ariaLabel: "Log whys you bring to God" },
     { label: "Hard questions", to: "/framework/hard-questions", icon: CircleHelp, color: IOS_APP_BG.study, ariaLabel: "Hard questions research" },
-    { label: "Mind map", to: "/framework/graph", icon: Share2, color: IOS_APP_BG.graph, ariaLabel: "Mind map — unified graph of notes, videos, beliefs" },
+    { label: "Mind map", to: "/framework/graph", icon: Share2, color: IOS_APP_BG.graph, iconColor: "#5856D6", ariaLabel: "Mind map — unified graph of notes, videos, beliefs" },
     { label: "Beliefs", to: "/framework/beliefs", icon: Network, color: IOS_APP_BG.beliefs, badge: counts.beliefs || undefined },
     { label: "Influences", to: "/framework/influences", icon: Users, color: IOS_APP_BG.influences },
     {
@@ -115,7 +115,7 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
       color: IOS_APP_BG.journal,
       ariaLabel: "Start a video journal",
     },
-    { label: "Journal", to: "/journal", icon: NotebookPen, color: IOS_APP_BG.journal, badge: promptBadge },
+    { label: "Journal", to: "/journal", icon: PenLine, color: IOS_APP_BG.journal, iconColor: "#2C2C2E", badge: promptBadge },
     {
       label: "Prayer",
       to: "/prayer",
@@ -134,8 +134,8 @@ export function buildHomeApps(counts: HomeDashboardCounts): HomeAppIcon[] {
     { label: "Tensions", to: "/framework/tensions", icon: Sparkles, color: IOS_APP_BG.tensions, badge: counts.tensions || undefined },
     { label: "Study", to: "/framework/study", icon: GraduationCap, color: IOS_APP_BG.study },
     { label: "Digest", to: "/framework/digest", icon: Mail, color: IOS_APP_BG.digest },
-    { label: "Tasks", to: "/life/todos", icon: ListTodo, color: IOS_APP_BG.tasks },
-    { label: "Habits", to: "/life/habits", icon: CheckSquare, color: IOS_APP_BG.habits },
+    { label: "Tasks", to: "/life/todos", icon: ListChecks, color: IOS_APP_BG.tasks, iconColor: "#007AFF" },
+    { label: "Habits", to: "/life/habits", icon: Leaf, color: IOS_APP_BG.habits },
     {
       label: "Vision board",
       to: "/life/vision-board",
