@@ -1,0 +1,266 @@
+/* Morning Formula only. Shared by the landing, every ritual step, and foundation editors. */
+.living-hope-root.morning-theme {
+  --background: 40 30% 98%;
+  --card: 0 0% 100%;
+  --primary: 34 79% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 38 30% 95%;
+  --muted: 38 22% 95%;
+  --muted-foreground: 220 9% 41%;
+  --border: 36 18% 85%;
+  --input: 36 18% 82%;
+  --ring: 34 76% 35%;
+  --morning-gold: #a26717;
+  --morning-surface: hsl(var(--card));
+  --morning-shadow: 0 8px 28px rgb(57 43 24 / 5%), 0 1px 3px rgb(57 43 24 / 4%);
+  background: hsl(var(--background));
+  font-size: 15px;
+  line-height: 1.5;
+}
+.morning-theme *, .morning-theme *::before, .morning-theme *::after { box-sizing: border-box; }
+.morning-theme a:focus-visible, .morning-theme input:focus-visible, .morning-theme textarea:focus-visible, .morning-theme select:focus-visible {
+  outline: 2px solid hsl(var(--ring)); outline-offset: 3px;
+}
+.morning-theme input:not([type='checkbox']):not([type='radio']), .morning-theme textarea, .morning-theme select { min-width: 0; font-size: 1rem; }
+.morning-theme .field-input { background: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--input)); box-shadow: none; }
+.morning-theme .morning-theme-topbar { background: #25312d; color: #fff; }
+.morning-theme-topbar .morning-topbar-back { color: #fff; }
+.morning-theme-topbar .morning-topbar-back:hover { color: #fff; background: rgb(255 255 255 / 10%); }
+.morning-theme-topbar .morning-session-tools { border-radius: 999px; background: #faf7ef; color: #252a34; padding: 0.1rem 0.55rem; }
+.morning-theme-topbar .morning-session-tools .text-muted-foreground { color: #626774; }
+.morning-theme .morning-session-width { max-width: 96rem; padding-inline: clamp(1rem, 2.5vw, 3rem); }
+.morning-theme-scroll { scrollbar-gutter: stable; scrollbar-width: thin; }
+.morning-page-hero { position: relative; flex-shrink: 0; background: #3e4334; color: #fff; }
+.morning-page-hero-art { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgb(17 28 24 / 88%), rgb(22 28 22 / 72%) 38%, rgb(29 30 22 / 16%) 75%), url('/images/morning-sanctuary.webp') 66% center / cover no-repeat; }
+.morning-page-hero-inner { position: relative; z-index: 3; padding-top: 2rem; padding-bottom: 4.75rem; }
+.morning-hero-eyebrow { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.9rem; font-size: 0.85rem; font-weight: 500; color: #fff7e9; }
+.morning-hero-eyebrow svg { height: 1rem; width: 1rem; }
+.morning-page-hero-copy { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
+.morning-page-hero-title { max-width: 44rem; min-width: 0; }
+.living-hope-root .morning-page-hero h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2.3rem, 3.8vw, 3.65rem); font-weight: 400; line-height: 1.08; letter-spacing: -0.04em; text-wrap: balance; outline: none; }
+.morning-page-hero-title > p { max-width: 39rem; margin: 0.75rem 0 0; color: #fff9ee; font-size: 1.08rem; line-height: 1.6; text-wrap: pretty; }
+.morning-hero-reminder { flex: 0 1 18rem; align-self: flex-start; max-width: 18rem; margin: 0.8rem 21% 0 0; color: #ffecd2; font-family: Georgia, serif; font-size: clamp(1.4rem, 2vw, 2rem); font-style: italic; line-height: 1.4; text-wrap: balance; transform: rotate(-4deg); text-shadow: 0 2px 12px rgb(0 0 0 / 35%); }
+.morning-hero-action { margin-top: 1.35rem; max-width: 30rem; }
+.morning-theme .morning-primary-action { display: inline-flex; gap: 0.75rem; min-height: 3rem; height: auto; max-width: 100%; padding: 0.7rem 1.5rem; border: 1px solid rgb(255 226 182 / 38%); border-radius: 0.8rem; white-space: normal; background: linear-gradient(120deg, #925609, #a76916); color: #fff; box-shadow: 0 3px 12px rgb(0 0 0 / 14%); font-size: 1rem; text-align: center; }
+.morning-theme .morning-primary-action:hover { background: #85500b; }
+.morning-hero-error { margin-top: 0.75rem; padding: 0.75rem; border-radius: 0.75rem; background: #fff4ed; color: #7b2b0b; font-size: 0.875rem; }
+.morning-page-hero.is-compact .morning-page-hero-inner { padding-top: 1rem; padding-bottom: 4rem; }
+.morning-page-hero .morning-step-nav { color: #fff; margin-bottom: 1rem; }
+.morning-page-hero .morning-step-disclosure > summary { border-color: rgb(255 255 255 / 30%); background: rgb(18 30 24 / 60%); }
+.morning-page-hero summary:focus-visible { outline-color: #ffe2ac; }
+.morning-page-hero .morning-step-menu { background: hsl(var(--card)); color: hsl(var(--foreground)); }
+.morning-theme .morning-session-content { padding-top: 0; margin-top: -1.75rem; z-index: 1; padding-bottom: 2rem; }
+.morning-theme.morning-session-with-hero[data-morning-step='worship'] .morning-session-content { margin-top: -1.75rem; }
+.morning-session-content > div { position: relative; padding-top: 0; }
+.morning-session-content > div > .flex-1 { padding: clamp(1rem, 2vw, 1.75rem); border-radius: 1.4rem; border: 1px solid hsl(var(--border) / 65%); background: hsl(var(--card)); box-shadow: var(--morning-shadow); }
+.morning-session[data-morning-step='worship'] .morning-session-content > div > .flex-1 { padding: 0; border: 0; background: transparent; box-shadow: none; }
+.morning-session-content [data-morning-coach] { padding: 0.85rem 1rem; background: hsl(var(--muted)); border-left: 3px solid var(--morning-gold); border-radius: 0 0.8rem 0.8rem 0; }
+.morning-session-content [data-morning-coach] p { font-size: 1rem; line-height: 1.65; }
+.morning-session-content > div > details { margin-top: 1.25rem; }
+.morning-theme .morning-session-footer { padding-inline: 0; background: hsl(var(--card)); }
+.morning-theme .morning-session-footer button:last-child { background: linear-gradient(120deg, #925609, #a76916); color: #fff; border-radius: 0.85rem; }
+.morning-theme .morning-session-footer button:last-child:hover { background: #85500b; }
+.morning-theme .morning-music-card { border-radius: 1.35rem; padding: 1.4rem; }
+.morning-theme .morning-music-layout { grid-template-columns: 11rem minmax(0, 1fr); }
+.morning-theme .morning-music-art-fallback, .morning-cover { background: linear-gradient(0deg, rgb(20 29 22 / 75%), rgb(20 29 22 / 12%)), url('/images/morning-sanctuary.webp') 18% center / cover; }
+.morning-theme .morning-music-play { background: linear-gradient(120deg, #925609, #a76916); color: #fff; }
+.morning-theme .morning-worship-guide { border: 1px solid hsl(var(--border) / 65%); border-radius: 1.35rem; background: hsl(var(--card)); box-shadow: var(--morning-shadow); padding: clamp(1rem, 1.6vw, 1.5rem); }
+.morning-theme .morning-phase-card { display: block; padding: 1.1rem; }
+.morning-theme .morning-phase-icon { margin-bottom: 0.8rem; }
+.morning-theme .morning-phase-card p, .morning-theme .morning-guide-note, .morning-theme .morning-music-title { font-size: 0.925rem; line-height: 1.65; }
+.morning-theme .morning-phase-title h3 { font-family: Georgia, serif; font-size: 1.15rem; }
+.morning-theme .morning-guide-reminder { font-size: 1rem; }
+.morning-theme .morning-no-hero { padding-block: 1.5rem; }
+
+/* Landing page: setup readiness and today's session are intentionally distinct. */
+.morning-hub-content { position: relative; z-index: 4; display: grid; gap: 1.25rem; margin-top: -3rem; padding-bottom: 2rem; }
+.morning-surface { min-width: 0; padding: clamp(1rem, 1.6vw, 1.5rem); border: 1px solid hsl(var(--border) / 65%); border-radius: 1.35rem; background: hsl(var(--card)); box-shadow: var(--morning-shadow); }
+.morning-overview-card { display: grid; grid-template-columns: 10rem minmax(0, 1fr); gap: 1.75rem; }
+.morning-cover { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 12rem; border-radius: 0.9rem; color: #fff; text-align: center; overflow: hidden; }
+.morning-cover > svg { width: 1.75rem; height: 1.75rem; margin-bottom: 1.5rem; color: #ffdfae; }
+.morning-cover > span { font-family: Georgia, serif; font-size: 1.35rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.morning-cover strong { display: block; font-weight: 400; font-size: 1.9rem; font-style: italic; letter-spacing: -0.02em; text-transform: none; }
+.morning-overview-body { min-width: 0; }
+.morning-eyebrow { margin: 0 0 0.35rem; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.morning-section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+.morning-section-heading > div { min-width: 0; }
+.living-hope-root .morning-section-heading h2, .living-hope-root .morning-personal-notes h2 { font-family: Georgia, serif; font-size: clamp(1.35rem, 1.5vw, 1.65rem); font-weight: 600; line-height: 1.3; }
+.morning-section-heading > div > p:not(.morning-eyebrow) { margin-top: 0.3rem; color: hsl(var(--muted-foreground)); font-size: 0.925rem; line-height: 1.6; }
+.morning-status-chip { flex-shrink: 0; border: 1px solid hsl(var(--border)); border-radius: 999px; padding: 0.35rem 0.7rem; font-size: 0.75rem; color: hsl(var(--muted-foreground)); background: hsl(var(--muted) / 50%); }
+.morning-progress-line { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; }
+.morning-progress-line > span { flex-shrink: 0; color: hsl(var(--muted-foreground)); font-size: 0.75rem; }
+.morning-progress-track { flex: 1; min-width: 0; height: 0.5rem; overflow: hidden; border-radius: 999px; background: hsl(var(--muted)); }
+.morning-progress-track > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #a36613, #c38930); }
+.morning-session-caption { margin: 0.55rem 0 1rem; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+.morning-rhythm { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.65rem; }
+.morning-rhythm-item { display: flex; align-items: center; gap: 0.55rem; min-width: 0; padding: 0.65rem; border-radius: 0.9rem; border: 1px solid hsl(var(--border) / 65%); }
+.morning-rhythm-item h3 { font-size: 0.8rem; font-weight: 600; overflow-wrap: anywhere; }
+.morning-rhythm-item p { margin-top: 0.15rem; font-size: 0.7rem; line-height: 1.4; color: hsl(var(--muted-foreground)); }
+.morning-icon-bubble { display: inline-grid; place-items: center; flex-shrink: 0; height: 2.6rem; width: 2.6rem; border-radius: 50%; background: #faf0e2; color: #986011; }
+.morning-icon-bubble svg { width: 1.25rem; height: 1.25rem; }
+.morning-icon-bubble[data-tone='rose'] { background: #fff0f1; color: #ab394d; }
+.morning-icon-bubble[data-tone='blue'] { background: #edf3ff; color: #355ca2; }
+.morning-icon-bubble[data-tone='green'] { background: #ecf6ef; color: #37694b; }
+.morning-icon-bubble[data-tone='violet'] { background: #f1edff; color: #6550a8; }
+.morning-foundation-phases { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.85rem; }
+.morning-foundation-phase { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem; min-width: 0; border: 1px solid hsl(var(--border) / 70%); border-radius: 0.9rem; color: hsl(var(--foreground)); text-decoration: none; }
+.morning-foundation-phase > div { min-width: 0; flex: 1; }
+.morning-foundation-phase h3 { font-size: 1rem; font-weight: 600; }
+.morning-foundation-phase p, .morning-foundation-phase small { color: hsl(var(--muted-foreground)); font-size: 0.8rem; }
+.morning-foundation-phase small { display: block; margin-top: 0.35rem; }
+.morning-link-chevron { width: 1rem; height: 1rem; flex-shrink: 0; color: hsl(var(--muted-foreground)); }
+.morning-foundation-phase:hover, .morning-resource-card:hover { border-color: var(--morning-gold); background: hsl(var(--muted) / 40%); }
+.morning-foundation-details { margin-top: 1rem; }
+.morning-foundation-details > summary { display: flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding-block: 0.6rem; cursor: pointer; list-style: none; font-size: 0.875rem; font-weight: 500; }
+.morning-foundation-details > summary::-webkit-details-marker { display: none; }
+.morning-foundation-details > summary svg { width: 1rem; height: 1rem; }
+.morning-foundation-details[open] > summary svg { transform: rotate(90deg); }
+.morning-foundation-section-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; padding-block: 1rem; }
+.morning-foundation-next { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1rem; border-top: 1px solid hsl(var(--border) / 60%); margin-top: 0.5rem; padding-top: 0.6rem; }
+.morning-foundation-next a { display: inline-flex; gap: 0.55rem; align-items: center; min-height: 2.75rem; font-size: 0.875rem; color: hsl(var(--primary)); }
+.morning-foundation-next a svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+.morning-resource-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.morning-resource-card { display: flex; align-items: center; gap: 0.75rem; min-height: 5.5rem; padding-right: 0.8rem; border: 1px solid hsl(var(--border) / 70%); border-radius: 0.9rem; text-decoration: none; color: hsl(var(--foreground)); }
+.morning-resource-card > span:nth-child(2) { min-width: 0; flex: 1; }
+.morning-resource-card strong { font-size: 0.875rem; font-weight: 600; }
+.morning-resource-card small { display: block; margin-top: 0.2rem; font-size: 0.75rem; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.morning-resource-art { display: grid; align-self: stretch; place-items: center; flex: 0 0 4rem; border-radius: 0.85rem 0 0 0.85rem; background: linear-gradient(0deg, rgb(40 35 24 / 55%), rgb(40 35 24 / 20%)), url('/images/morning-sanctuary.webp') 15% center / cover; color: #fff7e8; }
+.morning-resource-art svg { width: 1.5rem; height: 1.5rem; }
+.morning-resource-card:nth-child(2) .morning-resource-art { background-position: center, 40% center; }
+.morning-resource-card:nth-child(3) .morning-resource-art { background-position: center, 68% center; }
+.morning-resource-card:nth-child(4) .morning-resource-art { background-position: center, 88% center; }
+.morning-sunday-note { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; font-size: 0.8rem; color: hsl(var(--muted-foreground)); }
+.morning-sunday-note svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+.morning-personal-notes { display: grid; gap: 1rem; }
+.morning-personal-notes > a { display: flex; gap: 0.75rem; align-items: flex-start; min-height: 2.75rem; }
+.morning-personal-notes > a > svg { width: 1.1rem; height: 1.1rem; margin-top: 0.2rem; flex-shrink: 0; color: var(--morning-gold); }
+.morning-personal-notes strong, .morning-personal-notes small { display: block; }
+.morning-personal-notes small { margin-top: 0.3rem; color: hsl(var(--muted-foreground)); font-size: 0.925rem; line-height: 1.65; }
+.morning-personal-quote { margin-top: 0.75rem; white-space: pre-wrap; font-family: Georgia, serif; font-size: 1.05rem; line-height: 1.8; }
+
+/* Foundation has one scroll surface, a real section index, and readable editing widths. */
+.morning-workspace-layout { position: relative; z-index: 4; display: grid; grid-template-columns: 15rem minmax(0, 1fr); align-items: start; gap: 1.25rem; margin-top: -1.75rem; padding-bottom: 2rem; }
+.morning-foundation-nav { padding: 1rem; border-radius: 1.1rem; border: 1px solid hsl(var(--border) / 65%); background: hsl(var(--card)); box-shadow: var(--morning-shadow); }
+.morning-foundation-nav h2 { margin: 0.9rem 0.5rem 0.3rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: hsl(var(--muted-foreground)); }
+.morning-foundation-nav a { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 2.75rem; padding: 0.6rem 0.65rem; border-radius: 0.7rem; color: hsl(var(--foreground)); font-size: 0.85rem; line-height: 1.5; }
+.morning-foundation-nav a span { flex: 1; }
+.morning-foundation-nav a svg { width: 0.95rem; height: 0.95rem; flex-shrink: 0; }
+.morning-foundation-nav a[aria-current='page'] { background: #fbefd9; color: #74440b; font-weight: 600; }
+.morning-foundation-nav a:hover { background: hsl(var(--muted)); }
+.morning-workspace-body { min-width: 0; background: hsl(var(--card)); padding: clamp(1rem, 2vw, 2rem); border: 1px solid hsl(var(--border) / 65%); border-radius: 1.35rem; box-shadow: var(--morning-shadow); }
+.morning-workspace-body > .flex-1 { flex: none; overflow: visible; }
+.morning-workspace-body textarea { min-height: 7rem; }
+.morning-workspace-body input:not([type='checkbox']):not([type='radio']) { min-height: 2.75rem; }
+.morning-workspace-mobile-nav { display: none; }
+.morning-workspace-body section { border-color: hsl(var(--border) / 65%); }
+.morning-workspace-body section h3 { font-family: Georgia, serif; font-size: 1.25rem; }
+
+/* Content layouts preserve the existing reading, microphone, and recording components. */
+.morning-gratitude-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; }
+.morning-gratitude-panel { min-width: 0; padding: 1.25rem; border: 1px solid hsl(var(--border) / 65%); border-radius: 1.15rem; background: linear-gradient(145deg, #fff6f5, hsl(var(--card)) 55%); }
+.morning-gratitude-panel[data-group='not-yet'] { background: linear-gradient(145deg, #f2f8f2, hsl(var(--card)) 55%); }
+.morning-panel-heading { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 1rem; }
+.morning-panel-heading > div { min-width: 0; }
+.living-hope-root .morning-panel-heading h2, .living-hope-root .morning-reflection-card h2, .living-hope-root .morning-recording-card h3 { font-family: Georgia, serif; font-size: 1.5rem; line-height: 1.3; font-weight: 600; }
+.morning-panel-heading p { margin-top: 0.3rem; font-size: 0.925rem; line-height: 1.6; color: hsl(var(--muted-foreground)); }
+.morning-gratitude-panel ol { margin-top: 1rem; }
+.morning-gratitude-row { display: flex; align-items: center; gap: 0.55rem; }
+.morning-gratitude-number { display: grid; place-items: center; flex: 0 0 1.5rem; height: 1.5rem; border-radius: 50%; background: hsl(var(--muted)); font-size: 0.75rem; color: hsl(var(--muted-foreground)); }
+.morning-gratitude-number.is-filled { background: #a56714; color: #fff; }
+.morning-gratitude-number svg { width: 0.8rem; height: 0.8rem; }
+.morning-reading-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.85fr); align-items: start; gap: 1.5rem; }
+.morning-reading-passage { min-width: 0; padding: 1.4rem; border: 1px solid hsl(var(--border) / 65%); border-radius: 1.15rem; background: linear-gradient(145deg, #fff8ed, hsl(var(--card)) 45%); }
+.morning-reading-passage > h2 { font-family: Georgia, serif; font-size: 1.85rem; }
+.morning-physical-reading { padding-block: 1.25rem; font-size: 1.1rem; line-height: 1.8; }
+.morning-physical-art { height: 8rem; margin-bottom: 1rem; border-radius: 0.8rem; background: linear-gradient(90deg, rgb(40 35 24 / 15%), transparent), url('/images/morning-sanctuary.webp') 65% center / cover; }
+.morning-reflection-card { min-width: 0; padding: 1.4rem; border: 1px solid hsl(var(--border) / 65%); border-radius: 1.15rem; background: hsl(var(--card)); }
+.morning-reflection-card > p { margin-top: 0.45rem; color: hsl(var(--muted-foreground)); line-height: 1.65; }
+.morning-reflection-card textarea { min-height: 10rem; }
+.morning-reflection-prompt { margin-top: 1.5rem; padding: 1rem; border-radius: 0.85rem; background: hsl(var(--muted)); font-family: Georgia, serif; font-style: italic; font-size: 1.05rem; line-height: 1.65; }
+.morning-prayer-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(16rem, 0.75fr); align-items: start; gap: 1.5rem; }
+.morning-prayer-text { min-width: 0; }
+.morning-prayer-text > article { padding: 1.4rem; border-radius: 1rem; background: hsl(var(--muted) / 50%); overflow-wrap: anywhere; }
+.morning-recording-card { padding: 1.3rem; border: 1px solid hsl(var(--border) / 70%); border-radius: 1.1rem; background: hsl(var(--card)); }
+.morning-recording-card > svg { display: block; width: 2.25rem; height: 2.25rem; margin-bottom: 1rem; color: var(--morning-gold); }
+.morning-recording-card > p { margin-top: 0.5rem; margin-bottom: 1.2rem; color: hsl(var(--muted-foreground)); line-height: 1.65; }
+.morning-assignment-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.morning-assignment-field { min-width: 0; padding: 1.15rem; border: 1px solid hsl(var(--border) / 70%); border-radius: 1rem; background: hsl(var(--card)); }
+.morning-assignment-field[data-field='mustDo'], .morning-assignment-field[data-field='avoid'] { grid-column: 1 / -1; }
+.morning-assignment-field[data-field='mustDo'] { background: #fff8ec; border-color: #dfc28e; }
+.morning-assignment-field > label { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.85rem; }
+.morning-assignment-field .morning-icon-bubble { width: 2rem; height: 2rem; }
+.morning-assignment-field .morning-icon-bubble svg { width: 1rem; height: 1rem; }
+.morning-complete-header { padding: 2rem; border-radius: 1.2rem; background: linear-gradient(90deg, rgb(18 28 23 / 88%), rgb(18 28 23 / 65%)), url('/images/morning-sanctuary.webp') center / cover; color: #fff; }
+.morning-complete-header p, .morning-complete-header > svg { color: #fff2d7; }
+
+.dark .living-hope-root.morning-theme { --background: 222 18% 10%; --card: 222 16% 13%; --primary: 36 72% 71%; --primary-foreground: 222 18% 10%; --secondary: 222 14% 19%; --muted: 222 14% 18%; --muted-foreground: 220 10% 70%; --border: 222 12% 30%; --input: 222 12% 34%; --ring: 36 72% 71%; --morning-gold: #e1b66e; --morning-shadow: 0 8px 28px rgb(0 0 0 / 15%); }
+.dark .morning-gratitude-panel, .dark .morning-gratitude-panel[data-group='not-yet'], .dark .morning-reading-passage { background: hsl(var(--card)); }
+.dark .morning-assignment-field[data-field='mustDo'] { background: #342c1e; border-color: #806438; }
+.dark .morning-foundation-nav a[aria-current='page'] { background: #3b3121; color: #f7d79d; }
+.dark .morning-icon-bubble { background: #3e321f; color: #f0c57b; }
+.dark .morning-icon-bubble[data-tone='rose'] { background: #3e2630; color: #f1afbe; }
+.dark .morning-icon-bubble[data-tone='blue'] { background: #223146; color: #b1d0ff; }
+.dark .morning-icon-bubble[data-tone='green'] { background: #24372c; color: #b0dcc0; }
+.dark .morning-icon-bubble[data-tone='violet'] { background: #332947; color: #d6bfff; }
+@media (max-width: 1399px) { .morning-rhythm { grid-template-columns: repeat(3, minmax(0, 1fr)); } .morning-resource-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .morning-hero-reminder { margin-right: 6%; } }
+@media (max-width: 1099px) {
+  .morning-reading-grid, .morning-prayer-layout, .morning-gratitude-grid { grid-template-columns: minmax(0, 1fr); }
+  .morning-gratitude-panel:not(.is-active) { display: none; }
+  .morning-hero-reminder { display: none; }
+  .morning-workspace-layout { grid-template-columns: minmax(0, 1fr); }
+  .morning-workspace-index { display: none; }
+  .morning-workspace-mobile-nav { display: block; padding-bottom: 2rem; }
+  .morning-workspace-mobile-nav summary { min-height: 2.75rem; cursor: pointer; padding-block: 0.75rem; }
+  .morning-foundation-section-grid { grid-template-columns: minmax(0, 1fr); }
+  .morning-foundation-phases { grid-template-columns: minmax(0, 1fr); }
+  .morning-overview-card { grid-template-columns: 7rem minmax(0, 1fr); gap: 1rem; }
+  .morning-cover { min-height: 10rem; }
+  .morning-cover > span { font-size: 1rem; }
+  .morning-cover strong { font-size: 1.6rem; }
+}
+@media (max-width: 639px) {
+  .morning-theme-scroll { scrollbar-gutter: auto; }
+  .morning-page-hero-inner { padding-top: 1.35rem; padding-bottom: 4rem; }
+  .morning-page-hero.is-compact .morning-page-hero-inner { padding-top: 0.75rem; padding-bottom: 3.5rem; }
+  .morning-page-hero-art { background-position: center, 57% center; }
+  .morning-page-hero-title > p { font-size: 1rem; }
+  .morning-hero-action { margin-top: 1.1rem; }
+  .morning-theme .morning-primary-action { width: 100%; }
+  .morning-hub-content { gap: 1rem; margin-top: -2rem; }
+  .morning-overview-card { display: block; }
+  .morning-cover { float: left; width: 4.25rem; height: 5rem; min-height: 0; margin: 0 0.85rem 0.7rem 0; border-radius: 0.7rem; }
+  .morning-cover > svg { width: 1rem; height: 1rem; margin-bottom: 0.2rem; }
+  .morning-cover > span { font-size: 0.55rem; }
+  .morning-cover strong { font-size: 0.85rem; }
+  .morning-overview-body .morning-section-heading { display: block; }
+  .morning-overview-body .morning-status-chip { display: inline-block; margin-top: 0.65rem; }
+  .morning-overview-body .morning-section-heading h2 { font-size: 1.35rem; }
+  .morning-overview-body .morning-eyebrow { display: none; }
+  .morning-progress-line { clear: both; padding-top: 0.4rem; gap: 0.65rem; }
+  .morning-rhythm { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .morning-rhythm-item { padding: 0.65rem 0.45rem; gap: 0.4rem; }
+  .morning-rhythm-item .morning-icon-bubble { height: 2rem; width: 2rem; }
+  .morning-rhythm-item:last-child { grid-column: 1 / -1; }
+  .morning-resource-grid, .morning-assignment-fields { grid-template-columns: minmax(0, 1fr); }
+  .morning-section-heading { flex-wrap: wrap; gap: 0.65rem; }
+  .morning-theme .morning-music-layout { display: block; }
+  .morning-theme .morning-music-card, .morning-reading-passage, .morning-reflection-card, .morning-gratitude-panel { padding: 1rem; }
+  .morning-theme .morning-phase-card { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); }
+  .morning-theme .morning-phase-icon { margin-bottom: 0; }
+  .morning-theme .morning-phase-card p { font-size: 0.925rem; }
+  .morning-prayer-text > article { padding: 1rem; font-size: 1.1rem; }
+  .morning-complete-header { padding: 1.4rem; }
+  .morning-theme .morning-session-footer .morning-session-width { padding-inline: 0.75rem; }
+  .morning-workspace-body { padding: 1rem; }
+  .morning-theme-topbar { gap: 0.35rem; }
+  .morning-theme-topbar > span { font-size: 0.75rem; }
+  .morning-theme-topbar .morning-session-tools { padding-inline: 0.25rem; }
+}
+@media (prefers-reduced-motion: reduce) { .morning-theme *, .morning-theme *::before, .morning-theme *::after { scroll-behavior: auto !important; } }
+@media (forced-colors: active) {
+  .morning-page-hero-art, .morning-physical-art { display: none; }
+  .morning-page-hero, .morning-complete-header { color: CanvasText; background: Canvas; }
+  .morning-page-hero-title > p, .morning-hero-eyebrow { color: CanvasText; }
+  .morning-surface, .morning-workspace-body, .morning-gratitude-panel, .morning-reading-passage, .morning-reflection-card { border: 1px solid CanvasText; }
+  .morning-progress-track > span { background: Highlight; }
+}

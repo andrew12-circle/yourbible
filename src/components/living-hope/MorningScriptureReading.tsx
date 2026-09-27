@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BookOpen, Loader2 } from "lucide-react";
+import { BookOpen, Loader2, PenLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +13,6 @@ import { styledTextClass, verseParts } from "@/lib/bible/verseParts";
 import { ScriptureDocumentBlocks } from "@/components/scripture/ScriptureDocumentBlocks";
 import { morningReadingChapters, type MorningChapter } from "@/lib/livingHope/morningReading";
 import { MorningScriptureActions } from "./MorningScriptureActions";
-import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
 function VerifiedChapter({ target }: { target: MorningChapter }) {
@@ -77,22 +76,21 @@ export function MorningScriptureReading({ scripture, busy, error, onRetry, refle
         {value === "physical" ? "My physical Bible" : "Read here"}
       </button>)}
     </div>
-    {scripture ? <>
-      <div><p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">{scripture.source === "reading-plan" ? scripture.planTitle : "Today's passage"}</p><h2 className="text-2xl font-semibold">{scripture.reference}</h2></div>
-      {mode === "physical" ? <p className={lh.body}>Open your Bible to this passage. Take your time; continue when you are ready.</p> : <InlineReading key={`${user?.id}:${scripture.reference}`} scripture={scripture} />}
-      <details className="text-sm text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">More reading options</summary><MorningScriptureActions readerHref={scripture.readerHref} /></details>
-    </> : busy ? <p role="status" className="py-6 text-muted-foreground">Loading today's passage…</p> : <Button variant="outline" onClick={onRetry}><BookOpen className="mr-2 h-4 w-4" />Get today's passage</Button>}
-    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    <label className="block text-sm font-medium">What stood out? <span className="font-normal text-muted-foreground">Optional</span>
-      <MorningVoiceField
-        value={reflection}
-        onChange={onReflectionChange}
-        multiline
-        rows={3}
-        className="mt-3"
-        label="What stood out?"
-        placeholder="A verse, a thought, or something to carry into today…"
-      />
-    </label>
+    <div className="morning-reading-grid">
+      <div className="morning-reading-passage">
+        {scripture ? <>
+          <p className="morning-eyebrow">{scripture.source === "reading-plan" ? scripture.planTitle : "Today's passage"}</p><h2>{scripture.reference}</h2>
+          {mode === "physical" ? <div className="morning-physical-reading"><div className="morning-physical-art" aria-hidden="true" /><p>Open your Bible to this passage. Take your time; continue when you are ready.</p></div> : <div className="mt-6"><InlineReading key={`${user?.id}:${scripture.reference}`} scripture={scripture} /></div>}
+          <details className="text-sm text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">More reading options</summary><MorningScriptureActions readerHref={scripture.readerHref} /></details>
+        </> : busy ? <p role="status" className="py-6 text-muted-foreground">Loading today's passage…</p> : <Button variant="outline" onClick={onRetry}><BookOpen className="mr-2 h-4 w-4" aria-hidden="true" />Get today's passage</Button>}
+        {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
+      </div>
+      <aside className="morning-reflection-card" aria-label="Scripture reflection">
+        <div className="morning-panel-heading"><span className="morning-icon-bubble"><PenLine aria-hidden="true" /></span><h2>Reflect</h2></div>
+        <p>What stood out? <span className="text-sm">Optional</span></p>
+        <MorningVoiceField value={reflection} onChange={onReflectionChange} multiline rows={5} className="mt-3" label="What stood out?" placeholder="A verse, a thought, or something to carry into today…" />
+        <div className="morning-reflection-prompt">What does this teach you about God? Is there one thing to put into practice today?</div>
+      </aside>
+    </div>
   </section>;
 }

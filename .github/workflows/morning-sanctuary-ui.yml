@@ -1,0 +1,45 @@
+name: Morning Formula complete redesign
+on:
+  pull_request:
+    paths:
+      - 'src/components/living-hope/**'
+      - 'src/pages/living-hope/**'
+      - 'src/lib/livingHope/**'
+      - 'public/images/morning-sanctuary.webp'
+      - 'scripts/verify-morning-sanctuary-ui.mjs'
+      - '.github/workflows/morning-sanctuary-ui.yml'
+permissions:
+  contents: read
+concurrency:
+  group: morning-sanctuary-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: morning-formula-test-placeholder
+  VITE_SUPABASE_ANON_KEY: morning-formula-test-placeholder
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Targeted state and component regressions
+        run: npx vitest run src/components/living-hope/MorningSanctuary.test.tsx src/components/living-hope/MorningSunrise.test.tsx src/components/living-hope/MorningScriptureReading.test.tsx src/components/living-hope/MorningSessionUi.test.tsx src/components/living-hope/MorningFormulaFlow.test.tsx
+      - name: Install browser tooling
+        run: |
+          npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test
+          npx playwright install --with-deps chromium
+      - name: All steps and foundation layouts
+        run: node scripts/verify-morning-sanctuary-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: morning-sanctuary-browser
+          path: artifacts/morning-sanctuary
+          retention-days: 7
