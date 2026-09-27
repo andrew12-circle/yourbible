@@ -30,10 +30,27 @@ export async function verifyBookPrintGeometry(page) {
       }
       const first = halves.map(rows => rows.length ? Math.min(...rows.map(r => r.top)) : null);
       const last = halves.map(rows => rows.length ? Math.max(...rows.map(r => r.bottom)) : null);
+      // A legitimate in-column section heading may be the first reading line
+      // (e.g. Mark's "The Temptation of Jesus"). Its following verse must sit
+      // below it, not be forced onto the neighboring column's verse baseline.
+      // Count the heading's actual glyphs as content; exclude the opening
+      // full-width section label, which sits above BOTH columns.
+      const firstContent = [...first];
+      const columnHeadings = [];
+      for (const label of article.querySelectorAll('.scripture-heading')) {
+        if (getComputedStyle(label).columnSpan === 'all') continue;
+        const range = document.createRange(); range.selectNodeContents(label);
+        for (const r of range.getClientRects()) {
+          if (!r.width || !r.height) continue;
+          const side = box && r.left >= box.left + box.width / 2 ? 1 : 0;
+          columnHeadings.push({ side, top:r.top, text:label.textContent });
+          firstContent[side] = firstContent[side] == null ? r.top : Math.min(firstContent[side], r.top);
+        }
+      }
       const title = opener?.querySelector('h2');
       const heading = opener?.nextElementSibling?.classList.contains('scripture-heading') ? opener.nextElementSibling : null;
       out.push({ side:pane.dataset.readerPageSide, terminal:!!terminal, columnCount:columns ? getComputedStyle(columns).columnCount : '1',
-        fill:columns ? getComputedStyle(columns).columnFill : null, first, last, lineHeight,
+        fill:columns ? getComputedStyle(columns).columnFill : null, first, firstContent, columnHeadings, last, lineHeight,
         opening:opener ? { book:opener.dataset.readerBookOpening, span:getComputedStyle(opener).columnSpan,
           titleAlign:getComputedStyle(title).textAlign, titleLeft:title.getBoundingClientRect().left,
           openerLeft:opener.getBoundingClientRect().left, width:opener.getBoundingClientRect().width,
@@ -51,7 +68,7 @@ export async function verifyBookPrintGeometry(page) {
         assert.equal(row.opening.span,'all','Book title must span both columns');
         assert(row.opening.width > row.opening.columnWidth * .9,'Title reserved only one column');
         if (row.opening.sectionSpan) assert.equal(row.opening.sectionSpan,'all','Opening section heading must not lower only column one');
-        if (row.first.every(y=>y!=null)) assert(Math.abs(row.first[0]-row.first[1])<=2,'Opening Scripture columns must begin level: '+JSON.stringify(row));
+        if (row.firstContent.every(y=>y!=null)) assert(Math.abs(row.firstContent[0]-row.firstContent[1])<=2,'Opening reading columns must begin level: '+JSON.stringify(row));
       }
     }
     if (row.terminal && row.columnCount === '2') {
