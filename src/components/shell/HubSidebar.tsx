@@ -1,8 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import {
-  BookOpen, Sun, Sunrise, NotebookPen, StickyNote, Brain, Sprout, Network, FileStack, Share2, Sparkles,
-  GraduationCap, Mail, ListTodo, CheckSquare, Moon, Images,
+  BookOpen, Sun, Sunrise, StickyNote, Brain, Sprout, Network, FileStack, Share2, Sparkles,
+  GraduationCap, Mail, Moon, Images, Cross, PenLine, ListChecks, Leaf, MessageCircleHeart,
   HeartHandshake, Settings, LayoutGrid, Clock, CircleHelp, ClipboardList, Layers, Users, User,
   Grid3X3, BookMarked, ChevronRight, HandHeart,
 } from "lucide-react";
@@ -20,42 +20,42 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { HubSidebarStorageMeter } from "@/components/shell/HubSidebarStorageMeter";
 import { HubSidebarMediaPlayer } from "@/components/media/HubSidebarMediaPlayer";
-import { LumenIcon } from "@/components/myai/LumenIcon";
 import { LUMEN_NAME } from "@/lib/myai/lumenBrand";
+import { IOS_APP_BG } from "@/lib/home/iosAppPalette";
 
-const iconColorMap: Record<string, string> = {
-  Overview: "text-blue-500",
-  Bible: "text-amber-600",
-  "Children's books": "text-fuchsia-500",
-  "Code Lab": "text-amber-800",
-  "Life Manual": "text-yellow-600",
-  "Morning formula": "text-amber-500",
-  Daily: "text-orange-500",
-  Journal: "text-violet-500",
-  Prayer: "text-rose-500",
-  Notes: "text-amber-500",
-  Framework: "text-indigo-500",
-  Journey: "text-emerald-500",
-  Beliefs: "text-sky-500",
-  Artifacts: "text-rose-500",
-  Graph: "text-cyan-500",
-  "Mind map": "text-cyan-500",
-  Tensions: "text-fuchsia-500",
-  Study: "text-blue-400",
-  Digest: "text-slate-500",
-  Tasks: "text-teal-500",
-  Habits: "text-green-500",
-  "Vision board": "text-amber-700",
-  Sleep: "text-indigo-400",
-  "Lumen AI": "text-amber-600",
-  Partner: "text-red-400",
-  Settings: "text-gray-500",
-  "Research later": "text-slate-400",
-  "Hard questions": "text-amber-500",
-  "Questions for God": "text-rose-400",
-  Playbook: "text-violet-400",
-  "Library standing": "text-teal-500",
-  Influences: "text-orange-400",
+const appIconVisuals: Record<string, { background: string; color: string }> = {
+  Overview: { background: "linear-gradient(180deg, #63C7FF 0%, #087DFF 100%)", color: "#FFFFFF" },
+  Bible: { background: IOS_APP_BG.bible, color: "#F4D58A" },
+  "Children's books": { background: IOS_APP_BG.childrenBooks, color: "#FFFFFF" },
+  "Code Lab": { background: IOS_APP_BG.codeLab, color: "#FFFFFF" },
+  "Life Manual": { background: IOS_APP_BG.lifeGuide, color: "#FFFFFF" },
+  "Morning formula": { background: IOS_APP_BG.firstLight, color: "#FFFFFF" },
+  Daily: { background: IOS_APP_BG.daily, color: "#FFFFFF" },
+  Journal: { background: IOS_APP_BG.journal, color: "#2C2C2E" },
+  Prayer: { background: IOS_APP_BG.prayer, color: "#FFFFFF" },
+  Notes: { background: "linear-gradient(180deg, #FFD15C 0%, #F7F7F8 42%, #E7E9EE 100%)", color: "#3A3A3C" },
+  Framework: { background: IOS_APP_BG.framework, color: "#FFFFFF" },
+  Journey: { background: IOS_APP_BG.journey, color: "#FFFFFF" },
+  Beliefs: { background: IOS_APP_BG.beliefs, color: "#FFFFFF" },
+  Artifacts: { background: IOS_APP_BG.artifacts, color: "#FFFFFF" },
+  Graph: { background: IOS_APP_BG.graph, color: "#5856D6" },
+  "Mind map": { background: IOS_APP_BG.graph, color: "#5856D6" },
+  Tensions: { background: IOS_APP_BG.tensions, color: "#FFFFFF" },
+  Study: { background: IOS_APP_BG.study, color: "#FFFFFF" },
+  Digest: { background: IOS_APP_BG.digest, color: "#FFFFFF" },
+  Tasks: { background: IOS_APP_BG.tasks, color: "#007AFF" },
+  Habits: { background: IOS_APP_BG.habits, color: "#FFFFFF" },
+  "Vision board": { background: IOS_APP_BG.visionBoard, color: "#FFFFFF" },
+  Sleep: { background: IOS_APP_BG.sleep, color: "#A7B7FF" },
+  [LUMEN_NAME]: { background: IOS_APP_BG.myAi, color: "#FFFFFF" },
+  Partner: { background: IOS_APP_BG.partner, color: "#FFFFFF" },
+  Settings: { background: IOS_APP_BG.settings, color: "#FFFFFF" },
+  "Research later": { background: IOS_APP_BG.research, color: "#FFFFFF" },
+  "Hard questions": { background: IOS_APP_BG.study, color: "#FFFFFF" },
+  "Questions for God": { background: IOS_APP_BG.partner, color: "#FFFFFF" },
+  Playbook: { background: IOS_APP_BG.playbook, color: "#FFFFFF" },
+  "Library standing": { background: IOS_APP_BG.artifacts, color: "#FFFFFF" },
+  Influences: { background: IOS_APP_BG.influences, color: "#FFFFFF" },
 };
 
 interface SidebarItem {
@@ -76,8 +76,8 @@ const sidebarGroups: SidebarGroupConfig[] = [
     label: "",
     items: [
       { title: "Overview", icon: LayoutGrid, to: "/home" },
-      { title: "Bible", icon: BookOpen, to: "__bible__" },
-      { title: "Journal", icon: NotebookPen, to: "/journal" },
+      { title: "Bible", icon: Cross, to: "__bible__" },
+      { title: "Journal", icon: PenLine, to: "/journal" },
       { title: "Prayer", icon: HandHeart, to: "/prayer" },
       { title: "Notes", icon: StickyNote, to: "/journal/notes" },
       { title: "Morning formula", icon: Sunrise, to: "/living-hope" },
@@ -88,9 +88,9 @@ const sidebarGroups: SidebarGroupConfig[] = [
   {
     label: "Life",
     items: [
-      { title: LUMEN_NAME, icon: LumenIcon, to: "/my-ai" },
-      { title: "Tasks", icon: ListTodo, to: "/life/todos" },
-      { title: "Habits", icon: CheckSquare, to: "/life/habits" },
+      { title: LUMEN_NAME, icon: MessageCircleHeart, to: "/my-ai" },
+      { title: "Tasks", icon: ListChecks, to: "/life/todos" },
+      { title: "Habits", icon: Leaf, to: "/life/habits" },
       { title: "Vision board", icon: Images, to: "/life/vision-board" },
       { title: "Sleep", icon: Moon, to: "/sleep" },
       { title: "Daily", icon: Sun, to: "/framework/daily" },
@@ -224,13 +224,22 @@ function CollapsibleSidebarGroup({
 
 function NavItem({ item, isActive }: { item: SidebarItem; isActive: boolean }) {
   const Icon = item.icon;
-  const color = iconColorMap[item.title] ?? "text-muted-foreground";
+  const visual = appIconVisuals[item.title] ?? {
+    background: "linear-gradient(180deg, #AEB4BE 0%, #6C7480 100%)",
+    color: "#FFFFFF",
+  };
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton asChild isActive={isActive} tooltip={item.title}>
         <Link to={item.to}>
-          <Icon className={cn("h-4 w-4", color)} />
+          <span
+            className="ios-icon flex h-6 w-6 shrink-0 items-center justify-center"
+            style={{ background: visual.background, color: visual.color }}
+            aria-hidden
+          >
+            <Icon className="relative z-[1] h-[13px] w-[13px] drop-shadow-[0_1px_1px_rgba(0,0,0,0.14)]" />
+          </span>
           <span>{item.title}</span>
           {item.badge !== undefined && item.badge > 0 && (
             <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
