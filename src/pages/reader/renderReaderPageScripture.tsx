@@ -124,7 +124,7 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
       resolveHeading,
       renderVerse,
       resolvePoetryBlocks,
-      { studyLayout: activeStudyLayout },
+      { studyLayout: activeStudyLayout, showBookOpening: !scrollMode },
     );
 
   const pageScriptureNodes: NodeFactory = (
@@ -139,7 +139,7 @@ export function renderReaderPageScripture(args: ReaderPageScriptureArgs): ReactN
       resolveHeading,
       renderVerse,
       resolvePoetryBlocks,
-      { studyLayout: activeStudyLayout },
+      { studyLayout: activeStudyLayout, showBookOpening: !scrollMode },
     );
 
   const headingsFromVerseOnPage = (bookAbbr: string, ch: number) => {
