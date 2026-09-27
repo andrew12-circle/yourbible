@@ -36,7 +36,7 @@ export function BibleEarthPlaceCard({ place, filter, onRead }: { place: Geograph
           <a href={googleStreetViewHref(candidate)} target="_blank" rel="noopener noreferrer" title="Available imagery near this point; coverage is not guaranteed." className="rounded-lg border px-3 py-2 text-sm hover:bg-muted">Street View</a>
         </div>
       </> : <p className="rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">The source does not supply a defensible coordinate. This place is indexed, but no pin has been invented.</p>}
-      {place.unresolved.length > 0 && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Uncertainty and alternative interpretations</summary><div className="mt-2 space-y-1">{place.unresolved.map((item, index) => <p key={`${item.kind}-${index}`}>{item.description || item.kind.replaceAll("_", " ")}</p>)}</div></details>}
+      {place.unresolved.length > 0 && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Uncertainty and alternative interpretations</summary><div className="mt-2 space-y-1">{place.unresolved.map((item, index) => <p key={`${item.kind}-${index}`}>{item.description || item.kind.replace(/_/g, " ")}</p>)}</div></details>}
       <div className="border-t pt-3 text-xs leading-relaxed text-muted-foreground">
         <p className="font-medium text-foreground">Scripture references · {filter.translation === "all" ? "source versification" : filter.translation.toUpperCase()}</p>
         <p className="mt-1">{matching.slice(0, 12).map(geographyReferenceLabel).join("; ") || "No references in this filter."}</p>
