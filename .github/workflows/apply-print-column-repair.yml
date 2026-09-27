@@ -1,0 +1,50 @@
+name: Apply print column repair
+on:
+  push:
+    branches: [fix/print-book-columns-20260927]
+    paths: [.github/workflows/apply-print-column-repair.yml]
+permissions:
+  contents: write
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/fix/print-book-columns-20260927'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: fix/print-book-columns-20260927
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Apply only to the inspected source
+        run: |
+          python scripts/apply-print-columns.py
+          python scripts/apply-print-column-tests.py
+          git diff --check
+      - run: npm ci
+      - name: Verify source contracts before committing
+        run: |
+          set -o pipefail
+          npx vitest run src/lib/bible/readerBookEnd.test.ts src/components/bible/ReaderBookOpening.test.tsx src/lib/bible/readerBookBoundary.test.ts src/lib/bible/readerColumnMeasure.test.ts | tee "$RUNNER_TEMP/print-column-unit.log"
+          npx eslint src/lib/bible/readerBookEnd.ts src/lib/bible/readerBookEnd.test.ts src/lib/bible/readerColumnMeasure.ts src/lib/bible/readerScriptureRender.tsx src/components/bible/BookPaginator.tsx src/components/bible/ReaderBookOpening.tsx src/components/bible/ReaderBookOpening.test.tsx src/pages/reader/renderReaderPageScripture.tsx
+      - name: Remove transport and commit actual source and tests
+        run: |
+          rm scripts/apply-print-columns.py scripts/apply-print-column-tests.py .github/workflows/apply-print-column-repair.yml
+          git config user.name 'Andrew Heisley'
+          git config user.email 'andrew@heisleyteam.com'
+          git add -A
+          git commit -m 'Match print Bible openings and balance final book columns'
+          git push origin HEAD:fix/print-book-columns-20260927
+          git rev-parse HEAD > "$RUNNER_TEMP/print-column-source-sha.txt"
+          git diff 304091caaa9d730eaf13d4a95b9bcbbd58b314fd HEAD > "$RUNNER_TEMP/print-column-final.patch"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: print-column-application
+          path: |
+            ${{ runner.temp }}/print-column-*.log
+            ${{ runner.temp }}/print-column-source-sha.txt
+            ${{ runner.temp }}/print-column-final.patch
