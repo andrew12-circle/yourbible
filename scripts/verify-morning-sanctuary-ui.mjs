@@ -16,7 +16,9 @@ import React, { useState } from 'react';
 export function useAppShellMode() { return { showHubShell: window.innerWidth >= 768 }; }
 export function useVisualViewportMetrics() { return { viewportHeight: window.innerHeight, keyboardInset: 0 }; }
 export function useKeyboardInset() { return 0; }
+export function useLockBodyScrollWhenKeyboardActive() {}
 export function useAuth() { return { user: { id: 'morning-browser-fixture' }, profile: { user_id: 'morning-browser-fixture', journal_e2e_enabled: false, display_name: 'Morning reader' }, loading: false }; }
+export const AuthContext = React.createContext(null);
 export function AuthProvider({ children }) { return children; }
 export function useLivingHope() {
  const [letter, setLetter] = useState({ id: 'fixture-letter', user_id: 'morning-browser-fixture', status: 'draft', timeframe_years: 2, full_letter: 'Dear future me,\n\nKeep making room for faith, family, and meaningful work.', mission_statement: '', gratitude: '', realizations: '', outlook: '', wishes: '', scripture_anchor: '', surrender_prayer: '', unlock_at: null });
@@ -122,7 +124,7 @@ const errors = [];
 const report = [];
 const views = ['hub', 'intro', 'worship', 'thanksgiving', 'scripture', 'prayer', 'manifesto', 'vision', 'story', 'surrender', 'covering', 'assignment', 'goal', 'metrics', 'done', 'letter', ...['vision','stories','manifesto','quotes','lifestyle','routine','business','standards','family','rules','weekly','metrics'].map(key => `workbook:${key}`)];
 try {
-  server = await createServer({ root, configFile: false, plugins: [react()], resolve: { alias: [
+  server = await createServer({ root, configFile: false, plugins: [react()], optimizeDeps: { entries: [path.join(temporary, 'index.html')] }, resolve: { alias: [
     ...['@/contexts/AuthContext', '@/hooks/useAppShellMode', '@/hooks/useKeyboardInset', '@/hooks/useLivingHope', '@/hooks/useBibles', '@/hooks/usePassage'].map(find => ({ find, replacement: path.join(temporary, 'environment.tsx') })),
     { find: '@', replacement: path.join(root, 'src') },
   ] }, server: { host: '127.0.0.1', port: 4195, strictPort: true } });
@@ -161,6 +163,7 @@ try {
   for (const [size, width, height] of [['desktop', 1724, 980], ['mobile', 390, 844], ['narrow', 320, 844]]) {
     await page.setViewportSize({ width, height });
     for (const view of views) { await show(view); await inspect(view, size, size !== 'narrow' || ['hub','scripture','assignment','letter','workbook:vision'].includes(view)); }
+    console.log(`${size}: landing, all session states, letter and foundation layouts passed.`);
   }
   await page.setViewportSize({ width: 1724, height: 980 });
   await show('hub');
@@ -202,7 +205,8 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.morning-step-disclosure').evaluate(element => element.open), false);
   await page.locator('.morning-session-footer button').last().click();
-  await page.getByRole('heading', { name: 'Gratitude', exact: true }).waitFor();
+  await page.locator('[data-morning-step="thanksgiving"] #morning-session-title').waitFor();
+  assert.equal(await page.locator('#morning-session-title').textContent(), 'Thanksgiving');
   assert.equal(await page.locator('main').evaluate(element => element.scrollTop), 0);
   assert.equal(await page.evaluate(() => document.activeElement?.id), 'morning-session-title');
 
