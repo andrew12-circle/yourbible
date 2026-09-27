@@ -39,7 +39,7 @@ jobs:
       - run: npx eslint src/lib/home/appIconArtwork.ts src/components/home/IosAppIcon.tsx src/components/home/ApprovedAppArtwork.test.tsx src/components/shell/HubSidebar.tsx
       - run: npx vitest run src/components/home/ApprovedAppArtwork.test.tsx
       - run: npm run build
-      - run: npm install --no-save --package-lock=false --ignore-scripts playwright@1.55.1
+      - run: npm install --no-save --package-lock=false --ignore-scripts --legacy-peer-deps playwright@1.55.1
       - run: npx playwright install --with-deps chromium
       - run: node scripts/verify-approved-app-artwork-browser.mjs
       - uses: actions/upload-artifact@v4
