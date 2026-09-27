@@ -55,7 +55,11 @@ describe("One consistent session interface", () => {
         onThanksgivingNotYetChange={(index, value) => setFuture((v) => v.map((old, i) => i === index ? value : old))} />;
     }
     render(<TooltipProvider><Harness /></TooltipProvider>);
-    expect(screen.getAllByRole("textbox")).toHaveLength(5);
+    // Both panels exist on desktop; the browser suite verifies the mobile active-panel layout.
+    expect(screen.getAllByRole("textbox", { name: /^Thankful today \d$/ })).toHaveLength(5);
+    expect(screen.getAllByRole("textbox", { name: /^Thankful for what's ahead \d$/ })).toHaveLength(5);
+    expect(screen.getAllByRole("textbox").every((field) => !field.hasAttribute("required"))).toBe(true);
+    expect(screen.getAllByText(/^Voice group:/)).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Reflect on what's ahead" }));
     expect(screen.getByText("Voice group: not-yet")).toBeTruthy();
     fireEvent.change(screen.getByLabelText("Thankful for what's ahead 1"), { target: { value: "Wisdom" } });
