@@ -1,4 +1,4 @@
-import { Timer } from "lucide-react";
+import { Timer, Volume2, VolumeX } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   formatFormulaCountdown,
@@ -15,6 +15,8 @@ type Props = {
   sessionRemainingMs: number;
   stepExpired: boolean;
   visible: boolean;
+  soundCuesEnabled: boolean;
+  onSoundCuesEnabledChange: (enabled: boolean) => void;
 };
 
 export function MorningFormulaDurationPicker({
@@ -56,6 +58,8 @@ export function MorningFormulaSessionTimer({
   sessionRemainingMs,
   stepExpired,
   visible,
+  soundCuesEnabled,
+  onSoundCuesEnabledChange,
 }: Props) {
   if (!visible) return null;
 
@@ -87,6 +91,22 @@ export function MorningFormulaSessionTimer({
         <p className={cn(lh.footnote, "mb-3")}>
           This is a suggested pace, not a deadline. Continue when ready, change your session length here.
         </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={soundCuesEnabled}
+          onClick={() => onSoundCuesEnabledChange(!soundCuesEnabled)}
+          className="mb-3 flex min-h-11 w-full items-center justify-between rounded-lg bg-muted px-3 py-2 text-left transition-colors hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/50"
+        >
+          <span className="flex items-center gap-2">
+            {soundCuesEnabled ? <Volume2 className="h-4 w-4 text-amber-600" aria-hidden /> : <VolumeX className="h-4 w-4 text-muted-foreground" aria-hidden />}
+            <span>
+              <span className="block text-[13px] font-semibold">Sound cues</span>
+              <span className="block text-[11px] text-muted-foreground">1 min · 30 sec · final 5 · finish</span>
+            </span>
+          </span>
+          <span className="text-[12px] font-semibold">{soundCuesEnabled ? "On" : "Off"}</span>
+        </button>
         <div className="flex gap-1.5">
           {SESSION_DURATION_OPTIONS.map((option) => {
             const active = durationMin === option;
