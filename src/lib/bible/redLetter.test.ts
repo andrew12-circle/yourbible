@@ -164,4 +164,20 @@ describe("splitJesusSpeechForChapter", () => {
     const segs = splitJesusSpeechForChapter("Mat", 5, verses);
     expect(jesusText(segs.get(3)!)).toBe(verses[0]!.text);
   });
+  it("keeps Mark 1 narration black while rendering Jesus' quoted words red", () => {
+    const verses = [
+      { number: 14, text: "After John was arrested, Jesus went to Galilee, proclaiming the good news of God:" },
+      { number: 15, text: "“The time is fulfilled, and the kingdom of God has come near. Repent and believe the good news!”" },
+      { number: 16, text: "As he passed alongside the Sea of Galilee, he saw Simon and Andrew, Simon’s brother, casting a net into the sea." },
+      { number: 17, text: "“Follow me,” Jesus told them, “and I will make you fish for people.”" },
+    ];
+    const segs = splitJesusSpeechForChapter("Mrk", 1, verses);
+    expect(jesusText(segs.get(14)!)).toBe("");
+    expect(jesusText(segs.get(15)!)).toContain("The time is fulfilled");
+    expect(jesusText(segs.get(16)!)).toBe("");
+    expect(jesusText(segs.get(17)!)).toContain("Follow me");
+    expect(jesusText(segs.get(17)!)).toContain("I will make you fish for people");
+    expect(jesusText(segs.get(17)!)).not.toContain("Jesus told them");
+  });
+
 });
