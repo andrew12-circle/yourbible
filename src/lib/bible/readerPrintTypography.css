@@ -21,7 +21,7 @@
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
-[data-reading-area].reader-print-text .scripture-paragraph { text-align: justify; }
+[data-reading-area].reader-print-text .scripture-paragraph { text-align: start; }
 [data-reading-area].reader-print-text .scripture-paragraph + .scripture-paragraph { margin-block-start: 0.28em; }
 [data-reading-area].reader-print-text .scripture-poetry {
   text-align: start;
