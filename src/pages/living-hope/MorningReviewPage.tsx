@@ -536,6 +536,8 @@ export default function MorningReviewPage() {
           sessionRemainingMs={formulaTimer.sessionRemainingMs}
           stepExpired={formulaTimer.stepExpired}
           visible={formulaTimer.showTimer}
+          soundCuesEnabled={formulaTimer.soundCuesEnabled}
+          onSoundCuesEnabledChange={formulaTimer.setSoundCuesEnabled}
         />
       }
     >
