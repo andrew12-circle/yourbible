@@ -20,31 +20,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - name: Verify source transfer
+      - name: Integrate prayer practices without extra steps
         run: |
-          mkdir -p /tmp/morning-workspace
-          python3 - <<'PY'
-          import base64, gzip, hashlib, pathlib
-          parts = [pathlib.Path(f'scripts/morning-foundation-transfer.{n}').read_text().strip() for n in range(1, 5)]
-          for n, part in enumerate(parts, 1):
-              print(n, len(part), hashlib.sha256(part.encode()).hexdigest())
-          encoded = ''.join(parts)
-          pathlib.Path('/tmp/morning-workspace/received.txt').write_text(encoded)
-          # Normalize two known transport transcription errors, then require the
-          # exact locally-reviewed patch checksum before applying anything.
-          encoded = encoded.replace('/enrz9dPLzux/enrz9dPLzuxfHQ', '/enrz9dPLzuxfHQ')
-          encoded = encoded.replace('G2/7bWfvyp+fH+d11y', 'G2/7bWfvyp/fH+d11y')
-          patch = gzip.decompress(base64.b64decode(encoded, validate=True))
-          assert hashlib.sha256(patch).hexdigest() == 'bd1a3f7302e992c0d1467eda972f76793cc86d2f6e05671faa2bf7d965cbf4f1', 'Source checksum mismatch'
-          pathlib.Path('/tmp/morning-workspace/foundation.patch').write_bytes(patch)
-          PY
-      - name: Apply exact reviewed changes
-        run: |
-          git apply --check /tmp/morning-workspace/foundation.patch
-          git apply /tmp/morning-workspace/foundation.patch
+          python3 scripts/apply-morning-prayer-additions.py
           git diff --check
           git add src docs/morning-personal-foundation.md scripts/verify-morning-foundation-ui.mjs
-          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Connect Morning Formula theme, real memories, scenes and daily action'
+          git rm scripts/apply-morning-prayer-additions.py scripts/morning-foundation-transfer.1 scripts/morning-foundation-transfer.2 scripts/morning-foundation-transfer.3 scripts/morning-foundation-transfer.4
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Integrate Worship prayer timer and separate angels recording; remove transfer files'
       - name: Commit to feature branch only
         env:
           GH_TOKEN: ${{ github.token }}
@@ -56,14 +38,20 @@ jobs:
           node-version: '22'
       - run: npm ci
       - name: Focused tests
-        run: npx vitest run src/lib/livingHope/morningFoundation.test.ts src/hooks/useLivingHopeWorkbook.test.tsx src/components/living-hope/foundation
-      - name: Changed code lint and size checks
+        run: npx vitest run src/lib/livingHope/morningFoundation.test.ts src/lib/livingHope/morningWorshipPrayer.test.ts src/hooks/useLivingHopeWorkbook.test.tsx src/components/living-hope/foundation
+      - name: Lint and size checks
         run: |
-          npx eslint src/components/living-hope/foundation src/hooks/useLivingHopeWorkbook.ts src/hooks/useLivingHopeWorkbook.test.tsx src/lib/livingHope/morningFoundation.ts src/lib/livingHope/morningFoundation.test.ts src/pages/living-hope/MorningReviewPage.tsx
+          npx eslint src/components/living-hope/foundation src/components/living-hope/PrayerVoiceRecording.tsx src/hooks/useLivingHopeWorkbook.ts src/lib/livingHope/morningFoundation.ts src/lib/livingHope/morningWorshipPrayer.ts src/pages/living-hope/MorningReviewPage.tsx
           node scripts/check-max-lines.mjs
+      - name: Browser tooling
+        run: |
+          npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test
+          npx playwright install --with-deps chromium
+      - name: Connected morning browser checks
+        run: node scripts/verify-morning-foundation-ui.mjs
       - uses: actions/upload-artifact@v4
         if: ${{ always() }}
         with:
-          name: morning-foundation-transfer-report
-          path: /tmp/morning-workspace
-          retention-days: 1
+          name: morning-foundation-prayer-checks
+          path: artifacts/morning-foundation
+          retention-days: 7
