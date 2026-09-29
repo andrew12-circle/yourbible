@@ -1,3 +1,5 @@
+import { DEFAULT_DAY_AHEAD_PRAYER } from "./dayAheadPrayer";
+
 /** Reflect-style workbook stored in `living_hope_workbook.content`. */
 
 export interface IncomeLine {
@@ -65,6 +67,10 @@ export interface WorshipMusicHistoryItem {
   added_at?: string;
 }
 
+export type PrayerRecordingKey = "surrender" | "covering" | "day_ahead";
+
+export type PrayerRecordings = Partial<Record<PrayerRecordingKey, string>>;
+
 export interface LivingHopeWorkbookContent {
   vision_headline: string;
   vision_tagline: string;
@@ -85,8 +91,10 @@ export interface LivingHopeWorkbookContent {
   worship_playlist_url: string;
   /** Previously saved worship links — pick or replay during the ritual. */
   worship_music_history: WorshipMusicHistoryItem[];
+  /** Repeatable personal prayer for the work and conversations ahead. */
+  day_ahead_prayer: string;
   /** Private voice recordings of personal prayers stored in voice-memos. */
-  prayer_recordings: { surrender?: string; covering?: string };
+  prayer_recordings: PrayerRecordings;
 }
 
 export type WorkbookSection =
@@ -166,6 +174,7 @@ export function emptyWorkbook(): LivingHopeWorkbookContent {
     metrics: [],
     worship_playlist_url: "",
     worship_music_history: [],
+    day_ahead_prayer: DEFAULT_DAY_AHEAD_PRAYER,
     prayer_recordings: {},
   };
 }
@@ -195,16 +204,18 @@ export function mergeWorkbook(raw: unknown): LivingHopeWorkbookContent {
     metrics: parseMetrics(o.metrics),
     worship_playlist_url: String(o.worship_playlist_url ?? base.worship_playlist_url),
     worship_music_history: parseWorshipMusicHistory(o.worship_music_history, String(o.worship_playlist_url ?? "")),
+    day_ahead_prayer: typeof o.day_ahead_prayer === "string" ? o.day_ahead_prayer : base.day_ahead_prayer,
     prayer_recordings: parsePrayerRecordings(o.prayer_recordings),
   };
 }
 
-function parsePrayerRecordings(raw: unknown): { surrender?: string; covering?: string } {
+function parsePrayerRecordings(raw: unknown): PrayerRecordings {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const o = raw as Record<string, unknown>;
-  const result: { surrender?: string; covering?: string } = {};
-  if (typeof o.surrender === "string" && o.surrender.trim()) result.surrender = o.surrender.trim();
-  if (typeof o.covering === "string" && o.covering.trim()) result.covering = o.covering.trim();
+  const result: PrayerRecordings = {};
+  for (const key of ["surrender", "covering", "day_ahead"] as const) {
+    if (typeof o[key] === "string" && o[key].trim()) result[key] = o[key].trim();
+  }
   return result;
 }
 
