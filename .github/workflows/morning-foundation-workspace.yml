@@ -1,0 +1,23 @@
+name: Morning foundation workspace
+on:
+  push:
+    branches: [codex/morning-personal-foundation]
+    paths: [.github/workflows/morning-foundation-workspace.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Package source only
+        run: |
+          mkdir -p /tmp/morning-workspace
+          git archive HEAD src scripts docs .github package.json package-lock.json tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.ts vitest.config.ts tailwind.config.ts postcss.config.js eslint.config.js index.html | gzip > /tmp/morning-workspace/source.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: morning-foundation-source
+          path: /tmp/morning-workspace/source.tar.gz
+          retention-days: 1
