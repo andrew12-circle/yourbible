@@ -37,7 +37,7 @@ export function startWorshipPrayer(timer: WorshipPrayerTimer, availableMs: numbe
   if (paused.remainingMs <= 0 || paused.remainingMs > Math.max(0, availableMs)) return paused;
   return { ...paused, startedAt: now, hasStarted: true };
 }
-export function useRemainingWorshipTime(timer: WorshipPrayerTimer, availableMs: number, now = Date.now()): WorshipPrayerTimer {
+export function startRemainingWorshipPrayer(timer: WorshipPrayerTimer, availableMs: number, now = Date.now()): WorshipPrayerTimer {
   const remainingMs = Math.max(0, Math.min(600_000, Math.floor(availableMs / 1000) * 1000));
   return { ...timer, targetMs: remainingMs, remainingMs, startedAt: remainingMs > 0 ? now : null, hasStarted: remainingMs > 0 };
 }

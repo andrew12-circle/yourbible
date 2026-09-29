@@ -25,3 +25,9 @@ Personal foundation editing remains optional. Once an editor is open, the step c
 `node scripts/verify-morning-foundation-ui.mjs` exercises real components with in-memory fixtures at 1440, 820, 390 and 320 pixels, plus dark mode. It verifies overflow, editor controls, memory confirmation, pairing and assignment preservation and captures screenshots. It does not authenticate, write real data or use a real microphone.
 
 The pending Live-the-Vision restructuring in PR #102 is not merged or silently substituted here; the existing guided/structured steps are preserved.
+
+## Worship prayer and angels recording
+
+Worship now offers Sing, Pray in tongues, or Both. The optional prayer timer defaults to five minutes (1/3/5/10 can be selected), runs inside the existing Worship budget, and supports pause/resume/reset. A shorter remaining Worship budget requires an explicit shorter choice or adding five minutes. No extra mandatory step, microphone access, transcription, or automatic claim of prayer completion is introduced. Timer/check-in data uses the same daily snapshot.
+
+Covering includes a separate Angels & protection prayer script, private own-voice recording, playback, and a daily spoken-prayer check-in. Existing covering/surrender scripts and recording paths remain separate. Recording replacements use fresh storage paths and do not delete the prior audio before saving; failed pointer saves offer retry. Playback never checks off a spoken prayer automatically.

@@ -10,6 +10,9 @@ export interface MorningFoundationContextValue {
   onSaveMemories: (memories: MorningMemory[]) => Promise<void>;
   onSelectScene: (id: string) => void;
   selectedSceneId: string;
+  worshipRemainingMs?: number;
+  soundCuesEnabled?: boolean;
+  onAddWorshipTime?: () => void;
   onEditingChange?: (editing: boolean) => void;
 }
 export const MorningFoundationContext = createContext<MorningFoundationContextValue | null>(null);

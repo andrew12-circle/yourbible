@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { formatFormulaCountdown } from "@/lib/livingHope/morningFormulaTimer";
-import { emptyWorshipPrayerTimer, parseTonguesMinutes, parseWorshipMode, parseWorshipPrayerTimer, pauseWorshipPrayer, startWorshipPrayer, TONGUES_MINUTES, useRemainingWorshipTime, worshipPrayerRemaining, type WorshipMode } from "@/lib/livingHope/morningWorshipPrayer";
+import { emptyWorshipPrayerTimer, parseTonguesMinutes, parseWorshipMode, parseWorshipPrayerTimer, pauseWorshipPrayer, startWorshipPrayer, TONGUES_MINUTES, startRemainingWorshipPrayer, worshipPrayerRemaining, type WorshipMode } from "@/lib/livingHope/morningWorshipPrayer";
 import { parseMorningFoundation } from "@/lib/livingHope/morningFoundation";
 import { useMorningFoundation } from "./MorningFoundationContext";
 
@@ -75,7 +75,7 @@ export function MorningWorshipPractice() {
   };
   const start = (useRemaining = false) => {
     const at = Date.now(); unlockSound(); completedCue.current = false; setNow(at);
-    context.onDayChange({ worshipPrayer: useRemaining ? useRemainingWorshipTime(timer, available, at) : startWorshipPrayer(timer, available, at) });
+    context.onDayChange({ worshipPrayer: useRemaining ? startRemainingWorshipPrayer(timer, available, at) : startWorshipPrayer(timer, available, at) });
   };
   return <section className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:p-6" aria-label="Choose your worship practice">
     <div><h2 className="text-xl font-semibold">Sing, pray in tongues, or both.</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Give this time to God. Sing with your worship music, or sit and pray in the Spirit—quietly, in your heart, or aloud.</p></div>

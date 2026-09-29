@@ -18,6 +18,8 @@ import { createRoot } from 'react-dom/client';
 import { MemoryRouter } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { MorningFoundationContext } from '@/components/living-hope/foundation/MorningFoundationContext';
+import { MorningWorshipPractice, WorshipMusicChoice } from '@/components/living-hope/foundation/MorningWorshipPractice';
+import { MorningAngelsPrayer } from '@/components/living-hope/foundation/MorningAngelsPrayer';
 import { MorningFocusOpening, MorningRealMemories, MorningMemorySceneBridge, MorningActionBridge, MorningHopePrayer } from '@/components/living-hope/foundation/MorningFoundationPanels';
 import { TodayAssignmentPanel } from '@/components/living-hope/TodayAssignmentPanel';
 import { emptyMorningFoundationSession } from '@/lib/livingHope/morningFoundation';
@@ -33,15 +35,17 @@ function Fixture() {
   const [assignment, setAssignment] = useState({ ...emptyDailyAssignment(), mustDo: 'Keep my existing priority' });
   const [editing, setEditing] = useState(false);
   const [scene, setScene] = useState('fixture-scene');
-  return <MorningFoundationContext.Provider value={{ workbook, day, selectedSceneId: scene, onEditingChange: setEditing,
+  return <MorningFoundationContext.Provider value={{ workbook, day, selectedSceneId: scene, onEditingChange: setEditing, worshipRemainingMs: 600000, soundCuesEnabled: false,
     onDayChange: patch => setDay(value => ({ ...value, ...patch })),
     onSaveSettings: async settings => { setWorkbook(value => ({ ...value, morning_foundation: settings })); setDay(value => ({ ...value, ...settings })); },
     onSaveMemories: async memories => setWorkbook(value => ({ ...value, morning_memories: memories })),
     onSelectScene: id => { setScene(id); setDay(value => ({ ...value, sceneId: id, sceneTitle: workbook.stories.find(story => story.id === id)?.title || '' })); }
   }}><main className="morning-theme" style={{ maxWidth: 1180, margin: '0 auto', padding: 20, minHeight: '100vh', overflowWrap: 'anywhere' }}>
     <p style={{ fontSize: 12, marginBottom: 16 }}>Isolated test fixture · no real account or database</p>
-    <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>{['opening','gratitude','scene','assignment'].map(name => <button key={name} type="button" disabled={editing} onClick={() => setView(name)} style={{ minHeight: 44, padding: '8px 12px', border: '1px solid #999', borderRadius: 12 }}>{name}</button>)}</nav>
+    <nav style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>{['opening','gratitude','scene','assignment','worship','angels'].map(name => <button key={name} type="button" disabled={editing} onClick={() => setView(name)} style={{ minHeight: 44, padding: '8px 12px', border: '1px solid #999', borderRadius: 12 }}>{name}</button>)}</nav>
     {view === 'opening' && <MorningFocusOpening />}
+    {view === 'worship' && <><MorningWorshipPractice /><WorshipMusicChoice><p>Fixture worship music</p></WorshipMusicChoice></>}
+    {view === 'angels' && <MorningAngelsPrayer />}
     {view === 'gratitude' && <><MorningRealMemories /><MorningHopePrayer /></>}
     {view === 'scene' && <><MorningMemorySceneBridge /><MorningActionBridge /></>}
     {view === 'assignment' && <TodayAssignmentPanel assignment={assignment} onChange={patch => setAssignment(value => ({ ...value, ...patch }))} scriptureReflection="" visionRecall="" storyRecall="" thanksgivingNow={[]} touches={{}} goals={[]} />}
@@ -100,9 +104,25 @@ try {
     await page.getByRole("button", { name: "Add without replacing my assignment", exact: true }).click();
     assert.equal(await page.getByRole("textbox", { name: "The one thing — if only one thing gets done", exact: true }).inputValue(), "Keep my existing priority\nListen carefully at dinner.");
     await inspect(size, "assignment");
+    await page.getByRole("button", { name: "worship", exact: true }).click();
+    await page.getByRole("button", { name: "Start prayer timer", exact: true }).click();
+    await page.getByRole("button", { name: "Pause prayer timer", exact: true }).click();
+    await page.getByRole("button", { name: "Pray in tongues", exact: true }).click();
+    assert.equal(await page.getByText("Fixture worship music", { exact: true }).count(), 0);
+    await inspect(size, "worship-prayer");
+    await page.getByRole("button", { name: "angels", exact: true }).click();
+    await page.getByRole("button", { name: "Write my prayer", exact: true }).click();
+    await page.getByRole("textbox", { name: "My angels and protection prayer", exact: true }).fill("Fixture personal prayer. Not Scripture.");
+    await inspect(size, "angels-editor");
+    await page.getByRole("button", { name: "Save this prayer", exact: true }).click();
+    await page.getByRole("button", { name: "Record my angels prayer", exact: true }).waitFor();
+    assert.equal(await page.getByRole("checkbox", { name: "I spoke this prayer aloud today" }).isChecked(), false);
+    await page.getByRole("checkbox", { name: "I spoke this prayer aloud today" }).check();
+    await inspect(size, "angels-prayer");
   }
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => document.documentElement.classList.add("dark"));
-  await inspect("phone-dark", "assignment");
+  await inspect("phone-dark", "angels-prayer");
   assert.deepEqual(errors, [], "Browser runtime errors");
   await writeFile(path.join(output, "report.json"), JSON.stringify({ passed: true, report, errors }, null, 2));
   console.log(`Morning foundation: ${report.length} responsive states, real-memory confirmation, saved pairing and non-destructive assignment passed.`);

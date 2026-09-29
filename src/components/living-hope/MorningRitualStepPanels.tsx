@@ -1,3 +1,5 @@
+import { MorningWorshipPractice, WorshipMusicChoice } from "./foundation/MorningWorshipPractice";
+import { MorningAngelsPrayer } from "./foundation/MorningAngelsPrayer";
 import { MorningFocusOpening, MorningIdentityAnchors, MorningRealMemories, MorningMemorySceneBridge, MorningActionBridge, MorningHopePrayer } from "./foundation/MorningFoundationPanels";
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningScriptureReading } from "./MorningScriptureReading";
@@ -166,7 +168,8 @@ export function MorningRitualStepPanels({
           Put on praise music and pray. Get your eyes off business, money, systems, and pressure — talk to Him.
           You don&apos;t need to write anything down.
         </p>
-        <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} />
+        <MorningWorshipPractice />
+        <WorshipMusicChoice><MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} /></WorshipMusicChoice>
         <p className={cn(lh.labelUpper, "mb-2 mt-1")}>Focus on</p>
         <PromptList items={WORSHIP_PROMPTS} />
         <MorningFormulaInlineJournal
@@ -352,6 +355,7 @@ export function MorningRitualStepPanels({
   if (step.kind === "covering") {
     return (
       <>
+        <MorningAngelsPrayer />
         <p className={cn(lh.bodySm, "mb-3 leading-relaxed")}>{COVERING_STEP_INTRO}</p>
         <p className={cn(lh.labelUpper, lh.accent, "mb-3")}>Pray aloud</p>
         <PromptList items={COVERING_PRAYER_PROMPTS} />

@@ -551,6 +551,7 @@ export default function MorningReviewPage() {
   return (
     <MorningFoundationContext.Provider value={workbook ? {
       workbook, day: foundation, onEditingChange: setFoundationEditing,
+      worshipRemainingMs: formulaTimer.stepRemainingMs, soundCuesEnabled: formulaTimer.soundCuesEnabled, onAddWorshipTime: formulaTimer.addFiveMinutes,
       selectedSceneId: selectedFoundationScene?.id ?? "",
       onDayChange: (patch: Partial<MorningFoundationSession>) => setFoundation((previous) => ({ ...previous, ...patch })),
       onSaveSettings: async (settings) => {

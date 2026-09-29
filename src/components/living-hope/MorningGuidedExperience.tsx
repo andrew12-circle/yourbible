@@ -1,3 +1,5 @@
+import { MorningWorshipPractice, WorshipMusicChoice } from "./foundation/MorningWorshipPractice";
+import { MorningAngelsPrayer } from "./foundation/MorningAngelsPrayer";
 import { MorningFocusOpening, MorningIdentityAnchors, MorningRealMemories, MorningMemorySceneBridge, MorningActionBridge, MorningHopePrayer } from "./foundation/MorningFoundationPanels";
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningWorshipGuide } from "./MorningWorshipGuide";
@@ -179,8 +181,9 @@ export function MorningGuidedExperience({
 
       {step.kind === "worship" ? (
         <div className="space-y-6">
-          <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} />
-          <MorningWorshipGuide stepBudgetMs={stepBudgetMs} />
+          <MorningWorshipPractice />
+          <WorshipMusicChoice><MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} />
+          <MorningWorshipGuide stepBudgetMs={stepBudgetMs} /></WorshipMusicChoice>
         </div>
       ) : null}
 
@@ -250,6 +253,7 @@ export function MorningGuidedExperience({
 
       {step.kind === "covering" ? (
         <div className="space-y-3">
+          <MorningAngelsPrayer />
           <p className={cn(lh.bodySm, "leading-relaxed")}>{COVERING_STEP_INTRO}</p>
           <ul className={cn("space-y-1 mb-2 text-[13px] list-disc pl-4", lh.muted)}>
             {COVERING_PRAYER_PROMPTS.map((item) => (

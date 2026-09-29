@@ -1,9 +1,15 @@
+import { parseTonguesMinutes, parseWorshipMode, parseWorshipPrayerTimer, worshipPrayerRemaining, type WorshipMode, type WorshipPrayerTimer } from "./morningWorshipPrayer";
+
 /** Personal material, deliberately separate from imagined future scenes. */
 export interface MorningFoundation {
   theme: string;
   motto: string;
   question: string;
   hopePrayer: string;
+  worshipMode?: WorshipMode;
+  tonguesMinutes?: number;
+  angelPrayer?: string;
+  angelRecordingPath?: string;
 }
 
 export interface MorningMemory {
@@ -26,6 +32,8 @@ export interface MorningFoundationSession extends MorningFoundation {
   sceneId: string;
   sceneTitle: string;
   action: string;
+  worshipPrayer?: WorshipPrayerTimer;
+  angelsPrayed?: boolean;
 }
 
 export const SUGGESTED_HOPE_PRAYER = "Father, help me appreciate what You have already given me without pretending I do not have real needs. Let me ask honestly, work faithfully, and remain open to Your direction. Do not let my desire for tomorrow keep me from loving the people in front of me today.";
@@ -35,12 +43,12 @@ const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
 export function emptyMorningFoundation(): MorningFoundation {
-  return { theme: "", motto: "", question: "", hopePrayer: "" };
+  return { theme: "", motto: "", question: "", hopePrayer: "", worshipMode: "both", tonguesMinutes: 5, angelPrayer: "", angelRecordingPath: "" };
 }
 
 export function parseMorningFoundation(value: unknown): MorningFoundation {
   const raw = record(value);
-  return { theme: text(raw.theme), motto: text(raw.motto), question: text(raw.question), hopePrayer: text(raw.hopePrayer) };
+  return { theme: text(raw.theme), motto: text(raw.motto), question: text(raw.question), hopePrayer: text(raw.hopePrayer), worshipMode: parseWorshipMode(raw.worshipMode), tonguesMinutes: parseTonguesMinutes(raw.tonguesMinutes), angelPrayer: text(raw.angelPrayer), angelRecordingPath: text(raw.angelRecordingPath) };
 }
 
 export function parseMorningMemory(value: unknown): MorningMemory | null {
@@ -73,7 +81,9 @@ export function parseMorningFoundationSession(value: unknown): MorningFoundation
   const raw = record(value);
   return { ...parseMorningFoundation(raw), initialized: raw.initialized === true,
     answer: text(raw.answer), memory: parseMorningMemory(raw.memory), memoryReflection: text(raw.memoryReflection),
-    sceneId: text(raw.sceneId), sceneTitle: text(raw.sceneTitle), action: text(raw.action) };
+    sceneId: text(raw.sceneId), sceneTitle: text(raw.sceneTitle), action: text(raw.action),
+    ...(raw.worshipPrayer ? { worshipPrayer: parseWorshipPrayerTimer(raw.worshipPrayer) } : {}),
+    ...(raw.angelsPrayed === true ? { angelsPrayed: true } : {}) };
 }
 
 export function initializeMorningFoundationSession(settings: MorningFoundation, current: MorningFoundationSession): MorningFoundationSession {
@@ -148,5 +158,13 @@ export function formatMorningFoundationJournal(value: unknown): string {
   if (day.sceneTitle.trim()) blocks.push(`### Imagine — a future scene, not a past event\n\n${day.sceneTitle}`);
   if (day.action.trim()) blocks.push(`### Act — my chosen next step\n\n${day.action}`);
   if (day.hopePrayer.trim()) blocks.push(`### My gratitude and hope prayer\n\n${day.hopePrayer}\n\nPersonal prayer, not Scripture.`);
+  if (day.worshipPrayer?.hasStarted) {
+    const remaining = worshipPrayerRemaining(day.worshipPrayer);
+    const seconds = Math.floor(Math.max(0, day.worshipPrayer.targetMs - remaining) / 1000);
+    blocks.push(`**Prayer-in-tongues timer:** ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} elapsed. Timer only, not a verification of prayer.`);
+  }
+  if (day.worshipPrayer?.prayedToday) blocks.push("**My check-in:** I prayed in the Spirit today.");
+  if (day.angelPrayer?.trim()) blocks.push(`### Angels and protection — my personal prayer\n\n${day.angelPrayer}`);
+  if (day.angelsPrayed) blocks.push("**My check-in:** I spoke my angels and protection prayer aloud today.");
   return blocks.join("\n\n");
 }
