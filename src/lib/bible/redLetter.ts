@@ -519,12 +519,9 @@ export function splitJesusSpeechForChapter(
       result.set(v.number, segments); quoteDepth = 0; continue;
     }
     if (isJesusSpeechVerse(bookAbbr, chapter, v.number)) {
-      // A candidate verse that begins narration before an opening quotation
-      // must start clean. Never inherit red-letter state from adjacent narration.
-      const startsWithOpeningQuote = /^[\\s]*[“"]/.test(text);
-      const initialDepth = startsWithOpeningQuote ? quoteDepth : 0;
-      const startDepth = initialDepth;
-      const { segments, depth } = splitByQuotesStateful(text, initialDepth);
+      // Continue open speech and nested quotations across speech-candidate verses.
+      const startDepth = quoteDepth;
+      const { segments, depth } = splitByQuotesStateful(text, quoteDepth);
       quoteDepth = depth;
       let finalSegments =
         segments.length > 0 ? segments : [{ text, isJesus: false }];

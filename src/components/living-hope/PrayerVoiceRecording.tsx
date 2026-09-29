@@ -1,3 +1,4 @@
+import type { PrayerRecordingKey } from "@/lib/livingHope/workbookTypes";
 import { useEffect, useRef, useState } from "react";
 import { Mic, Square, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { pickJournalAudioMimeType } from "@/lib/journal/videos";
 
 type Props = {
-  prayerKey: "surrender" | "covering" | "angels";
+  prayerKey: PrayerRecordingKey | "angels";
   storagePath?: string;
   onStoragePathChange: (path: string) => void | Promise<void>;
   label?: string;

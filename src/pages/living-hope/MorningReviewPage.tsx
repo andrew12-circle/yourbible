@@ -671,6 +671,7 @@ export default function MorningReviewPage() {
                   durationMin={formulaTimer.durationMin}
                   onDurationChange={formulaTimer.setDurationMin}
                   prayerRecordings={workbook?.prayer_recordings ?? {}}
+                  onDayAheadPrayerChange={(value) => updateWorkbook({ day_ahead_prayer: value })}
                   onPrayerRecordingChange={(key, path) =>
                     updateWorkbook({
                       prayer_recordings: {
@@ -735,6 +736,7 @@ export default function MorningReviewPage() {
                   durationMin={formulaTimer.durationMin}
                   onDurationChange={formulaTimer.setDurationMin}
                   prayerRecordings={workbook?.prayer_recordings ?? {}}
+                  onDayAheadPrayerChange={(value) => updateWorkbook({ day_ahead_prayer: value })}
                   onPrayerRecordingChange={(key, path) =>
                     updateWorkbook({
                       prayer_recordings: {

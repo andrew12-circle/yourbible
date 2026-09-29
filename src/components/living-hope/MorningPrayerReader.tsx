@@ -3,12 +3,13 @@ import { Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import { PrayerVoiceRecording } from "./PrayerVoiceRecording";
+import type { PrayerRecordingKey } from "@/lib/livingHope/workbookTypes";
 
 export function MorningPrayerReader({ title, value, onChange, prayerKey, recordingPath, onRecordingPathChange }: {
   title: string;
   value: string;
   onChange: (value: string) => void;
-  prayerKey?: "surrender" | "covering";
+  prayerKey?: PrayerRecordingKey;
   recordingPath?: string;
   onRecordingPathChange?: (path: string) => void;
 }) {

@@ -6,6 +6,7 @@ import { MorningWorshipGuide } from "./MorningWorshipGuide";
 import { MorningScriptureReading } from "./MorningScriptureReading";
 import { MorningPrayerHelp } from "./MorningPrayerHelp";
 import { MorningPrayerReader } from "./MorningPrayerReader";
+import { MorningDayAheadPrayer } from "./MorningDayAheadPrayer";
 import { useMemo } from "react";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
 import { TodayAssignmentPanel } from "@/components/living-hope/TodayAssignmentPanel";
@@ -33,7 +34,7 @@ import {
   guidedCoachBeatForStep,
 } from "@/lib/livingHope/morningGuidedRitual";
 import type { SessionDurationMin } from "@/lib/livingHope/morningFormulaTimer";
-import type { LivingHopeWorkbookContent, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
+import type { LivingHopeWorkbookContent, PrayerRecordingKey, PrayerRecordings, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
 import { lh } from "@/lib/livingHope/themeClasses";
 import { cn } from "@/lib/utils";
 
@@ -95,8 +96,9 @@ type Props = {
   stepExpired: boolean;
   durationMin: SessionDurationMin;
   onDurationChange: (next: SessionDurationMin) => void;
-  prayerRecordings: { surrender?: string; covering?: string };
-  onPrayerRecordingChange: (key: "surrender" | "covering", path: string) => void;
+  onDayAheadPrayerChange: (value: string) => void;
+  prayerRecordings: PrayerRecordings;
+  onPrayerRecordingChange: (key: PrayerRecordingKey, path: string) => void;
 };
 
 export function MorningGuidedExperience({
@@ -147,6 +149,7 @@ export function MorningGuidedExperience({
   stepBudgetMs,
   durationMin,
   onDurationChange,
+  onDayAheadPrayerChange,
   prayerRecordings,
   onPrayerRecordingChange,
 }: Props) {
@@ -194,6 +197,12 @@ export function MorningGuidedExperience({
       {step.kind === "scripture" && <MorningScriptureReading scripture={scripture} busy={scriptureBusy} error={scriptureError}
         onRetry={onGenerateScripture} reflection={scriptureReflection} onReflectionChange={setScriptureReflection} />}
       {step.kind === "prayer" && <>
+        <MorningDayAheadPrayer
+          value={workbook?.day_ahead_prayer}
+          onChange={onDayAheadPrayerChange}
+          recordingPath={prayerRecordings.day_ahead}
+          onRecordingPathChange={(path) => onPrayerRecordingChange("day_ahead", path)}
+        />
         <MorningConversationPanel entryId={conversationEntryId} preview={conversationPreview} busy={conversationBusy} error={conversationError} />
         <MorningPrayerHelp entryId={conversationEntryId} />
         <MorningHopePrayer />

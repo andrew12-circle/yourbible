@@ -106,6 +106,7 @@ function Contents() {
     onSwitchToStructured={() => {}} canGoBack={stepIndex > 0} onGoBack={back} onContinue={next} saving={false} isLastStep={stepIndex === steps.length - 2}
     stepBudgetMs={600000} stepRemainingMs={505000} stepExpired={false} durationMin={duration} onDurationChange={setDuration}
     prayerRecordings={workbook.prayer_recordings} onPrayerRecordingChange={(key, value) => setWorkbook(book => ({ ...book, prayer_recordings: { ...book.prayer_recordings, [key]: value } }))}
+    onDayAheadPrayerChange={text => setWorkbook(book => ({ ...book, day_ahead_prayer: text }))}
    />}
   </div>{step.kind !== 'done' && <details className="mt-7 border-t border-border/40 pt-2 text-sm text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">Session options</summary><p>Fixture session options</p></details>}</div>
  </LivingHopeChrome>;
