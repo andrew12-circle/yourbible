@@ -1,0 +1,45 @@
+name: Morning personal foundation
+on:
+  pull_request:
+    paths:
+      - 'src/components/living-hope/**'
+      - 'src/pages/living-hope/MorningReviewPage.tsx'
+      - 'src/hooks/useLivingHopeWorkbook*'
+      - 'src/lib/livingHope/**'
+      - 'scripts/verify-morning-foundation-ui.mjs'
+      - '.github/workflows/morning-personal-foundation.yml'
+permissions:
+  contents: read
+concurrency:
+  group: morning-personal-foundation-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+env:
+  VITE_SUPABASE_URL: https://example.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: morning-foundation-test-placeholder
+  VITE_SUPABASE_ANON_KEY: morning-foundation-test-placeholder
+jobs:
+  foundation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Persistence, media and component regressions
+        run: npx vitest run src/lib/livingHope/morningFoundation.test.ts src/hooks/useLivingHopeWorkbook.test.tsx src/components/living-hope/foundation
+      - name: Browser tooling
+        run: |
+          npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test
+          npx playwright install --with-deps chromium
+      - name: Connected morning on desktop, tablet and phone
+        run: node scripts/verify-morning-foundation-ui.mjs
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: morning-personal-foundation-checks
+          path: artifacts/morning-foundation
+          retention-days: 7
