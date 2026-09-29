@@ -29,8 +29,8 @@ jobs:
         with:
           node-version: '22'
       - run: npm ci
-      - name: Persistence, media and component regressions
-        run: npx vitest run src/lib/livingHope/morningFoundation.test.ts src/hooks/useLivingHopeWorkbook.test.tsx src/components/living-hope/foundation
+      - name: Persistence, prayer timing, media and component regressions
+        run: npx vitest run src/lib/livingHope/morningFoundation.test.ts src/lib/livingHope/morningWorshipPrayer.test.ts src/hooks/useLivingHopeWorkbook.test.tsx src/components/living-hope/foundation src/components/living-hope/PrayerVoiceRecording.test.tsx
       - name: Browser tooling
         run: |
           npm install --no-save --package-lock=false --legacy-peer-deps @playwright/test
