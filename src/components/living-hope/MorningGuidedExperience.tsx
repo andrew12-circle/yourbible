@@ -1,3 +1,4 @@
+import { MorningFocusOpening, MorningIdentityAnchors, MorningRealMemories, MorningMemorySceneBridge, MorningActionBridge, MorningHopePrayer } from "./foundation/MorningFoundationPanels";
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningWorshipGuide } from "./MorningWorshipGuide";
 import { MorningScriptureReading } from "./MorningScriptureReading";
@@ -167,6 +168,7 @@ export function MorningGuidedExperience({
         </MorningGuidedCoach>
       ) : null}
 
+      {step.kind === "intro" && <MorningFocusOpening />}
       {step.kind === "intro" ? (
         <MorningFormulaDurationPicker durationMin={durationMin} onDurationChange={onDurationChange} />
       ) : null}
@@ -185,19 +187,23 @@ export function MorningGuidedExperience({
       {step.kind === "thanksgiving" && <ThanksgivingListsInput
         thanksgivingNow={thanksgivingNow} thanksgivingNotYet={thanksgivingNotYet}
         onThanksgivingNowChange={onThanksgivingNowChange} onThanksgivingNotYetChange={onThanksgivingNotYetChange} />}
+      {step.kind === "thanksgiving" && <MorningRealMemories />}
       {step.kind === "scripture" && <MorningScriptureReading scripture={scripture} busy={scriptureBusy} error={scriptureError}
         onRetry={onGenerateScripture} reflection={scriptureReflection} onReflectionChange={setScriptureReflection} />}
       {step.kind === "prayer" && <>
         <MorningConversationPanel entryId={conversationEntryId} preview={conversationPreview} busy={conversationBusy} error={conversationError} />
         <MorningPrayerHelp entryId={conversationEntryId} />
+        <MorningHopePrayer />
       </>}
 
+      {step.kind === "manifesto" && <MorningIdentityAnchors />}
       {step.kind === "manifesto" && manifestoItem ? (
         <p className={cn(lh.bodyQuote, "text-[18px]")}>{manifestoItem.text}</p>
       ) : null}
 
       {step.kind === "vision" && workbook ? (
         <div className="space-y-4">
+          <MorningMemorySceneBridge />
           <VisionEmbodimentWalkthrough
             workbook={workbook}
             visionRecall={visionRecall}
@@ -225,6 +231,8 @@ export function MorningGuidedExperience({
           onStoryRecallChange={setStoryRecall}
         />
       ) : null}
+
+      {step.kind === "story" && <MorningActionBridge />}
 
       {step.kind === "surrender" ? (
         <div className="space-y-3">

@@ -1,3 +1,4 @@
+import { MorningFocusOpening, MorningIdentityAnchors, MorningRealMemories, MorningMemorySceneBridge, MorningActionBridge, MorningHopePrayer } from "./foundation/MorningFoundationPanels";
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningScriptureReading } from "./MorningScriptureReading";
 import { MorningPrayerReader } from "./MorningPrayerReader";
@@ -151,6 +152,7 @@ export function MorningRitualStepPanels({
 }: Props) {
   if (step.kind === "intro") {
     return <div className="space-y-6">
+      <MorningFocusOpening />
       <p className={lh.body}>Settle in. This morning is time to worship, reflect, and choose your next faithful step.</p>
       {durationMin != null && onDurationChange && <MorningFormulaDurationPicker durationMin={durationMin} onDurationChange={onDurationChange} />}
       {(letter?.full_letter ?? letter?.outlook) && <details><summary className="min-h-11 cursor-pointer py-3 text-sm text-muted-foreground">A reminder from your foundation</summary><blockquote className={lh.quote}>{letter?.full_letter ?? letter?.outlook}</blockquote></details>}
@@ -194,6 +196,7 @@ export function MorningRitualStepPanels({
           onThanksgivingNowChange={onThanksgivingNowChange}
           onThanksgivingNotYetChange={onThanksgivingNotYetChange}
         />
+        <MorningRealMemories />
       </>
     );
   }
@@ -215,6 +218,7 @@ export function MorningRitualStepPanels({
           busy={conversationBusy}
           error={conversationError}
         />
+        <MorningHopePrayer />
       </>
     );
   }
@@ -222,6 +226,7 @@ export function MorningRitualStepPanels({
   if (step.kind === "manifesto" && manifestoItem) {
     return (
       <>
+        <MorningIdentityAnchors />
         <p className={cn(lh.bodyQuote, "mb-0")}>{manifestoItem.text}</p>
         <p className={cn("text-[13px] mt-6", lh.muted)}>Speak it slowly. Let it land.</p>
       </>
@@ -234,6 +239,7 @@ export function MorningRitualStepPanels({
         <p className={cn(lh.bodySm, "mb-4")}>
           Don&apos;t read the numbers — inhabit the life. Present tense. You already have it.
         </p>
+        <MorningMemorySceneBridge />
         <VisionEmbodimentWalkthrough
           workbook={workbook}
           visionRecall={visionRecall}
@@ -257,6 +263,7 @@ export function MorningRitualStepPanels({
           storyRecall={storyRecall}
           onStoryRecallChange={setStoryRecall}
         />
+        <MorningActionBridge />
       </>
     );
   }

@@ -1,3 +1,4 @@
+import { parseMorningFoundationSession, type MorningFoundationSession } from "./morningFoundation";
 import type { LivingHopeGoalRow } from "@/lib/livingHope/api";
 import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 
@@ -49,6 +50,7 @@ export const DAILY_ASSIGNMENT_FIELDS: {
 ];
 
 export interface MorningConnectionNotes {
+  foundation?: MorningFoundationSession;
   worship_note?: string;
   /** @deprecated Legacy single field — use thanksgiving_now / thanksgiving_not_yet */
   thanksgiving_note?: string;
@@ -299,6 +301,7 @@ export function parseConnectionNotes(raw: unknown): MorningConnectionNotes {
     }
   }
   return {
+    foundation: o.foundation ? parseMorningFoundationSession(o.foundation) : undefined,
     worship_note: o.worship_note ? String(o.worship_note) : undefined,
     ...compactThanksgivingLists(parseThanksgivingLists(o)),
     thanksgiving_note: o.thanksgiving_note ? String(o.thanksgiving_note) : undefined,

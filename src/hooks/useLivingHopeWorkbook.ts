@@ -4,117 +4,138 @@ import { isLocalModeNotified } from "@/lib/livingHope/livingHopeLocalStore";
 import { getOrCreateWorkbook, saveWorkbookPatch } from "@/lib/livingHope/workbookApi";
 import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 
-function changedWorkbookFields(
-  prev: LivingHopeWorkbookContent,
-  next: LivingHopeWorkbookContent,
-): Partial<LivingHopeWorkbookContent> {
+function changedWorkbookFields(prev: LivingHopeWorkbookContent, next: LivingHopeWorkbookContent): Partial<LivingHopeWorkbookContent> {
   const patch: Partial<LivingHopeWorkbookContent> = {};
   for (const key of Object.keys(next) as Array<keyof LivingHopeWorkbookContent>) {
-    if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) {
-      (patch as Record<string, unknown>)[key] = next[key];
-    }
+    if (JSON.stringify(prev[key]) !== JSON.stringify(next[key])) (patch as Record<string, unknown>)[key] = next[key];
   }
   return patch;
 }
 
+type WorkbookSession = {
+  owner: string | undefined;
+  alive: boolean;
+  server: LivingHopeWorkbookContent | null;
+  view: LivingHopeWorkbookContent | null;
+  pending: Partial<LivingHopeWorkbookContent>;
+  timer: ReturnType<typeof setTimeout> | null;
+  flight: Promise<void> | null;
+};
+
 export function useLivingHopeWorkbook(userId: string | undefined) {
   const [busy, setBusy] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [workbook, setWorkbookState] = useState<LivingHopeWorkbookContent | null>(null);
-  const serverWorkbook = useRef<LivingHopeWorkbookContent | null>(null);
-  const pendingPatch = useRef<Partial<LivingHopeWorkbookContent>>({});
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const session = useRef<WorkbookSession>({ owner: undefined, alive: false, server: null, view: null, pending: {}, timer: null, flight: null });
+
+  const flush = useCallback((): Promise<void> => {
+    const state = session.current;
+    if (!userId || state.owner !== userId || !state.alive) return Promise.resolve();
+    if (state.timer) { clearTimeout(state.timer); state.timer = null; }
+    if (state.flight) return state.flight;
+    if (!Object.keys(state.pending).length) return Promise.resolve();
+    const run = async () => {
+      setSaving(true); setSaveError("");
+      try {
+        while (state.owner === session.current.owner && Object.keys(state.pending).length) {
+          const patch = state.pending;
+          state.pending = {};
+          try {
+            const saved = await saveWorkbookPatch(userId, patch, state.server);
+            state.server = saved;
+            state.view = { ...saved, ...state.pending };
+            if (state.alive && state === session.current) setWorkbookState(state.view);
+          } catch (cause) {
+            state.pending = { ...patch, ...state.pending };
+            const message = cause instanceof Error ? cause.message : "Try saving again.";
+            if (state.alive && state === session.current) {
+              setSaveError(message);
+              toast({ title: "Couldn't save workbook", description: message, variant: "destructive" });
+            }
+            throw cause;
+          }
+        }
+      } finally {
+        if (state.alive && state === session.current) setSaving(false);
+      }
+    };
+    state.flight = run().finally(() => { state.flight = null; });
+    return state.flight;
+  }, [userId]);
 
   const load = useCallback(async () => {
-    if (!userId) {
-      setBusy(false);
-      return;
-    }
+    const state = session.current;
+    if (!userId || state.owner !== userId || !state.alive) return;
     setBusy(true);
     try {
-      const wb = await getOrCreateWorkbook(userId);
-      serverWorkbook.current = wb;
-      pendingPatch.current = {};
-      setWorkbookState(wb);
-      if (isLocalModeNotified()) {
-        toast({
-          title: "Saving on this device",
-          description:
-            "Morning formula tables are not in Supabase yet. Your workbook is stored locally until migrations are applied.",
-        });
-      }
-    } catch (e) {
-      toast({
-        title: "Couldn't load workbook",
-        description: e instanceof Error ? e.message : "Try again.",
-        variant: "destructive",
-      });
+      // Do not let a completed earlier request replace a newer load.
+      if (state.flight) await state.flight.catch(() => undefined);
+      const loaded = await getOrCreateWorkbook(userId);
+      if (!state.alive || state !== session.current) return;
+      state.server = loaded;
+      state.view = { ...loaded, ...state.pending };
+      setWorkbookState(state.view);
+      if (isLocalModeNotified()) toast({ title: "Saving on this device", description: "Your workbook is stored locally until the Morning Formula tables are available." });
+    } catch (cause) {
+      if (state.alive && state === session.current) toast({ title: "Couldn't load workbook", description: cause instanceof Error ? cause.message : "Try again.", variant: "destructive" });
     } finally {
-      setBusy(false);
+      if (state.alive && state === session.current) setBusy(false);
     }
   }, [userId]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    const state: WorkbookSession = { owner: userId, alive: true, server: null, view: null, pending: {}, timer: null, flight: null };
+    session.current = state;
+    setWorkbookState(null); setSaving(false); setSaveError("");
+    if (userId) void load(); else setBusy(false);
+    return () => {
+      // Start pending writes for this captured owner before detaching the view.
+      if (state === session.current && Object.keys(state.pending).length) void flush().catch(() => undefined);
+      state.alive = false;
+      if (state.timer) clearTimeout(state.timer);
+    };
+  }, [userId, load, flush]);
 
-  const schedulePatch = useCallback(
-    (patch: Partial<LivingHopeWorkbookContent>) => {
-      if (!userId || Object.keys(patch).length === 0) return;
-      pendingPatch.current = { ...pendingPatch.current, ...patch };
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        saveTimer.current = null;
-        const patchToSave = pendingPatch.current;
-        pendingPatch.current = {};
-        const base = serverWorkbook.current;
+  const update = useCallback((patch: Partial<LivingHopeWorkbookContent>) => {
+    const state = session.current;
+    if (!state.alive || state.owner !== userId || !state.view || !Object.keys(patch).length) return;
+    state.pending = { ...state.pending, ...patch };
+    state.view = { ...state.view, ...patch };
+    setWorkbookState(state.view);
+    if (state.timer) clearTimeout(state.timer);
+    state.timer = setTimeout(() => { state.timer = null; void flush().catch(() => undefined); }, 700);
+  }, [userId, flush]);
 
-        void saveWorkbookPatch(userId, patchToSave, base)
-          .then((saved) => {
-            serverWorkbook.current = saved;
-            // If nothing newer is waiting locally, adopt the merged server copy.
-            // This is what makes remote scene additions appear after a stale-tab save.
-            if (Object.keys(pendingPatch.current).length === 0) {
-              setWorkbookState(saved);
-            }
-          })
-          .catch((e) => {
-            pendingPatch.current = { ...patchToSave, ...pendingPatch.current };
-            toast({
-              title: "Couldn't save",
-              description: e instanceof Error ? e.message : "Try again.",
-              variant: "destructive",
-            });
-          });
-      }, 700);
-    },
-    [userId],
-  );
-
-  const update = useCallback(
-    (patch: Partial<LivingHopeWorkbookContent>) => {
-      setWorkbookState((prev) => {
-        if (!prev) return prev;
-        const next = { ...prev, ...patch };
-        schedulePatch(patch);
-        return next;
-      });
-    },
-    [schedulePatch],
-  );
-
-  const setWorkbook = useCallback(
-    (next: LivingHopeWorkbookContent) => {
-      setWorkbookState((prev) => {
-        if (!prev) {
-          schedulePatch(next);
-          return next;
+  const save = useCallback(async (patch: Partial<LivingHopeWorkbookContent>) => {
+    const state = session.current;
+    if (!userId || state.owner !== userId || !state.alive || !state.view) throw new Error("Your workbook is not ready. Please try again.");
+    const before = { ...state.pending };
+    update(patch);
+    try {
+      await flush();
+    } catch (cause) {
+      // Explicit editors retain their own draft. Do not silently retry a cancelled
+      // editor's failed Save when the user later advances to another activity.
+      if (state.alive && state === session.current) {
+        const pending = state.pending as Record<string, unknown>;
+        for (const key of Object.keys(patch) as Array<keyof LivingHopeWorkbookContent>) {
+          if (JSON.stringify(pending[key]) !== JSON.stringify(patch[key])) continue;
+          if (Object.prototype.hasOwnProperty.call(before, key)) pending[key] = before[key];
+          else delete pending[key];
         }
-        schedulePatch(changedWorkbookFields(prev, next));
-        return next;
-      });
-    },
-    [schedulePatch],
-  );
+        state.view = { ...(state.server ?? state.view!), ...state.pending };
+        setWorkbookState(state.view);
+      }
+      throw cause;
+    }
+    if (!state.alive || state !== session.current) throw new Error("Your account changed before this editor finished saving.");
+  }, [userId, update, flush]);
 
-  return { busy, workbook, load, update, setWorkbook };
+  const setWorkbook = useCallback((next: LivingHopeWorkbookContent) => {
+    const previous = session.current.view;
+    if (previous) update(changedWorkbookFields(previous, next));
+  }, [update]);
+
+  return { busy, saving, saveError, workbook, load, update, setWorkbook, save, flush };
 }

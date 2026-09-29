@@ -1,3 +1,4 @@
+import { formatMorningFoundationJournal } from "./morningFoundation";
 import { getOrCreateMorningConversationEntry } from "./morningConversationJournal";
 import { mergeMorningReviewBody, updateMorningFormulaEntry } from "./morningFormulaJournalBody";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,6 +134,7 @@ export function buildMorningReviewJournalContent(ctx: MorningReviewJournalContex
       .join("\n\n") || undefined;
 
   const body = [
+    section("Personal morning foundation", formatMorningFoundationJournal(ctx.connectionNotes?.foundation)),
     section("Worship", ctx.connectionNotes?.worship_note),
     section(
       "Thanksgiving",

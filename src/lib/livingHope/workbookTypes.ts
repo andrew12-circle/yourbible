@@ -1,3 +1,5 @@
+import { emptyMorningFoundation, parseMorningFoundation, parseMorningMemories, type MorningFoundation, type MorningMemory } from "./morningFoundation";
+
 /** Reflect-style workbook stored in `living_hope_workbook.content`. */
 
 export interface IncomeLine {
@@ -66,6 +68,8 @@ export interface WorshipMusicHistoryItem {
 }
 
 export interface LivingHopeWorkbookContent {
+  morning_foundation?: MorningFoundation;
+  morning_memories?: MorningMemory[];
   vision_headline: string;
   vision_tagline: string;
   income_lines: IncomeLine[];
@@ -143,6 +147,8 @@ export function newId(): string {
 
 export function emptyWorkbook(): LivingHopeWorkbookContent {
   return {
+    morning_foundation: emptyMorningFoundation(),
+    morning_memories: [],
     vision_headline: "",
     vision_tagline: "Not fantasy. Structure.",
     income_lines: [],
@@ -176,6 +182,8 @@ export function mergeWorkbook(raw: unknown): LivingHopeWorkbookContent {
   const o = raw as Record<string, unknown>;
   return {
     ...base,
+    morning_foundation: parseMorningFoundation(o.morning_foundation),
+    morning_memories: parseMorningMemories(o.morning_memories),
     vision_headline: String(o.vision_headline ?? base.vision_headline),
     vision_tagline: String(o.vision_tagline ?? base.vision_tagline),
     income_total_label: String(o.income_total_label ?? base.income_total_label),

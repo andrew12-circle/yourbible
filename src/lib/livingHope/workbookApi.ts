@@ -1,3 +1,4 @@
+import { mergeMorningFoundation, mergeMorningMemories, parseMorningFoundation } from "./morningFoundation";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 import {
@@ -126,6 +127,18 @@ export async function saveWorkbookPatch(
 
     const current = data ? mergeWorkbook(data.content) : baseContent ?? emptyWorkbook();
     const next: LivingHopeWorkbookContent = { ...current, ...patch };
+    if (patch.morning_foundation) {
+      next.morning_foundation = mergeMorningFoundation(
+        parseMorningFoundation(baseContent?.morning_foundation ?? current.morning_foundation),
+        patch.morning_foundation, parseMorningFoundation(current.morning_foundation),
+      );
+    }
+    if (patch.morning_memories) {
+      next.morning_memories = mergeMorningMemories(
+        baseContent?.morning_memories ?? current.morning_memories ?? [],
+        patch.morning_memories, current.morning_memories ?? [],
+      );
+    }
 
     if (patch.stories) {
       next.stories = mergeWorkbookStories(
@@ -149,6 +162,18 @@ export async function saveWorkbookPatch(
     if (!isSupabaseMissingTable(e)) throw e;
     const current = localGetWorkbook(userId);
     const next: LivingHopeWorkbookContent = { ...current, ...patch };
+    if (patch.morning_foundation) {
+      next.morning_foundation = mergeMorningFoundation(
+        parseMorningFoundation(baseContent?.morning_foundation ?? current.morning_foundation),
+        patch.morning_foundation, parseMorningFoundation(current.morning_foundation),
+      );
+    }
+    if (patch.morning_memories) {
+      next.morning_memories = mergeMorningMemories(
+        baseContent?.morning_memories ?? current.morning_memories ?? [],
+        patch.morning_memories, current.morning_memories ?? [],
+      );
+    }
     if (patch.stories) {
       next.stories = mergeWorkbookStories(
         baseContent?.stories ?? current.stories,
