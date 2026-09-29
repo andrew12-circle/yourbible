@@ -1,6 +1,7 @@
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningScriptureReading } from "./MorningScriptureReading";
 import { MorningPrayerReader } from "./MorningPrayerReader";
+import { MorningDayAheadPrayer } from "./MorningDayAheadPrayer";
 import { Link } from "react-router-dom";
 import { Check } from "lucide-react";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
@@ -22,7 +23,7 @@ import {
   type RitualStep,
 } from "@/lib/livingHope/morningRitual";
 import type { LivingHopeLetterRow } from "@/lib/livingHope/api";
-import type { LivingHopeWorkbookContent, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
+import type { LivingHopeWorkbookContent, PrayerRecordingKey, PrayerRecordings, WorshipMusicHistoryItem } from "@/lib/livingHope/workbookTypes";
 import { ThanksgivingListsInput } from "@/components/living-hope/ThanksgivingListsInput";
 import { MorningConversationPanel } from "@/components/living-hope/MorningConversationPanel";
 import { MorningFormulaInlineJournal } from "@/components/living-hope/MorningFormulaInlineJournal";
@@ -95,8 +96,9 @@ type Props = {
   onGuidedModeChange?: (next: boolean) => void;
   durationMin?: SessionDurationMin;
   onDurationChange?: (next: SessionDurationMin) => void;
-  prayerRecordings: { surrender?: string; covering?: string };
-  onPrayerRecordingChange: (key: "surrender" | "covering", path: string) => void;
+  onDayAheadPrayerChange: (value: string) => void;
+  prayerRecordings: PrayerRecordings;
+  onPrayerRecordingChange: (key: PrayerRecordingKey, path: string) => void;
 };
 
 export function MorningRitualStepPanels({
@@ -146,6 +148,7 @@ export function MorningRitualStepPanels({
   onWorshipMusicChange,
   durationMin,
   onDurationChange,
+  onDayAheadPrayerChange,
   prayerRecordings,
   onPrayerRecordingChange,
 }: Props) {
@@ -205,7 +208,13 @@ export function MorningRitualStepPanels({
 
   if (step.kind === "prayer") {
     return (
-      <>
+      <div className="space-y-7">
+        <MorningDayAheadPrayer
+          value={workbook?.day_ahead_prayer}
+          onChange={onDayAheadPrayerChange}
+          recordingPath={prayerRecordings.day_ahead}
+          onRecordingPathChange={(path) => onPrayerRecordingChange("day_ahead", path)}
+        />
         <p className={cn(lh.bodySm, "mb-4")}>
           Relationship, not instructions — get it out honestly, then ask and listen.
         </p>
@@ -215,7 +224,7 @@ export function MorningRitualStepPanels({
           busy={conversationBusy}
           error={conversationError}
         />
-      </>
+      </div>
     );
   }
 

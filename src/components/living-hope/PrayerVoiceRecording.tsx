@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { pickJournalAudioMimeType } from "@/lib/journal/videos";
+import type { PrayerRecordingKey } from "@/lib/livingHope/workbookTypes";
 
 type Props = {
-  prayerKey: "surrender" | "covering";
+  prayerKey: PrayerRecordingKey;
   storagePath?: string;
   onStoragePathChange: (path: string) => void;
 };
