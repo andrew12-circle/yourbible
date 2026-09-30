@@ -1,3 +1,6 @@
+import { MorningWorshipPractice, WorshipMusicChoice } from "./foundation/MorningWorshipPractice";
+import { MorningAngelsPrayer } from "./foundation/MorningAngelsPrayer";
+import { MorningFocusOpening, MorningIdentityAnchors, MorningRealMemories, MorningMemorySceneBridge, MorningActionBridge, MorningHopePrayer } from "./foundation/MorningFoundationPanels";
 import { MorningWorshipMusic } from "./MorningWorshipMusic";
 import { MorningWorshipGuide } from "./MorningWorshipGuide";
 import { MorningScriptureReading } from "./MorningScriptureReading";
@@ -170,6 +173,7 @@ export function MorningGuidedExperience({
         </MorningGuidedCoach>
       ) : null}
 
+      {step.kind === "intro" && <MorningFocusOpening />}
       {step.kind === "intro" ? (
         <MorningFormulaDurationPicker durationMin={durationMin} onDurationChange={onDurationChange} />
       ) : null}
@@ -180,14 +184,16 @@ export function MorningGuidedExperience({
 
       {step.kind === "worship" ? (
         <div className="space-y-6">
-          <MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} />
-          <MorningWorshipGuide stepBudgetMs={stepBudgetMs} />
+          <MorningWorshipPractice />
+          <WorshipMusicChoice><MorningWorshipMusic url={worshipPlaylistUrl} history={worshipPlaylistHistory} onChange={onWorshipMusicChange} />
+          <MorningWorshipGuide stepBudgetMs={stepBudgetMs} /></WorshipMusicChoice>
         </div>
       ) : null}
 
       {step.kind === "thanksgiving" && <ThanksgivingListsInput
         thanksgivingNow={thanksgivingNow} thanksgivingNotYet={thanksgivingNotYet}
         onThanksgivingNowChange={onThanksgivingNowChange} onThanksgivingNotYetChange={onThanksgivingNotYetChange} />}
+      {step.kind === "thanksgiving" && <MorningRealMemories />}
       {step.kind === "scripture" && <MorningScriptureReading scripture={scripture} busy={scriptureBusy} error={scriptureError}
         onRetry={onGenerateScripture} reflection={scriptureReflection} onReflectionChange={setScriptureReflection} />}
       {step.kind === "prayer" && <>
@@ -199,14 +205,17 @@ export function MorningGuidedExperience({
         />
         <MorningConversationPanel entryId={conversationEntryId} preview={conversationPreview} busy={conversationBusy} error={conversationError} />
         <MorningPrayerHelp entryId={conversationEntryId} />
+        <MorningHopePrayer />
       </>}
 
+      {step.kind === "manifesto" && <MorningIdentityAnchors />}
       {step.kind === "manifesto" && manifestoItem ? (
         <p className={cn(lh.bodyQuote, "text-[18px]")}>{manifestoItem.text}</p>
       ) : null}
 
       {step.kind === "vision" && workbook ? (
         <div className="space-y-4">
+          <MorningMemorySceneBridge />
           <VisionEmbodimentWalkthrough
             workbook={workbook}
             visionRecall={visionRecall}
@@ -235,6 +244,8 @@ export function MorningGuidedExperience({
         />
       ) : null}
 
+      {step.kind === "story" && <MorningActionBridge />}
+
       {step.kind === "surrender" ? (
         <div className="space-y-3">
           <p className={cn(lh.bodySm, "leading-relaxed")}>{SURRENDER_STEP_INTRO}</p>
@@ -251,6 +262,7 @@ export function MorningGuidedExperience({
 
       {step.kind === "covering" ? (
         <div className="space-y-3">
+          <MorningAngelsPrayer />
           <p className={cn(lh.bodySm, "leading-relaxed")}>{COVERING_STEP_INTRO}</p>
           <ul className={cn("space-y-1 mb-2 text-[13px] list-disc pl-4", lh.muted)}>
             {COVERING_PRAYER_PROMPTS.map((item) => (

@@ -1,3 +1,5 @@
+import { MorningFoundationContext } from "@/components/living-hope/foundation/MorningFoundationContext";
+import { carryMorningAction, emptyMorningFoundationSession, initializeMorningFoundationSession, parseMorningFoundation, parseMorningFoundationSession, type MorningFoundationSession } from "@/lib/livingHope/morningFoundation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -64,7 +66,7 @@ export default function MorningReviewPage() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const { busy, goals, letter, load, setTodayReview } = useLivingHope(user?.id);
-  const { busy: wbBusy, workbook, update: updateWorkbook } = useLivingHopeWorkbook(user?.id);
+  const { busy: wbBusy, workbook, update: updateWorkbook, save: saveWorkbook, flush: flushWorkbook } = useLivingHopeWorkbook(user?.id);
   const [searchParams] = useSearchParams();
   const {
     scripture,
@@ -92,6 +94,8 @@ export default function MorningReviewPage() {
   });
   const [stepIndex, setStepIndex] = useState(0);
   const [touches, setTouches] = useState<Record<string, GoalTouch>>({});
+  const [foundation, setFoundation] = useState(emptyMorningFoundationSession);
+  const [foundationEditing, setFoundationEditing] = useState(false);
   const [visionRecall, setVisionRecall] = useState("");
   const [storyRecall, setStoryRecall] = useState("");
   const [metricValues, setMetricValues] = useState<Record<string, string>>({});
@@ -140,6 +144,7 @@ export default function MorningReviewPage() {
     setExpressMode(draft.expressMode);
     setGuidedMode(draft.guidedMode ?? true);
     setTouches(draft.touches);
+    setFoundation(parseMorningFoundationSession(draft.foundation));
     setVisionRecall(draft.visionRecall);
     setStoryRecall(draft.storyRecall);
     setMetricValues(draft.metricValues);
@@ -161,6 +166,7 @@ export default function MorningReviewPage() {
       goalIndex,
       goalTotal: activeGoals.length,
       touches,
+      foundation,
       visionRecall,
       storyRecall,
       metricValues,
@@ -180,6 +186,7 @@ export default function MorningReviewPage() {
       goalIndex,
       activeGoals.length,
       touches,
+      foundation,
       visionRecall,
       storyRecall,
       metricValues,
@@ -210,6 +217,26 @@ export default function MorningReviewPage() {
     pendingDraftRestore.current = null;
     draftRestored.current = true;
   }, [steps]);
+
+  useEffect(() => {
+    if (!workbook) return;
+    setFoundation((previous) => initializeMorningFoundationSession(parseMorningFoundation(workbook.morning_foundation), previous));
+  }, [workbook]);
+
+  const selectedFoundationScene = workbook?.stories[storySelectedIndex ?? storySuggestedIndex];
+  useEffect(() => {
+    if ((step.kind !== "vision" && step.kind !== "story") || !selectedFoundationScene) return;
+    setFoundation((previous) => previous.sceneId === selectedFoundationScene.id ? previous : {
+      ...previous, sceneId: selectedFoundationScene.id, sceneTitle: selectedFoundationScene.title || "Untitled scene",
+    });
+  }, [step.kind, selectedFoundationScene]);
+
+  useEffect(() => {
+    if (!foundationEditing) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [foundationEditing]);
 
   const setDailyAssignment = useCallback((patch: Partial<DailyAssignment>) => {
     setDailyAssignmentState((prev) => ({ ...prev, ...patch }));
@@ -367,6 +394,7 @@ export default function MorningReviewPage() {
       story_recall: storyRecall.trim() || undefined,
       covering_note: covering.trim() || undefined,
       daily_assignment: dailyAssignment,
+      foundation,
     };
   }, [
     thanksgivingNow,
@@ -376,6 +404,7 @@ export default function MorningReviewPage() {
     scripture?.reference,
     scriptureReflection,
     dailyAssignment,
+    foundation,
     storyRecall,
     covering,
   ]);
@@ -384,6 +413,7 @@ export default function MorningReviewPage() {
     if (!user?.id) return;
     setSaving(true);
     try {
+      await flushWorkbook();
       const sharedEntryId = await ensureConversationEntry();
       if (sharedEntryId) await flushMorningInlineJournals(user.id, sharedEntryId);
       if (sharedEntryId && peekJournalDocument(user.id, sharedEntryId)) {
@@ -466,6 +496,7 @@ export default function MorningReviewPage() {
     }
   }, [
     user?.id,
+    flushWorkbook,
     activeGoals,
     touches,
     surrender,
@@ -485,9 +516,11 @@ export default function MorningReviewPage() {
   ]);
 
   const goToNextStep = useCallback(async () => {
-    if (navigationLock.current || saving) return;
+    if (navigationLock.current || saving || foundationEditing) return;
     navigationLock.current = true; setAdvancing(true);
     try {
+      await flushWorkbook();
+      if (step.kind === "story" && foundation.action.trim()) setDailyAssignmentState((previous) => ({ ...previous, mustDo: carryMorningAction(previous.mustDo, foundation.action) }));
       if (user?.id && conversationEntryId) await flushMorningInlineJournals(user.id, conversationEntryId);
       if (user?.id && conversationEntryId && peekJournalDocument(user.id, conversationEntryId)) {
         const flushed = await flushJournalDocument(user.id, conversationEntryId);
@@ -507,7 +540,7 @@ export default function MorningReviewPage() {
       }
     } catch (cause) { toast({ title: "Your morning is still here", description: formatSupabaseError(cause), variant: "destructive" }); }
     finally { navigationLock.current = false; setAdvancing(false); }
-  }, [saving, user?.id, conversationEntryId, stepIndex, steps, finish, step.kind, scripture?.source, completeCurrentPlanDay, syncThanksgivingToJournal, thanksgivingNow, thanksgivingNotYet]);
+  }, [saving, foundationEditing, flushWorkbook, foundation.action, user?.id, conversationEntryId, stepIndex, steps, finish, step.kind, scripture?.source, completeCurrentPlanDay, syncThanksgivingToJournal, thanksgivingNow, thanksgivingNotYet]);
 
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
@@ -516,17 +549,35 @@ export default function MorningReviewPage() {
   const canGoBack = step.kind !== "done" && stepIndex > 0;
 
   return (
+    <MorningFoundationContext.Provider value={workbook ? {
+      workbook, day: foundation, onEditingChange: setFoundationEditing,
+      worshipRemainingMs: formulaTimer.stepRemainingMs, soundCuesEnabled: formulaTimer.soundCuesEnabled, onAddWorshipTime: formulaTimer.addFiveMinutes,
+      selectedSceneId: selectedFoundationScene?.id ?? "",
+      onDayChange: (patch: Partial<MorningFoundationSession>) => setFoundation((previous) => ({ ...previous, ...patch })),
+      onSaveSettings: async (settings) => {
+        await saveWorkbook({ morning_foundation: settings });
+        setFoundation((previous) => ({ ...previous, ...settings, initialized: true,
+          question: previous.answer.trim() ? previous.question : settings.question }));
+      },
+      onSaveMemories: async (memories) => { await saveWorkbook({ morning_memories: memories }); },
+      onSelectScene: (id) => {
+        const index = workbook.stories.findIndex((story) => story.id === id);
+        if (index < 0) return;
+        setStorySelectedIndex(index);
+        setFoundation((previous) => ({ ...previous, sceneId: id, sceneTitle: workbook.stories[index].title || "Untitled scene" }));
+      },
+    } : null}>
     <LivingHopeChrome
       session
       stepKey={`${ritualStepKey(step)}:${busy || wbBusy}`}
       title="Morning formula"
       hero={!loadingAll && step.kind !== "done" ? <MorningSessionHero
         steps={steps} stepIndex={stepIndex} goalTotal={activeGoals.length}
-        onStepIndexChange={setStepIndex} disabled={saving || advancing}
+        onStepIndexChange={setStepIndex} disabled={saving || advancing || foundationEditing}
         title={step.kind === "intro" ? "Make room for your morning." : ritualStepSubtitle(step, goalIndex, activeGoals.length)}
         subtitle={step.kind === "worship" ? "Put on your worship music. Take a breath and turn your attention to God." : undefined}
       /> : undefined}
-      footer={!loadingAll && step.kind !== "done" ? <MorningSessionFooter steps={steps} stepIndex={stepIndex} saving={saving || advancing}
+      footer={!loadingAll && step.kind !== "done" ? <MorningSessionFooter steps={steps} stepIndex={stepIndex} saving={saving || advancing} blocked={foundationEditing}
         onBack={() => setStepIndex((i) => Math.max(0, i - 1))} onContinue={() => void goToNextStep()} /> : undefined}
       right={
         <MorningFormulaSessionTimer
@@ -702,8 +753,8 @@ export default function MorningReviewPage() {
           {step.kind !== "done" ? (
             <details className="mt-7 border-t border-border/40 pt-2 text-sm text-muted-foreground">
               <summary className="min-h-11 cursor-pointer py-3">Session options</summary>
-              {step.kind === "intro" && <Button type="button" variant="ghost" className="min-h-11" aria-pressed={expressMode} onClick={() => handleExpressModeChange(!expressMode)}>{expressMode ? "Express morning selected" : "Use express morning"}</Button>}
-              <Button type="button" variant="ghost" className="min-h-11" disabled={saving || advancing} onClick={() => handleGuidedModeChange(!useGuidedUi)}>{useGuidedUi ? "Use structured view" : "Use guided view"}</Button>
+              {step.kind === "intro" && <Button type="button" variant="ghost" className="min-h-11" aria-pressed={expressMode} disabled={foundationEditing} onClick={() => handleExpressModeChange(!expressMode)}>{expressMode ? "Express morning selected" : "Use express morning"}</Button>}
+              <Button type="button" variant="ghost" className="min-h-11" disabled={saving || advancing || foundationEditing} onClick={() => handleGuidedModeChange(!useGuidedUi)}>{useGuidedUi ? "Use structured view" : "Use guided view"}</Button>
             </details>
           ) : step.kind === "done" ? (
             <Button
@@ -719,5 +770,6 @@ export default function MorningReviewPage() {
         </div>
       )}
     </LivingHopeChrome>
+    </MorningFoundationContext.Provider>
   );
 }

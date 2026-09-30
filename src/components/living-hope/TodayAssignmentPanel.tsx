@@ -1,3 +1,5 @@
+import { appendMorningAction } from "@/lib/livingHope/morningFoundation";
+import { useMorningFoundation } from "./foundation/MorningFoundationContext";
 import { BookOpen, Heart, Home, BriefcaseBusiness, Target, Shield } from "lucide-react";
 import type { GoalTouch, LivingHopeGoalRow } from "@/lib/livingHope/api";
 import { DAILY_ASSIGNMENT_FIELDS, type DailyAssignment } from "@/lib/livingHope/morningRitual";
@@ -23,6 +25,8 @@ function short(value: string, max = 180) {
   return clean.length > max ? `${clean.slice(0, max - 1).trimEnd()}…` : clean;
 }
 export function TodayAssignmentPanel({ assignment, onChange, scriptureReflection, visionRecall, storyRecall, thanksgivingNow, touches, goals }: Props) {
+  const foundation = useMorningFoundation()?.day;
+  const foundationActionIncluded = foundation?.action ? appendMorningAction(assignment.mustDo, foundation.action) === assignment.mustDo : false;
   const obedience = goals.map((goal) => {
     const text = touches[goal.id]?.obedience_step?.trim();
     return text ? `${goal.title}: ${text}` : "";
@@ -32,6 +36,9 @@ export function TodayAssignmentPanel({ assignment, onChange, scriptureReflection
   const action = rehearsalAction(visionRecall, storyRecall);
   const alreadyIncluded = Boolean(action && assignment.mustDo.includes(action));
   const cues = [
+    foundation?.theme ? { label: "This season", text: short(foundation.theme) } : null,
+    foundation?.answer ? { label: "My question and reflection", text: short(`${foundation.question}: ${foundation.answer}`) } : null,
+    foundation?.memory ? { label: "Real memory", text: short(`${foundation.memory.title}: ${foundation.memoryReflection || foundation.memory.body}`) } : null,
     scriptureReflection.trim() ? { label: "Scripture", text: short(scriptureReflection) } : null,
     visionRecall.trim() ? { label: "Vision", text: short(practice.title ? `${practice.title}: ${practice.identity || practice.action || "Guided rehearsal"}` : visionRecall) } : null,
     storyRecall.trim() ? { label: "Future scene", text: short(storyRecall) } : null,
@@ -43,6 +50,12 @@ export function TodayAssignmentPanel({ assignment, onChange, scriptureReflection
       <h2>Turn the morning into a day.</h2>
       <p>Look back at what surfaced in worship, gratitude, Scripture, prayer, vision, and your goals. Then decide what faithfulness looks like before the day gets noisy.</p>
     </div></div>
+    {foundation?.action.trim() && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+      <h3 className="text-base font-semibold">Remember → imagine → act</h3>
+      <p className="text-base leading-relaxed">{foundation.action}</p>
+      <Button type="button" variant="outline" className="min-h-11 whitespace-normal" disabled={foundationActionIncluded} onClick={() => onChange({ mustDo: appendMorningAction(assignment.mustDo, foundation.action) })}>{foundationActionIncluded ? "Included in today's assignment" : "Add without replacing my assignment"}</Button>
+      <p className="text-xs text-muted-foreground">Your chosen action, not an automatic claim of God's instructions.</p>
+    </div>}
     {action && <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
       <h3 className="text-base font-semibold">Your action from rehearsal</h3>
       {practice.identity && <p className="text-sm text-muted-foreground">Practice: {practice.identity}</p>}

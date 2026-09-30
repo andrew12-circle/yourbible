@@ -1,3 +1,4 @@
+import { emptyMorningFoundationSession, parseMorningFoundationSession, type MorningFoundationSession } from "./morningFoundation";
 import type { GoalTouch } from "@/lib/livingHope/api";
 import { localDateISO } from "@/lib/lifePriorities";
 import {
@@ -21,6 +22,7 @@ export interface MorningRitualDraft {
   stepLabel: string;
   totalSteps: number;
   touches: Record<string, GoalTouch>;
+  foundation?: MorningFoundationSession;
   visionRecall: string;
   storyRecall: string;
   metricValues: Record<string, string>;
@@ -53,6 +55,7 @@ export interface MorningRitualDraftInput {
   goalIndex?: number;
   goalTotal?: number;
   touches: Record<string, GoalTouch>;
+  foundation?: MorningFoundationSession;
   visionRecall: string;
   storyRecall: string;
   metricValues: Record<string, string>;
@@ -88,6 +91,7 @@ export function loadMorningRitualDraft(userId: string): MorningRitualDraft | nul
   return {
     ...draft,
     guidedMode: draft.guidedMode ?? true,
+    foundation: parseMorningFoundationSession(draft.foundation),
     dailyAssignment: {
       ...emptyDailyAssignment(),
       ...(draft.dailyAssignment ?? {}),
@@ -108,6 +112,7 @@ export function saveMorningRitualDraft(userId: string, input: MorningRitualDraft
     stepLabel: ritualStepLabel(step, input.goalIndex, input.goalTotal),
     totalSteps: input.steps.length,
     touches: input.touches,
+    foundation: parseMorningFoundationSession(input.foundation),
     visionRecall: input.visionRecall,
     storyRecall: input.storyRecall,
     metricValues: input.metricValues,
@@ -167,6 +172,7 @@ export function emptyMorningRitualDraftFields(): Omit<
 > {
   const thanksgiving = emptyThanksgivingLists();
   return {
+    foundation: emptyMorningFoundationSession(),
     touches: {},
     visionRecall: "",
     storyRecall: "",

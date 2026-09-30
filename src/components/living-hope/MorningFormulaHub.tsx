@@ -99,6 +99,7 @@ export function MorningFormulaHub({ workbook, letter, goals, todayReview, streak
       </> : <Button asChild className="morning-primary-action"><Link to={href}>{label}<ChevronRight className="h-4 w-4" aria-hidden="true" /></Link></Button>}
     </MorningPageHero>
     <div className="morning-session-width morning-hub-content">
+      {(workbook?.morning_foundation?.theme || workbook?.morning_foundation?.motto) && <section className="morning-surface rounded-2xl p-5 sm:p-7" aria-label="My season and motto"><p className="morning-eyebrow">This season</p><h2 className="break-words font-serif text-2xl">{workbook.morning_foundation.theme}</h2>{workbook.morning_foundation.motto && <p className="mt-2 break-words text-lg leading-relaxed">{workbook.morning_foundation.motto}</p>}</section>}
       <section className="morning-overview-card morning-surface" aria-label="Today's morning">
         <div className="morning-cover" aria-hidden="true"><Sunrise /><span>Morning<strong>formula</strong></span></div>
         <div className="morning-overview-body">
