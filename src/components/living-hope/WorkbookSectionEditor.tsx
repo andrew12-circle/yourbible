@@ -6,6 +6,7 @@ import {
   newId,
   type LivingHopeWorkbookContent,
   type WorkbookSection,
+  type WorkbookStory,
 } from "@/lib/livingHope/workbookTypes";
 import { WORSHIP_MUSIC_HINT } from "@/lib/livingHope/worshipMusic";
 import { lh } from "@/lib/livingHope/themeClasses";
@@ -107,18 +108,69 @@ export function WorkbookSectionEditor({
     );
   }
 
-  if (section === "stories" || section === "manifesto" || section === "quotes") {
-    const key = section === "stories" ? "stories" : section === "manifesto" ? "manifesto" : "quotes";
+  if (section === "stories") {
+    const updateStory = (id: string, patch: Partial<WorkbookStory>) => set({
+      stories: workbook.stories.map((story) => story.id === id ? { ...story, ...patch } : story),
+    });
+    return (
+      <div className="space-y-3">
+        {workbook.stories.map((story, index) => (
+          <div key={story.id} className={cn(lh.cardFlat, "space-y-3 p-3")}>
+            <div className="flex items-end gap-2">
+              <div className="min-w-0 flex-1 space-y-1">
+                <label className={lh.label} htmlFor={`workbook-scene-title-${story.id}`}>Scene title</label>
+                <Input
+                  id={`workbook-scene-title-${story.id}`}
+                  aria-label={`Scene ${index + 1} title`}
+                  value={story.title ?? ""}
+                  onChange={(e) => updateStory(story.id, { title: e.target.value || undefined })}
+                  className="field-input"
+                  placeholder="Name this scene"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(lh.faint, "shrink-0")}
+                aria-label={`Delete ${story.title?.trim() || `scene ${index + 1}`}`}
+                onClick={() => set({ stories: workbook.stories.filter((item) => item.id !== story.id) })}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="space-y-1">
+              <label className={lh.label} htmlFor={`workbook-scene-text-${story.id}`}>Scene text</label>
+              <Textarea
+                id={`workbook-scene-text-${story.id}`}
+                aria-label={`Scene ${index + 1} text`}
+                value={story.text}
+                onChange={(e) => updateStory(story.id, { text: e.target.value })}
+                rows={5}
+                className="field-input resize-y"
+                placeholder="Describe the scene in present tense…"
+              />
+            </div>
+          </div>
+        ))}
+        <AddRow
+          onClick={() => set({ stories: [...workbook.stories, { id: newId(), text: "" }] })}
+          label="Add scene"
+        />
+      </div>
+    );
+  }
+
+  if (section === "manifesto" || section === "quotes") {
+    const key = section === "manifesto" ? "manifesto" : "quotes";
     const items = workbook[key];
     return (
       <StringListEditor
         items={items.map((x) => x.text)}
         placeholder={
-          section === "stories"
-            ? "Tithing $100k months casually…"
-            : section === "manifesto"
-              ? "I do difficult things until they become easy."
-              : "Start with GOD. Everything else works out."
+          section === "manifesto"
+            ? "I do difficult things until they become easy."
+            : "Start with GOD. Everything else works out."
         }
         onChange={(texts) =>
           set({

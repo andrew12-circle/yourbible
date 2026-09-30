@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { isLocalModeNotified } from "@/lib/livingHope/livingHopeLocalStore";
-import { getOrCreateWorkbook, saveWorkbookPatch } from "@/lib/livingHope/workbookApi";
+import { getOrCreateWorkbook, mergeWorkbookStories, saveWorkbookPatch } from "@/lib/livingHope/workbookApi";
 import type { LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 
 function changedWorkbookFields(prev: LivingHopeWorkbookContent, next: LivingHopeWorkbookContent): Partial<LivingHopeWorkbookContent> {
@@ -40,9 +40,19 @@ export function useLivingHopeWorkbook(userId: string | undefined) {
       try {
         while (state.owner === session.current.owner && Object.keys(state.pending).length) {
           const patch = state.pending;
+          const submittedView = state.view;
           state.pending = {};
           try {
             const saved = await saveWorkbookPatch(userId, patch, state.server);
+            if (state.pending.stories && submittedView) {
+              // Edits typed during this request were based on the submitted
+              // view. Rebase them before advancing the server baseline, or
+              // stale empty metadata could look like an intentional removal.
+              state.pending = {
+                ...state.pending,
+                stories: mergeWorkbookStories(submittedView.stories, state.pending.stories, saved.stories),
+              };
+            }
             state.server = saved;
             state.view = { ...saved, ...state.pending };
             if (state.alive && state === session.current) setWorkbookState(state.view);
