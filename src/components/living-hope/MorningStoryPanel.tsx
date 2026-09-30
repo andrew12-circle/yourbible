@@ -6,6 +6,7 @@ import { BookOpen, ExternalLink, FileAudio, Image, Link2, Loader2, Pause, Pencil
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MorningVoiceField } from "@/components/living-hope/MorningVoiceField";
+import { SceneCoverImage } from "@/components/living-hope/SceneCoverImage";
 import { supabase } from "@/integrations/supabase/client";
 import { getSignedPhotoUrl } from "@/lib/journal/photos";
 import { getOrCreateSceneNarration } from "@/lib/livingHope/sceneNarration";
@@ -507,16 +508,16 @@ export function MorningStoryPanel({
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           <article className={cn(lh.cardFlat, "min-w-0 overflow-hidden", editingAce && "col-span-2 md:col-span-2")}>
             <div
-              className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-700 to-amber-100 bg-cover bg-center"
-              style={aceCoverUrl ? { backgroundImage: `url("${aceCoverUrl}")` } : undefined}
+              className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-700 to-amber-100"
             >
+              <SceneCoverImage src={aceCoverUrl} fallbackSrc="/morning-scenes/ace-working.webp" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-transparent" />
               <button type="button" className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => setEditingAce((v) => !v)} aria-label="Edit ACE scene">
                 {editingAce ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
               </button>
               <div className="absolute inset-x-0 bottom-0 p-2.5 text-white">
                 <p className="hidden text-[9px] font-semibold uppercase tracking-[0.12em] text-white/70 sm:block">Business · provision · margin</p>
-                <h3 className="line-clamp-2 text-sm font-semibold leading-tight sm:text-[15px]">ACE Is Working</h3>
+                <h3 className="line-clamp-3 text-sm font-semibold leading-tight sm:line-clamp-2 sm:text-[15px]">ACE Is Working</h3>
               </div>
             </div>
 
@@ -577,10 +578,11 @@ export function MorningStoryPanel({
             const suggested = index === suggestedIndex % Math.max(1, stories.length);
             const editing = editingStoryIndex === index;
             const title = story.title?.trim() || `Scene ${index + 1}`;
-            const cover = storyCoverUrls[story.id] || "";
+            const cover = storyCoverUrls[story.id] || story.cover_image_url || "";
             return (
               <article key={story.id} className={cn(lh.cardFlat, "min-w-0 overflow-hidden", editing && "col-span-2 md:col-span-2")}>
-                <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-muted via-background to-primary/10 bg-cover bg-center" style={cover ? { backgroundImage: `url("${cover}")` } : undefined}>
+                <div className="relative aspect-[16/10] overflow-hidden bg-gradient-to-br from-muted via-background to-primary/10">
+                  <SceneCoverImage src={cover} />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-transparent" />
                   {suggested ? <span className="absolute left-1.5 top-1.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-foreground shadow-sm sm:text-[9px]">Suggested today</span> : null}
                   <button type="button" className="absolute right-10 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-red-700/80 text-white backdrop-blur hover:bg-red-700" onClick={() => void handleDeleteStory(index)} aria-label="Delete scene" disabled={deletingStoryId === story.id}>
@@ -589,7 +591,7 @@ export function MorningStoryPanel({
                   <button type="button" className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur hover:bg-black/60" onClick={() => editing ? setEditingStoryIndex(null) : startStoryEdit(index)} aria-label="Edit scene">
                     {editing ? <X className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
                   </button>
-                  <div className="absolute inset-x-0 bottom-0 p-2.5 text-white"><h3 className="line-clamp-2 text-sm font-semibold leading-tight sm:text-[15px]">{title}</h3></div>
+                  <div className="absolute inset-x-0 bottom-0 p-2.5 text-white"><h3 className="line-clamp-3 text-sm font-semibold leading-tight sm:line-clamp-2 sm:text-[15px]">{title}</h3></div>
                 </div>
 
                 <div className="space-y-2.5 p-2.5 sm:p-3">

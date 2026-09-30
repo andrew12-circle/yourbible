@@ -1,9 +1,13 @@
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useLivingHopeWorkbook } from "./useLivingHopeWorkbook";
-import { emptyWorkbook, type LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
+import { emptyWorkbook, mergeWorkbook, type LivingHopeWorkbookContent } from "@/lib/livingHope/workbookTypes";
 import { getOrCreateWorkbook, saveWorkbookPatch } from "@/lib/livingHope/workbookApi";
-vi.mock("@/lib/livingHope/workbookApi", () => ({ getOrCreateWorkbook: vi.fn(), saveWorkbookPatch: vi.fn() }));
+vi.mock("@/lib/livingHope/workbookApi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/livingHope/workbookApi")>();
+  return { getOrCreateWorkbook: vi.fn(), saveWorkbookPatch: vi.fn(), mergeWorkbookStories: actual.mergeWorkbookStories };
+});
+vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 vi.mock("@/hooks/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/lib/livingHope/livingHopeLocalStore", () => ({ isLocalModeNotified: () => false }));
 const deferred = <T,>() => { let resolve!: (value: T) => void; let reject!: (error: Error) => void; const promise = new Promise<T>((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; };
@@ -30,6 +34,53 @@ describe("workbook save queue", () => {
     await act(async () => { first.resolve({ ...emptyWorkbook(), vision_headline: "First" }); await saving; });
     expect(saveWorkbookPatch).toHaveBeenCalledTimes(2);
     expect(result.current.workbook?.vision_headline).toBe("Second");
+  });
+  it("keeps restored scene metadata visible and saved when more text is typed during the first save", async () => {
+    const initial = mergeWorkbook({ stories: [{ id: "scene", text: "Initial text" }] });
+    const restored = { ...initial, stories: [{
+      ...initial.stories[0], text: "First edit", title: "Restored title",
+      cover_image_url: "/restored.webp", narration_storage_path: "owner/recording.mp3",
+    }] };
+    const first = deferred<LivingHopeWorkbookContent>();
+    const second = deferred<LivingHopeWorkbookContent>();
+    vi.mocked(getOrCreateWorkbook).mockResolvedValue(initial);
+    vi.mocked(saveWorkbookPatch).mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+    const { result } = renderHook(() => useLivingHopeWorkbook("owner"));
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    let saving!: Promise<void>;
+    act(() => { saving = result.current.save({ stories: [{ ...initial.stories[0], text: "First edit" }] }); });
+    act(() => { result.current.update({ stories: [{ ...initial.stories[0], text: "Second edit" }] }); });
+
+    await act(async () => { first.resolve(restored); });
+    await waitFor(() => expect(saveWorkbookPatch).toHaveBeenCalledTimes(2));
+    const expectedStories = [{ ...restored.stories[0], text: "Second edit" }];
+    expect(result.current.workbook?.stories).toEqual(expectedStories);
+    expect(vi.mocked(saveWorkbookPatch).mock.calls[1]).toEqual(["owner", { stories: expectedStories }, restored]);
+
+    await act(async () => { second.resolve({ ...restored, stories: expectedStories }); await saving; });
+    expect(result.current.workbook?.stories).toEqual(expectedStories);
+  });
+  it("preserves an intentional media removal queued during a save while adopting other server changes", async () => {
+    const initial = mergeWorkbook({ stories: [{
+      id: "scene", text: "Initial text", title: "Original title", cover_storage_path: "owner/old.png",
+    }] });
+    const first = deferred<LivingHopeWorkbookContent>();
+    vi.mocked(getOrCreateWorkbook).mockResolvedValue(initial);
+    vi.mocked(saveWorkbookPatch).mockImplementationOnce(() => first.promise)
+      .mockImplementation(async (_owner, patch, base) => ({ ...base!, ...patch }));
+    const { result } = renderHook(() => useLivingHopeWorkbook("owner"));
+    await waitFor(() => expect(result.current.busy).toBe(false));
+    let saving!: Promise<void>;
+    act(() => { saving = result.current.save({ stories: [{ ...initial.stories[0], text: "First edit" }] }); });
+    act(() => { result.current.update({ stories: [{ ...initial.stories[0], text: "Second edit", cover_storage_path: undefined }] }); });
+
+    const saved = { ...initial, stories: [{ ...initial.stories[0], text: "First edit", title: "Server title" }] };
+    await act(async () => { first.resolve(saved); await saving; });
+
+    expect(result.current.workbook?.stories).toEqual([
+      { ...saved.stories[0], text: "Second edit", cover_storage_path: undefined },
+    ]);
+    expect(saveWorkbookPatch).toHaveBeenCalledTimes(2);
   });
   it("retains failed changes for an explicit retry instead of reporting a false save", async () => {
     vi.mocked(saveWorkbookPatch).mockRejectedValueOnce(new Error("Offline")).mockImplementation(async (_owner, patch, base) => ({ ...base!, ...patch }));

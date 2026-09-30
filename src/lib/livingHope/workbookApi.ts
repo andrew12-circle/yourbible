@@ -52,6 +52,17 @@ function storyChanged(a: WorkbookStory, b: WorkbookStory): boolean {
   return JSON.stringify(a) !== JSON.stringify(b);
 }
 
+function mergeStoryFields(base: WorkbookStory, desired: WorkbookStory, current: WorkbookStory): WorkbookStory {
+  const changes: Partial<WorkbookStory> = {};
+  // A text-only editor may omit metadata it never edited. Only supplied fields
+  // can change; an explicitly supplied undefined or empty value still clears it.
+  for (const field of Object.keys(desired) as Array<keyof WorkbookStory>) {
+    if (field === "id" || desired[field] === base[field]) continue;
+    (changes as Record<string, unknown>)[field] = desired[field];
+  }
+  return { ...current, ...changes };
+}
+
 /**
  * Three-way merge for scene edits.
  *
@@ -59,7 +70,8 @@ function storyChanged(a: WorkbookStory, b: WorkbookStory): boolean {
  * browser's edited scene list, and `current` is the newest scene list on the
  * server. This preserves scenes that appeared on the server after the browser
  * loaded, while still honoring explicit edits, additions, and deletions the
- * browser made to scenes it actually knew about.
+ * browser made to scenes it actually knew about. Existing scenes merge by field,
+ * so a text edit cannot remove a title or recording restored on the server.
  */
 export function mergeWorkbookStories(
   base: WorkbookStory[],
@@ -75,7 +87,9 @@ export function mergeWorkbookStories(
     .map((story) => {
       const baseStory = baseById.get(story.id);
       const desiredStory = desiredById.get(story.id);
-      if (baseStory && desiredStory && storyChanged(baseStory, desiredStory)) return desiredStory;
+      if (baseStory && desiredStory && storyChanged(baseStory, desiredStory)) {
+        return mergeStoryFields(baseStory, desiredStory, story);
+      }
       return story;
     });
 
