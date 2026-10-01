@@ -51,10 +51,20 @@ function Plate({ plate, compact = false }: Props) {
   };
   const close = () => { setExploring(false); window.requestAnimationFrame(() => opener.current?.focus()); };
   return <figure data-reader-plate={plate.id} data-reader-artist={current?.creator ?? plate.artist} data-reader-visual-kind={current?.kind ?? (quickId === "geography" ? "geography" : plate.kind ?? "artwork")} data-reader-visual-id={quickId ?? plate.visualAssetId} className={cn("scripture-plate relative", compact ? "scripture-plate--compact" : "h-full min-h-0 flex flex-col")}>
-    <div className={cn("scripture-plate-image-wrap", exploring && "invisible", compact ? "relative w-full" : "relative flex-1 min-h-0 flex items-center justify-center")} aria-hidden={exploring || undefined} style={compact ? { aspectRatio: "4 / 3" } : undefined}>
+    <div
+      className={cn("scripture-plate-image-wrap", exploring && "invisible", quickId !== "geography" && "group cursor-zoom-in", compact ? "relative w-full" : "relative flex-1 min-h-0 flex items-center justify-center")}
+      aria-hidden={exploring || undefined}
+      role={quickId !== "geography" ? "button" : undefined}
+      tabIndex={quickId !== "geography" ? 0 : undefined}
+      aria-label={quickId !== "geography" ? "Open artwork full screen" : undefined}
+      onClick={quickId !== "geography" ? e => { e.stopPropagation(); setExploring(true); } : undefined}
+      onKeyDown={quickId !== "geography" ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setExploring(true); } } : undefined}
+      style={compact ? { aspectRatio: "4 / 3" } : undefined}
+    >
       {quickId === "geography" && geography ? <Suspense fallback={<div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Opening map…</div>}><GeographyView scene={geography} /></Suspense>
         : showingOriginal ? <PlateImage key={src} src={src} alt={plate.alt} />
         : current ? <VisualImage key={current.id} src={current.readerUrl ?? current.detailUrl} alt={current.alt} detail /> : <PlateImage key={src} src={src} alt={plate.alt} />}
+      {quickId !== "geography" && !exploring ? <span className="pointer-events-none absolute bottom-3 right-3 rounded-full bg-black/65 px-3 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-sm backdrop-blur-sm transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">View full screen</span> : null}
     </div>
     {!exploring ? <div className="flex shrink-0 items-center justify-between gap-3 border-t border-foreground/10 px-2 py-1.5 text-muted-foreground">
       <div className="flex min-w-0 items-center gap-1">
@@ -71,6 +81,6 @@ function Plate({ plate, compact = false }: Props) {
       {plate.artist ? <span className="scripture-plate-artist block text-[0.85em] opacity-80 mt-0.5">{plate.artist}{plate.sourceUrl ? <> · <a href={plate.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:opacity-100">Source</a></> : null}</span> : null}
       {plate.context ? <span className="block mt-1 text-[0.75em] leading-snug"><span className="block font-medium">{plate.context.label}</span><span className="block">{plate.context.note}</span><span className="block mt-1 opacity-80">{plate.context.credit} · {plate.context.licenseLabel}{plate.context.licenseUrl ? <> · <a href={plate.context.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">License</a></> : null} · Resized for the reader</span></span> : null}
     </figcaption> : null}
-    {exploring ? <VisualExplorerBoundary onClose={close}><Suspense fallback={<div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background p-4" role="status">Opening passage visuals…<button type="button" className="min-h-11 rounded border px-3" onClick={close}>Cancel</button></div>}><PassageVisualExplorer plate={plate} onClose={close} /></Suspense></VisualExplorerBoundary> : null}
+    {exploring ? <VisualExplorerBoundary onClose={close}><Suspense fallback={<div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background p-4" role="status">Opening passage visuals…<button type="button" className="min-h-11 rounded border px-3" onClick={close}>Cancel</button></div>}><PassageVisualExplorer plate={plate} onClose={close} initialSelection={quickId} /></Suspense></VisualExplorerBoundary> : null}
   </figure>;
 }
