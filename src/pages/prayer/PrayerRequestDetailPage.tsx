@@ -30,6 +30,13 @@ import { PrayerScriptureReviewList } from "@/components/prayer/PrayerScriptureRe
 import PrayerScroll from "@/components/prayer/PrayerScroll";
 import { mergeScriptureDisplay } from "@/lib/prayer/scriptureDisplay";
 import { localDateISO } from "@/lib/habits/dates";
+import {
+  PRAYER_NEED_KIND_LABELS,
+  PRAYER_PRIORITY_BADGE_CLASSES,
+  PRAYER_PRIORITY_LABELS,
+  remainingProvisionAmount,
+} from "@/lib/prayer/provisionLedger";
+import { cn } from "@/lib/utils";
 import type { PrayerRequestStatus } from "@/lib/prayer/types";
 
 export default function PrayerRequestDetailPage() {
@@ -44,9 +51,11 @@ export default function PrayerRequestDetailPage() {
   const [showPartialForm, setShowPartialForm] = useState(false);
   const [partialAnsweredAt, setPartialAnsweredAt] = useState("");
   const [partialAmount, setPartialAmount] = useState("");
+  const [partialSource, setPartialSource] = useState("");
   const [partialStory, setPartialStory] = useState("");
   const [editAnsweredAt, setEditAnsweredAt] = useState("");
   const [editAmount, setEditAmount] = useState("");
+  const [editSource, setEditSource] = useState("");
   const [editStory, setEditStory] = useState("");
 
   const {
@@ -64,6 +73,7 @@ export default function PrayerRequestDetailPage() {
     if (!request) return;
     setEditAnsweredAt(request.answered_at ?? "");
     setEditAmount(request.amount_provided != null ? String(request.amount_provided) : "");
+    setEditSource(request.provision_source ?? "");
     setEditStory(request.answer_text ?? "");
   }, [request]);
 
@@ -86,10 +96,11 @@ export default function PrayerRequestDetailPage() {
     request.amount_provided != null ||
     (request.answer_text != null && request.answer_text.trim().length > 0);
   const canRecordFullAnswer =
-    request.status === "waiting" && !request.praise_report_entry_id;
+    ["waiting", "in_motion", "partial"].includes(request.status) && !request.praise_report_entry_id;
   const canRecordPartial =
-    (request.status === "waiting" || request.status === "partial") &&
+    ["waiting", "in_motion", "partial"].includes(request.status) &&
     !request.praise_report_entry_id;
+  const remainingAmount = remainingProvisionAmount(request);
 
   const onStatusChange = async (status: PrayerRequestStatus) => {
     if (CELEBRATION_STATUSES.includes(status) && !request.praise_report_entry_id) {
@@ -114,6 +125,7 @@ export default function PrayerRequestDetailPage() {
   const openPartialForm = () => {
     setPartialAnsweredAt(request.answered_at ?? localDateISO());
     setPartialAmount(request.amount_provided != null ? String(request.amount_provided) : "");
+    setPartialSource(request.provision_source ?? "");
     setPartialStory(request.answer_text ?? "");
     setShowPartialForm(true);
   };
@@ -122,6 +134,7 @@ export default function PrayerRequestDetailPage() {
     const hasAny =
       partialAnsweredAt.trim() ||
       partialAmount.trim() ||
+      partialSource.trim() ||
       partialStory.trim();
     if (!hasAny) {
       toast({ title: "Add at least one detail", variant: "destructive" });
@@ -133,6 +146,7 @@ export default function PrayerRequestDetailPage() {
         status: "partial",
         answered_at: partialAnsweredAt.trim() || null,
         amount_provided: parseLedgerAmount(partialAmount),
+        provision_source: partialSource.trim(),
         answer_text: partialStory.trim() || null,
       });
       await reload();
@@ -151,6 +165,7 @@ export default function PrayerRequestDetailPage() {
       await updatePrayerRequest(user.id, request.id, {
         answered_at: editAnsweredAt.trim() || null,
         amount_provided: parseLedgerAmount(editAmount),
+        provision_source: editSource.trim(),
         answer_text: editStory.trim() || null,
       });
       await reload();
@@ -190,9 +205,13 @@ export default function PrayerRequestDetailPage() {
             requestedAt: request.requested_at,
             deadline: request.deadline ?? "",
             category: request.category,
+            priority: request.priority,
+            needKind: request.need_kind,
             amountRequested:
               request.amount_requested != null ? String(request.amount_requested) : "",
             purpose: request.purpose,
+            consequence: request.consequence,
+            provisionSource: request.provision_source,
             prayerText: request.prayer_text,
             privateNotes: request.private_notes,
             scriptureRefs: request.scripture_refs,
@@ -213,7 +232,11 @@ export default function PrayerRequestDetailPage() {
                 deadline: values.deadline || null,
                 category: values.category,
                 amount_requested: values.amountRequestedNum,
+                priority: values.priority,
+                need_kind: values.needKind,
                 purpose: values.purpose,
+                consequence: values.consequence,
+                provision_source: values.provisionSource,
                 prayer_text: values.prayerText,
                 private_notes: values.privateNotes,
                 scripture_refs: values.scriptureRefs,
@@ -247,7 +270,17 @@ export default function PrayerRequestDetailPage() {
         <header className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <PrayerRequestStatusBadge status={request.status} />
+            <span className={cn(
+              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+              PRAYER_PRIORITY_BADGE_CLASSES[request.priority],
+            )}>
+              {PRAYER_PRIORITY_LABELS[request.priority]}
+            </span>
+            <span className="text-xs text-muted-foreground">{PRAYER_NEED_KIND_LABELS[request.need_kind]}</span>
             <span className="text-xs text-muted-foreground">{PRAYER_CATEGORY_LABELS[request.category]}</span>
+            {request.recurring_template_id ? (
+              <span className="text-xs text-muted-foreground">Recurring occurrence</span>
+            ) : null}
           </div>
           <p className="text-sm text-muted-foreground">
             Requested {formatDisplayDate(request.requested_at)}
@@ -306,9 +339,11 @@ export default function PrayerRequestDetailPage() {
                 <PrayerAnswerFieldsSection
                   answeredAt={partialAnsweredAt}
                   amountProvided={partialAmount}
+                  provisionSource={partialSource}
                   answerText={partialStory}
                   onAnsweredAtChange={setPartialAnsweredAt}
                   onAmountProvidedChange={setPartialAmount}
+                  onProvisionSourceChange={setPartialSource}
                   onAnswerTextChange={setPartialStory}
                   disabled={busy}
                 />
@@ -342,9 +377,11 @@ export default function PrayerRequestDetailPage() {
             <PrayerAnswerFieldsSection
               answeredAt={editAnsweredAt}
               amountProvided={editAmount}
+              provisionSource={editSource}
               answerText={editStory}
               onAnsweredAtChange={setEditAnsweredAt}
               onAmountProvidedChange={setEditAmount}
+              onProvisionSourceChange={setEditSource}
               onAnswerTextChange={setEditStory}
               disabled={busy}
             />
@@ -369,6 +406,10 @@ export default function PrayerRequestDetailPage() {
             <p className="font-medium tabular-nums">{formatLedgerAmount(request.amount_provided)}</p>
           </div>
           <div>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Remaining</p>
+            <p className="font-medium tabular-nums">{formatLedgerAmount(remainingAmount)}</p>
+          </div>
+          <div>
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Deadline</p>
             <p>{request.deadline ? formatDisplayDate(request.deadline) : "—"}</p>
           </div>
@@ -376,6 +417,18 @@ export default function PrayerRequestDetailPage() {
             <div className="sm:col-span-2">
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Purpose</p>
               <p>{request.purpose}</p>
+            </div>
+          ) : null}
+          {request.consequence ? (
+            <div className="sm:col-span-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">If not covered</p>
+              <p>{request.consequence}</p>
+            </div>
+          ) : null}
+          {request.provision_source ? (
+            <div className="sm:col-span-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Expected / known provision source</p>
+              <p>{request.provision_source}</p>
             </div>
           ) : null}
         </div>

@@ -17,7 +17,7 @@ import type {
 import { rowToPrayerRequest, rowToTimelineEvent } from "@/lib/prayer/types";
 
 const REQUEST_SELECT =
-  "id,user_id,title,prayer_text,purpose,category,status,requested_at,deadline,answered_at,amount_requested,amount_provided,answer_text,private_notes,scripture_refs,praise_report_entry_id,sort_order,created_at,updated_at";
+  "id,user_id,title,prayer_text,purpose,category,status,priority,need_kind,consequence,provision_source,requested_at,deadline,answered_at,amount_requested,amount_provided,answer_text,private_notes,scripture_refs,praise_report_entry_id,recurring_template_id,occurrence_month,sort_order,created_at,updated_at";
 
 const TIMELINE_SELECT =
   "id,user_id,prayer_request_id,event_kind,title,body,occurred_at,link_ref,created_at";
@@ -39,6 +39,14 @@ export async function listPrayerRequests(
   const { data, error } = await q;
   if (error) throwSupabaseError(error);
   return (data ?? []).map((row) => rowToPrayerRequest(row as Record<string, unknown>));
+}
+
+export async function ensureProvisionOccurrences(pMonth?: string): Promise<number> {
+  const { data, error } = await supabase.rpc("ensure_provision_occurrences", {
+    ...(pMonth ? { p_month: pMonth } : {}),
+  });
+  if (error) throwSupabaseError(error);
+  return Number(data ?? 0);
 }
 
 export async function countWaitingPrayerRequests(userId: string): Promise<number> {
@@ -82,6 +90,10 @@ export async function createPrayerRequest(
       requested_at: requestedAt,
       deadline: input.deadline || null,
       amount_requested: input.amountRequested ?? null,
+      priority: input.priority ?? "important",
+      need_kind: input.needKind ?? "need",
+      consequence: input.consequence?.trim() ?? "",
+      provision_source: input.provisionSource?.trim() ?? "",
       private_notes: input.privateNotes?.trim() ?? "",
       scripture_refs: input.scriptureRefs ?? [],
       status: "waiting",

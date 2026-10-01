@@ -11,10 +11,26 @@ export type PrayerCategory =
 
 export type PrayerRequestStatus =
   | "waiting"
+  | "in_motion"
   | "partial"
   | "answered"
   | "different_answer"
   | "closed";
+
+export type PrayerPriority =
+  | "critical"
+  | "required"
+  | "important"
+  | "desired"
+  | "long_term";
+
+export type PrayerNeedKind =
+  | "need"
+  | "desire"
+  | "restoration"
+  | "business_goal";
+
+export type ProvisionCadence = "monthly" | "quarterly" | "annual";
 
 export type PrayerTimelineEventKind =
   | "asked"
@@ -45,6 +61,10 @@ export type PrayerRequestRow = {
   purpose: string;
   category: PrayerCategory;
   status: PrayerRequestStatus;
+  priority: PrayerPriority;
+  need_kind: PrayerNeedKind;
+  consequence: string;
+  provision_source: string;
   requested_at: string;
   deadline: string | null;
   answered_at: string | null;
@@ -54,7 +74,31 @@ export type PrayerRequestRow = {
   private_notes: string;
   scripture_refs: ScriptureRef[];
   praise_report_entry_id: string | null;
+  recurring_template_id: string | null;
+  occurrence_month: string | null;
   sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProvisionRecurringNeedRow = {
+  id: string;
+  user_id: string;
+  title: string;
+  amount_requested: number | null;
+  due_day: number | null;
+  category: PrayerCategory;
+  priority: PrayerPriority;
+  need_kind: PrayerNeedKind;
+  purpose: string;
+  consequence: string;
+  prayer_text: string;
+  private_notes: string;
+  scripture_refs: ScriptureRef[];
+  cadence: ProvisionCadence;
+  starts_on: string;
+  ends_on: string | null;
+  active: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -79,6 +123,10 @@ export type CreatePrayerRequestInput = {
   requestedAt?: string;
   deadline?: string | null;
   amountRequested?: number | null;
+  priority?: PrayerPriority;
+  needKind?: PrayerNeedKind;
+  consequence?: string;
+  provisionSource?: string;
   scriptureRefs?: ScriptureRef[];
   privateNotes?: string;
 };
@@ -89,6 +137,10 @@ export type UpdatePrayerRequestInput = Partial<{
   purpose: string;
   category: PrayerCategory;
   status: PrayerRequestStatus;
+  priority: PrayerPriority;
+  need_kind: PrayerNeedKind;
+  consequence: string;
+  provision_source: string;
   requested_at: string;
   deadline: string | null;
   answered_at: string | null;
@@ -141,6 +193,10 @@ export function rowToPrayerRequest(row: Record<string, unknown>): PrayerRequestR
     purpose: String(row.purpose ?? ""),
     category: row.category as PrayerCategory,
     status: row.status as PrayerRequestStatus,
+    priority: (row.priority ?? "important") as PrayerPriority,
+    need_kind: (row.need_kind ?? "need") as PrayerNeedKind,
+    consequence: String(row.consequence ?? ""),
+    provision_source: String(row.provision_source ?? ""),
     requested_at: String(row.requested_at),
     deadline: row.deadline != null ? String(row.deadline) : null,
     answered_at: row.answered_at != null ? String(row.answered_at) : null,
@@ -151,6 +207,9 @@ export function rowToPrayerRequest(row: Record<string, unknown>): PrayerRequestR
     scripture_refs: parseScriptureRefs(row.scripture_refs as Json),
     praise_report_entry_id:
       row.praise_report_entry_id != null ? String(row.praise_report_entry_id) : null,
+    recurring_template_id:
+      row.recurring_template_id != null ? String(row.recurring_template_id) : null,
+    occurrence_month: row.occurrence_month != null ? String(row.occurrence_month) : null,
     sort_order: Number(row.sort_order ?? 0),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),

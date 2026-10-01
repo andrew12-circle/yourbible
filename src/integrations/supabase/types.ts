@@ -220,6 +220,7 @@ export type Database = {
         Row: {
           artifact_id: string
           bias_flags: string[]
+          chapter_start_seconds: number | null
           claim: string
           created_at: string
           deferred_at: string | null
@@ -239,6 +240,7 @@ export type Database = {
         Insert: {
           artifact_id: string
           bias_flags?: string[]
+          chapter_start_seconds?: number | null
           claim: string
           created_at?: string
           deferred_at?: string | null
@@ -258,6 +260,7 @@ export type Database = {
         Update: {
           artifact_id?: string
           bias_flags?: string[]
+          chapter_start_seconds?: number | null
           claim?: string
           created_at?: string
           deferred_at?: string | null
@@ -287,32 +290,6 @@ export type Database = {
             columns: ["matched_belief_id"]
             isOneToOne: false
             referencedRelation: "belief_nodes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      artifact_library_seen: {
-        Row: {
-          artifact_id: string
-          first_opened_at: string
-          user_id: string
-        }
-        Insert: {
-          artifact_id: string
-          first_opened_at?: string
-          user_id: string
-        }
-        Update: {
-          artifact_id?: string
-          first_opened_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "artifact_library_seen_artifact_id_fkey"
-            columns: ["artifact_id"]
-            isOneToOne: false
-            referencedRelation: "artifacts"
             referencedColumns: ["id"]
           },
         ]
@@ -1581,7 +1558,6 @@ export type Database = {
       }
       highlights: {
         Row: {
-          bible_id: string | null
           book: string
           chapter: number
           color: string
@@ -1594,10 +1570,8 @@ export type Database = {
           updated_at: string
           user_id: string
           verse: number
-          verse_id: string | null
         }
         Insert: {
-          bible_id?: string | null
           book: string
           chapter: number
           color: string
@@ -1610,10 +1584,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           verse: number
-          verse_id?: string | null
         }
         Update: {
-          bible_id?: string | null
           book?: string
           chapter?: number
           color?: string
@@ -1626,7 +1598,57 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verse?: number
-          verse_id?: string | null
+        }
+        Relationships: []
+      }
+      journal_archive_cleanup: {
+        Row: {
+          bucket: string
+          created_at: string
+          id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          id?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          id?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      journal_backup_imports: {
+        Row: {
+          backup_id: string
+          created_at: string
+          digest: string
+          entity_key: string
+          target_id: string
+          user_id: string
+        }
+        Insert: {
+          backup_id: string
+          created_at?: string
+          digest: string
+          entity_key: string
+          target_id: string
+          user_id: string
+        }
+        Update: {
+          backup_id?: string
+          created_at?: string
+          digest?: string
+          entity_key?: string
+          target_id?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1801,6 +1823,33 @@ export type Database = {
           },
         ]
       }
+      journal_entry_versions: {
+        Row: {
+          captured_at: string
+          entry_id: string
+          id: string
+          revision: number
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          captured_at?: string
+          entry_id: string
+          id?: string
+          revision: number
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          captured_at?: string
+          entry_id?: string
+          id?: string
+          revision?: number
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       journal_mirror_reports: {
         Row: {
           aggregate: Json
@@ -1899,6 +1948,36 @@ export type Database = {
         }
         Relationships: []
       }
+      journal_trash: {
+        Row: {
+          deleted_at: string
+          entry: Json
+          entry_id: string
+          expires_at: string
+          photos: Json
+          user_id: string
+          videos: Json
+        }
+        Insert: {
+          deleted_at?: string
+          entry: Json
+          entry_id: string
+          expires_at?: string
+          photos?: Json
+          user_id: string
+          videos?: Json
+        }
+        Update: {
+          deleted_at?: string
+          entry?: Json
+          entry_id?: string
+          expires_at?: string
+          photos?: Json
+          user_id?: string
+          videos?: Json
+        }
+        Relationships: []
+      }
       journal_videos: {
         Row: {
           anchor_offset: number
@@ -1908,6 +1987,7 @@ export type Database = {
           id: string
           mime_type: string | null
           storage_path: string
+          thumbnail_path: string | null
           transcript: string | null
           user_id: string
         }
@@ -1919,6 +1999,7 @@ export type Database = {
           id?: string
           mime_type?: string | null
           storage_path: string
+          thumbnail_path?: string | null
           transcript?: string | null
           user_id: string
         }
@@ -1930,6 +2011,7 @@ export type Database = {
           id?: string
           mime_type?: string | null
           storage_path?: string
+          thumbnail_path?: string | null
           transcript?: string | null
           user_id?: string
         }
@@ -2134,7 +2216,6 @@ export type Database = {
           created_at: string
           id: string
           reflection: string
-          subject: string
           user_id: string
           week_index: number
           week_start: string
@@ -2144,7 +2225,6 @@ export type Database = {
           created_at?: string
           id?: string
           reflection: string
-          subject?: string
           user_id: string
           week_index: number
           week_start: string
@@ -2154,7 +2234,6 @@ export type Database = {
           created_at?: string
           id?: string
           reflection?: string
-          subject?: string
           user_id?: string
           week_index?: number
           week_start?: string
@@ -2424,6 +2503,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "my_ai_chats_journal_entry_id_fkey"
+            columns: ["journal_entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "my_ai_chats_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -2565,7 +2651,6 @@ export type Database = {
       }
       notes: {
         Row: {
-          bible_id: string | null
           body: string
           book: string
           chapter: number
@@ -2574,10 +2659,8 @@ export type Database = {
           updated_at: string
           user_id: string
           verse: number
-          verse_id: string | null
         }
         Insert: {
-          bible_id?: string | null
           body: string
           book: string
           chapter: number
@@ -2586,10 +2669,8 @@ export type Database = {
           updated_at?: string
           user_id: string
           verse: number
-          verse_id?: string | null
         }
         Update: {
-          bible_id?: string | null
           body?: string
           book?: string
           chapter?: number
@@ -2598,7 +2679,6 @@ export type Database = {
           updated_at?: string
           user_id?: string
           verse?: number
-          verse_id?: string | null
         }
         Relationships: []
       }
@@ -2866,13 +2946,19 @@ export type Database = {
           answer_text: string | null
           answered_at: string | null
           category: string
+          consequence: string
           created_at: string
           deadline: string | null
           id: string
+          need_kind: string
+          occurrence_month: string | null
           praise_report_entry_id: string | null
           prayer_text: string
+          priority: string
           private_notes: string
+          provision_source: string
           purpose: string
+          recurring_template_id: string | null
           requested_at: string
           scripture_refs: Json
           sort_order: number
@@ -2887,13 +2973,19 @@ export type Database = {
           answer_text?: string | null
           answered_at?: string | null
           category?: string
+          consequence?: string
           created_at?: string
           deadline?: string | null
           id?: string
+          need_kind?: string
+          occurrence_month?: string | null
           praise_report_entry_id?: string | null
           prayer_text?: string
+          priority?: string
           private_notes?: string
+          provision_source?: string
           purpose?: string
+          recurring_template_id?: string | null
           requested_at?: string
           scripture_refs?: Json
           sort_order?: number
@@ -2908,13 +3000,19 @@ export type Database = {
           answer_text?: string | null
           answered_at?: string | null
           category?: string
+          consequence?: string
           created_at?: string
           deadline?: string | null
           id?: string
+          need_kind?: string
+          occurrence_month?: string | null
           praise_report_entry_id?: string | null
           prayer_text?: string
+          priority?: string
           private_notes?: string
+          provision_source?: string
           purpose?: string
+          recurring_template_id?: string | null
           requested_at?: string
           scripture_refs?: Json
           sort_order?: number
@@ -2929,6 +3027,13 @@ export type Database = {
             columns: ["praise_report_entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prayer_requests_recurring_template_id_fkey"
+            columns: ["recurring_template_id"]
+            isOneToOne: false
+            referencedRelation: "provision_recurring_needs"
             referencedColumns: ["id"]
           },
         ]
@@ -2997,6 +3102,72 @@ export type Database = {
           layout?: string
           onboarded?: boolean
           page_tone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      provision_recurring_needs: {
+        Row: {
+          active: boolean
+          amount_requested: number | null
+          cadence: string
+          category: string
+          consequence: string
+          created_at: string
+          due_day: number | null
+          ends_on: string | null
+          id: string
+          need_kind: string
+          prayer_text: string
+          priority: string
+          private_notes: string
+          purpose: string
+          scripture_refs: Json
+          starts_on: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          amount_requested?: number | null
+          cadence?: string
+          category?: string
+          consequence?: string
+          created_at?: string
+          due_day?: number | null
+          ends_on?: string | null
+          id?: string
+          need_kind?: string
+          prayer_text?: string
+          priority?: string
+          private_notes?: string
+          purpose?: string
+          scripture_refs?: Json
+          starts_on?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          amount_requested?: number | null
+          cadence?: string
+          category?: string
+          consequence?: string
+          created_at?: string
+          due_day?: number | null
+          ends_on?: string | null
+          id?: string
+          need_kind?: string
+          prayer_text?: string
+          priority?: string
+          private_notes?: string
+          purpose?: string
+          scripture_refs?: Json
+          starts_on?: string
+          title?: string
           updated_at?: string
           user_id?: string
         }
@@ -3546,48 +3717,6 @@ export type Database = {
         }
         Relationships: []
       }
-      youtube_channel_subscriptions: {
-        Row: {
-          auto_import: boolean
-          channel_handle: string | null
-          channel_id: string
-          channel_thumbnail_url: string | null
-          channel_title: string | null
-          created_at: string
-          id: string
-          last_synced_at: string | null
-          last_video_published_at: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          auto_import?: boolean
-          channel_handle?: string | null
-          channel_id: string
-          channel_thumbnail_url?: string | null
-          channel_title?: string | null
-          created_at?: string
-          id?: string
-          last_synced_at?: string | null
-          last_video_published_at?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          auto_import?: boolean
-          channel_handle?: string | null
-          channel_id?: string
-          channel_thumbnail_url?: string | null
-          channel_title?: string | null
-          created_at?: string
-          id?: string
-          last_synced_at?: string | null
-          last_video_published_at?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       youtube_oauth_connections: {
         Row: {
           access_token: string | null
@@ -3683,42 +3812,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      ensure_morning_formula_entry: {
-        Args: { p_review_date: string; p_journal_id: string | null; p_title: string; p_body: string; p_context?: Json }
-        Returns: { entry_id: string; created: boolean }[]
-      }
-
-      journal_entry_list_page: {
-        Args: {
-          p_journal_id?: string | null
-          p_exclude_journal_ids?: string[]
-          p_entry_kind?: string | null
-          p_search?: string | null
-          p_limit?: number
-          p_offset?: number
-          p_include_encrypted?: boolean
-          p_sort_updated?: boolean
-        }
-        Returns: {
-          id: string
-          user_id: string
-          title: string | null
-          body: string
-          summary: string | null
-          entry_at_ts: string
-          updated_at: string
-          mood: number | null
-          location_name: string | null
-          weather: string | null
-          weather_temp_c: number | null
-          weather_icon: string | null
-          pinned: boolean
-          analyze_for_mirror: boolean
-          journal_id: string | null
-          entry_kind: string | null
-          e2e_encrypted: boolean
-        }[]
-      }
       accept_partner_invite: { Args: { p_token: string }; Returns: string }
       enqueue_embedding_job: {
         Args: { p_row_id: string; p_table: string; p_user_id: string }
@@ -3726,6 +3819,23 @@ export type Database = {
       }
       ensure_default_life_priorities: { Args: never; Returns: undefined }
       ensure_default_todo_lists: { Args: never; Returns: undefined }
+      ensure_morning_formula_entry: {
+        Args: {
+          p_body: string
+          p_context?: Json
+          p_journal_id: string
+          p_review_date: string
+          p_title: string
+        }
+        Returns: {
+          created: boolean
+          entry_id: string
+        }[]
+      }
+      ensure_provision_occurrences: {
+        Args: { p_month?: string }
+        Returns: number
+      }
       get_ai_usage_by_function: {
         Args: { p_days?: number }
         Returns: {
@@ -3768,6 +3878,88 @@ export type Database = {
         }[]
       }
       get_my_storage_usage: { Args: never; Returns: Json }
+      journal_commit_media_encryption: {
+        Args: {
+          p_entry_id: string
+          p_in_trash?: boolean
+          p_media_id: string
+          p_new_path: string
+          p_new_transcript?: string
+          p_old_path: string
+          p_old_transcript?: string
+          p_table: string
+          p_thumbnail?: string
+        }
+        Returns: boolean
+      }
+      journal_entry_list_page: {
+        Args: {
+          p_entry_kind?: string
+          p_exclude_journal_ids?: string[]
+          p_include_encrypted?: boolean
+          p_journal_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_sort_updated?: boolean
+        }
+        Returns: {
+          analyze_for_mirror: boolean
+          body: string
+          e2e_encrypted: boolean
+          entry_at_ts: string
+          entry_kind: string
+          id: string
+          journal_id: string
+          location_name: string
+          mood: number
+          pinned: boolean
+          summary: string
+          title: string
+          updated_at: string
+          user_id: string
+          weather: string
+          weather_icon: string
+          weather_temp_c: number
+        }[]
+      }
+      journal_expire_archive_batch: { Args: never; Returns: number }
+      journal_import_saved_version: {
+        Args: {
+          p_backup_id: string
+          p_captured_at: string
+          p_entry_id: string
+          p_revision: number
+          p_snapshot: Json
+        }
+        Returns: undefined
+      }
+      journal_path_requires_encryption: {
+        Args: { p_path: string }
+        Returns: boolean
+      }
+      journal_protect_archive: {
+        Args: {
+          p_expected: Json
+          p_id: string
+          p_kind: string
+          p_protected: Json
+        }
+        Returns: boolean
+      }
+      journal_purge_trash: { Args: { p_entry_id: string }; Returns: undefined }
+      journal_queue_media_cleanup: {
+        Args: { p_bucket: string; p_path: string }
+        Returns: undefined
+      }
+      journal_restore_trash: {
+        Args: { p_entry_id: string; p_journal_id?: string }
+        Returns: string
+      }
+      journal_storage_retained: {
+        Args: { p_bucket: string; p_path: string }
+        Returns: boolean
+      }
       list_user_storage_objects_for_backup: {
         Args: { p_user_id: string }
         Returns: {
@@ -3892,7 +4084,6 @@ export type Database = {
           peer_user_id: string
         }[]
       }
-      sync_habit_framework_template: { Args: never; Returns: undefined }
     }
     Enums: {
       transcript_segment_source:
