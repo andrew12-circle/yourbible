@@ -42,7 +42,6 @@ import {
   readerFontScaleGroup,
 } from "@/lib/bible/readerChromeClasses";
 import type { BibleEntry } from "@/lib/bible/api";
-import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 import { formatReaderSourceLine } from "@/lib/bible/readerEditionAttribution";
 import { resolveStudyLayout } from "@/lib/bible/readerStudyLayout";
 import {
@@ -110,7 +109,6 @@ export function ReaderToolbarActions({
   inkMode = false,
   onToggleInkMode,
   onSearch,
-  online = true,
   onToggleAudio,
   audioPlaying = false,
   audioLoading = false,
@@ -134,7 +132,6 @@ export function ReaderToolbarActions({
   const [fontPickerOpen, setFontPickerOpen] = useState(false);
   const current = bibles.find((b) => b.id === bibleId);
   const showStudyLayout = isStudyBibleEdition(current?.abbreviation);
-  const bundledEdition = isBundledBibleId(bibleId);
   const sourceLine = formatReaderSourceLine(current, showStudyLayout ? resolveStudyLayout(studyLayoutPreference, current?.abbreviation) : null);
   const scaleBtn = compact ? "p-1" : "p-1";
   const scaleIcon = compact ? "w-3 h-3" : "w-3 h-3";
@@ -260,8 +257,7 @@ export function ReaderToolbarActions({
       {onSearch ? (
         <ReaderIconButton
           onClick={onSearch}
-          title={online || bundledEdition ? "Search Scripture" : "Search requires internet"}
-          disabled={!online && !bundledEdition}
+          title="Universal Bible search"
         >
           <Search className="w-[18px] h-[18px]" strokeWidth={2} />
         </ReaderIconButton>

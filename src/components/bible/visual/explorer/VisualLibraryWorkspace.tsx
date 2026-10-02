@@ -18,18 +18,18 @@ import { VisualArtworkView } from "./VisualArtworkView";
 import { VisualPlacesView } from "./VisualPlacesView";
 const icons = { discover: Compass, art: Images, maps: Map, places: Globe2, objects: Landmark, collections: Layers3, saved: Bookmark };
 const input = "min-h-11 w-full min-w-0 rounded-xl border bg-background px-3 text-sm text-foreground";
-type Props = { context?: ChapterContextBundle; book?: string; chapter?: number; translation?: string; ownerId?: string; onNavigate?: () => void; assets?: readonly VisualAsset[] };
+type Props = { context?: ChapterContextBundle; book?: string; chapter?: number; translation?: string; ownerId?: string; onNavigate?: () => void; assets?: readonly VisualAsset[]; initialQuery?: string; initialSection?: ExplorerSection; initialSelectedId?: string };
 export default function VisualLibraryWorkspace(props: Props) {
-  return <Workspace key={`${props.ownerId ?? "guest"}:${props.book}:${props.chapter}:${props.translation}`} {...props} />;
+  return <Workspace key={`${props.ownerId ?? "guest"}:${props.book}:${props.chapter}:${props.translation}:${props.initialSection}:${props.initialQuery}:${props.initialSelectedId}`} {...props} />;
 }
-function Workspace({ context, book, chapter, translation: abbreviation, ownerId, onNavigate, assets = VISUAL_CATALOGUE }: Props) {
+function Workspace({ context, book, chapter, translation: abbreviation, ownerId, onNavigate, assets = VISUAL_CATALOGUE, initialQuery = "", initialSection = "discover", initialSelectedId }: Props) {
   const id = useId();
   const atlas = useBibleGeography();
   const saved = useVisualSaved(ownerId);
-  const [section, setSection] = useState<ExplorerSection>("discover");
+  const [section, setSection] = useState<ExplorerSection>(initialSection);
   const [chapterOnly, setChapterOnly] = useState(Boolean(book));
   const [placeScope, setPlaceScope] = useState<"all" | "passage">("all");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [collection, setCollection] = useState<CollectionFilter>("all");
   const [creator, setCreator] = useState("");
   const [period, setPeriod] = useState("");
@@ -37,12 +37,13 @@ function Workspace({ context, book, chapter, translation: abbreviation, ownerId,
   const [translation, setTranslation] = useState<GeographyTranslation>(geographyTranslation(abbreviation));
   const [refine, setRefine] = useState(false);
   const [limit, setLimit] = useState(24);
-  const [selected, setSelected] = useState<VisualAsset | null>(null);
+  const [selected, setSelected] = useState<VisualAsset | null>(() => initialSelectedId ? assets.find(asset => asset.id === initialSelectedId) ?? null : null);
   const [exportError, setExportError] = useState("");
   const deferredQuery = useDeferredValue(query);
   const scroller = useRef<HTMLDivElement>(null);
   const previousScroll = useRef(0);
   const opener = useRef<HTMLElement | null>(null);
+  const didInitializeFilters = useRef(false);
   const activeBook = chapterOnly ? book : libraryBook || undefined;
   const activeChapter = chapterOnly ? chapter : undefined;
   const placeBook = section === "places" ? (placeScope === "passage" ? book : libraryBook || undefined) : activeBook;
@@ -63,7 +64,7 @@ function Workspace({ context, book, chapter, translation: abbreviation, ownerId,
   const selectedIndex = selected ? visuals.findIndex(asset => asset.id === selected.id) : -1;
   const featured = section === "discover" && chapterOnly && !hasFilters ? visuals.find(asset => asset.kind === "artwork") : undefined;
   const visibleVisuals = (section === "places" && collection === "all" ? [] : visuals).filter(asset => asset.id !== featured?.id).slice(0, section === "discover" && collection === "all" ? 8 : limit);
-  useEffect(() => { setSelected(null); setLimit(24); setExportError(""); if (scroller.current) scroller.current.scrollTop = 0; }, [section, chapterOnly, deferredQuery, collection, creator, period, libraryBook, translation]);
+  useEffect(() => { if (!didInitializeFilters.current) { didInitializeFilters.current = true; return; } setSelected(null); setLimit(24); setExportError(""); if (scroller.current) scroller.current.scrollTop = 0; }, [section, chapterOnly, deferredQuery, collection, creator, period, libraryBook, translation]);
   const go = (next: ExplorerSection) => { setSection(next); setCollection("all"); setCreator(""); setPeriod(""); if (next === "places") { setPlaceScope("all"); setTranslation("all"); setLimit(24); } };
   const clear = () => { setQuery(""); setCollection("all"); setCreator(""); setPeriod(""); setLibraryBook(""); };
   const select = (asset: VisualAsset, element: HTMLElement) => { opener.current = element; previousScroll.current = scroller.current?.scrollTop ?? 0; setSelected(asset); if (scroller.current) scroller.current.scrollTop = 0; };

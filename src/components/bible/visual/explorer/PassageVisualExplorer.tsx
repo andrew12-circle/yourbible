@@ -84,8 +84,9 @@ export default function PassageVisualExplorer({ plate, onClose, assets = VISUAL_
       if (event.key === "+" || event.key === "=") { event.preventDefault(); setMagnification(zoom + 0.5); }
       if (event.key === "-") { event.preventDefault(); setMagnification(zoom - 0.5); }
     }}
-    onTouchStart={event => { touchStart.current = event.touches[0]?.clientX ?? null; }}
+    onTouchStart={event => { event.stopPropagation(); touchStart.current = event.touches[0]?.clientX ?? null; }}
     onTouchEnd={event => {
+      event.stopPropagation();
       const start = touchStart.current;
       touchStart.current = null;
       if (start == null) return;

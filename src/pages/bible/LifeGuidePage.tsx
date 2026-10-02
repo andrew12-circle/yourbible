@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, BookMarked, Loader2, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBibles, pickDefaultBibleId } from "@/hooks/useBibles";
@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 
 export default function LifeGuidePage() {
   const { user, loading: authLoading } = useAuth();
+  const [params] = useSearchParams();
+  const initialIssue = params.get("q")?.trim() ?? "";
   const { showHubShell } = useAppShellMode();
   const online = useOnlineStatus();
   const { data: bibles = [] } = useBibles();
@@ -47,6 +49,10 @@ export default function LifeGuidePage() {
     loadRecent,
     clear,
   } = useLifeGuide(bibleId, user?.id);
+
+  useEffect(() => {
+    if (initialIssue && !issue.trim()) setIssue(initialIssue);
+  }, [initialIssue, issue, setIssue]);
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
