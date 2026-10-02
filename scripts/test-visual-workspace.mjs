@@ -65,7 +65,7 @@ try {
    await page.getByRole('button',{name:'Light page',exact:true}).click();await state('dark',false);
    await page.getByRole('button',{name:'Bookmark this page',exact:true}).click();
    const bookmark=page.getByRole('dialog'); await bookmark.getByLabel('Name',{exact:true}).fill('Audit ribbon');await bookmark.getByRole('button',{name:'Save ribbon'}).click();await state('ribbon','Audit ribbon');
-   await page.getByRole('button',{name:'Search Scripture',exact:true}).click();await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
+   await page.getByRole('button',{name:'Universal Bible search',exact:true}).click();await page.getByRole('dialog').waitFor();await page.keyboard.press('Escape');await page.getByRole('dialog').waitFor({state:'hidden'});
    await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('menuitem',{name:'CSB',exact:true}).hover();await page.getByRole('menuitem',{name:/English Standard Version/}).click();await state('bible','test-esv');
    await page.getByRole('button',{name:'Settings',exact:true}).click();await page.getByRole('menuitem',{name:'ESV',exact:true}).hover();await page.getByRole('menuitem',{name:/Christian Standard Bible/}).click();await state('bible','test-csb');
    await page.getByRole('button',{name:'Exit full screen',exact:true}).click();await state('full',false);await page.getByRole('button',{name:'Full screen',exact:true}).click();await state('full',true);
