@@ -39,6 +39,7 @@ const ContentsReaderPage = lazy(() => import("./pages/reader/ContentsReaderPage"
 const StudyBackMatterPage = lazy(() => import("./pages/reader/StudyBackMatterPage"));
 const LifeGuidePage = lazy(() => import("./pages/bible/LifeGuidePage"));
 const BibleEarthPage = lazy(() => import("./pages/bible/BibleEarthPage"));
+const VisualBibleExplorePage = lazy(() => import("./pages/bible/VisualBibleExplorePage"));
 const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const SleepPage = lazy(() => import("./pages/sleep/SleepPage"));
 const FrameworkDashboard = lazy(() => import("./pages/framework/FrameworkDashboard"));
@@ -150,6 +151,7 @@ const App = () => (
                   <Route path="/read/:book/:chapter" element={<ReaderPage />} />
                   <Route path="/bible/life-guide" element={<LifeGuidePage />} />
                   <Route path="/bible/earth" element={<BibleEarthPage />} />
+                  <Route path="/bible/explore" element={<VisualBibleExplorePage />} />
                   <Route path="/bible/code-lab" element={<CodeLabPage />} />
                   <Route path="/home" element={<HomePage />} />
                   <Route path="/my-ai" element={<MyAiPage />} />
