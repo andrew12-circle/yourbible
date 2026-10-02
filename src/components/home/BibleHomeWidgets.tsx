@@ -61,7 +61,7 @@ export function BibleHomeWidgets() {
         className="w-full flex items-center gap-3 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] active:scale-[0.985] transition disabled:opacity-60"
       >
         <Search className="w-4 h-4 text-zinc-700" aria-hidden />
-        <span className="text-[15px] font-medium text-zinc-800">Search Scripture</span>
+        <span className="text-[15px] font-medium text-zinc-800">Search Bible, places, art & more</span>
       </button>
 
       <button
