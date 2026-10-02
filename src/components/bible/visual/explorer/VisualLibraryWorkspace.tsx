@@ -43,6 +43,7 @@ function Workspace({ context, book, chapter, translation: abbreviation, ownerId,
   const scroller = useRef<HTMLDivElement>(null);
   const previousScroll = useRef(0);
   const opener = useRef<HTMLElement | null>(null);
+  const didInitializeFilters = useRef(false);
   const activeBook = chapterOnly ? book : libraryBook || undefined;
   const activeChapter = chapterOnly ? chapter : undefined;
   const placeBook = section === "places" ? (placeScope === "passage" ? book : libraryBook || undefined) : activeBook;
@@ -63,7 +64,7 @@ function Workspace({ context, book, chapter, translation: abbreviation, ownerId,
   const selectedIndex = selected ? visuals.findIndex(asset => asset.id === selected.id) : -1;
   const featured = section === "discover" && chapterOnly && !hasFilters ? visuals.find(asset => asset.kind === "artwork") : undefined;
   const visibleVisuals = (section === "places" && collection === "all" ? [] : visuals).filter(asset => asset.id !== featured?.id).slice(0, section === "discover" && collection === "all" ? 8 : limit);
-  useEffect(() => { setSelected(null); setLimit(24); setExportError(""); if (scroller.current) scroller.current.scrollTop = 0; }, [section, chapterOnly, deferredQuery, collection, creator, period, libraryBook, translation]);
+  useEffect(() => { if (!didInitializeFilters.current) { didInitializeFilters.current = true; return; } setSelected(null); setLimit(24); setExportError(""); if (scroller.current) scroller.current.scrollTop = 0; }, [section, chapterOnly, deferredQuery, collection, creator, period, libraryBook, translation]);
   const go = (next: ExplorerSection) => { setSection(next); setCollection("all"); setCreator(""); setPeriod(""); if (next === "places") { setPlaceScope("all"); setTranslation("all"); setLimit(24); } };
   const clear = () => { setQuery(""); setCollection("all"); setCreator(""); setPeriod(""); setLibraryBook(""); };
   const select = (asset: VisualAsset, element: HTMLElement) => { opener.current = element; previousScroll.current = scroller.current?.scrollTop ?? 0; setSelected(asset); if (scroller.current) scroller.current.scrollTop = 0; };
