@@ -6,18 +6,18 @@ import { filterGeographyPlaces, geographyBookNumber, geographyTranslation, parse
 import { downloadGeographyKml } from "@/lib/bible/geographyKml";
 import { BibleEarthPlaceCard } from "./BibleEarthPlaceCard";
 
-interface Props { initialBook?: string; initialChapter?: number; initialTranslation?: string; onRead?: () => void }
+interface Props { initialBook?: string; initialChapter?: number; initialTranslation?: string; initialQuery?: string; onRead?: () => void }
 const control = "min-h-10 w-full rounded-lg border bg-background px-3 py-2 text-sm";
 const button = "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50";
 
-export default function BibleEarthExplorer({ initialBook, initialChapter, initialTranslation, onRead }: Props) {
+export default function BibleEarthExplorer({ initialBook, initialChapter, initialTranslation, initialQuery = "", onRead }: Props) {
   const uid = useId();
   const initialNumber = geographyBookNumber(initialBook);
   const validInitialChapter = initialNumber && initialChapter && initialChapter >= 1 && initialChapter <= BOOKS[initialNumber - 1].chapters ? initialChapter : null;
   const [book, setBook] = useState<number | null>(initialNumber);
   const [chapter, setChapter] = useState<number | null>(validInitialChapter);
   const [translation, setTranslation] = useState<GeographyTranslation>(geographyTranslation(initialTranslation));
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [verseText, setVerseText] = useState("");
   const [limit, setLimit] = useState(36);
   const [exportError, setExportError] = useState("");
