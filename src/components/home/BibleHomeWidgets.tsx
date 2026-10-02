@@ -9,13 +9,10 @@ import { useReadingStreak } from "@/hooks/useReadingActivity";
 import { useAuth } from "@/contexts/AuthContext";
 import { READING_PLANS } from "@/data/readingPlans";
 import { BibleSearchDialog } from "@/components/bible/BibleSearchDialog";
-import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { isBundledBibleId } from "@/lib/bible/bibleEditions";
 
 export function BibleHomeWidgets() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const online = useOnlineStatus();
   const { data: bibles = [] } = useBibles();
   const [searchOpen, setSearchOpen] = useState(false);
   const bibleId = pickDefaultBibleId(bibles, getStoredBibleId());
@@ -57,7 +54,7 @@ export function BibleHomeWidgets() {
       <button
         type="button"
         onClick={() => setSearchOpen(true)}
-        disabled={!bibleId || (!online && !isBundledBibleId(bibleId))}
+        disabled={!bibleId}
         className="w-full flex items-center gap-3 p-4 rounded-[22px] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.35)] active:scale-[0.985] transition disabled:opacity-60"
       >
         <Search className="w-4 h-4 text-zinc-700" aria-hidden />
