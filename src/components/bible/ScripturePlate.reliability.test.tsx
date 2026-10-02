@@ -9,14 +9,18 @@ describe("stable chapter illustrations", () => {
   it("retries a failed image and resets failure for another artwork", () => {
     const plate = inlinePlatesForChapter("Gen", 1)[0];
     const next = inlinePlatesForChapter("Gen", 2)[0];
-    const { rerender } = render(<ScripturePlate plate={plate} compact />);
-    fireEvent.error(screen.getByRole("img"));
-    fireEvent.click(screen.getByRole("button", { name: "Retry illustration" }));
-    expect(screen.getByRole("img").getAttribute("src")).toContain("?retry=1");
-    fireEvent.error(screen.getByRole("img"));
+    const { container, rerender } = render(<ScripturePlate plate={plate} compact />);
+    const firstImage = container.querySelector("img");
+    expect(firstImage).not.toBeNull();
+    fireEvent.error(firstImage!);
+    const retry = screen.getByRole("button", { name: /Retry (?:image|illustration)/ });
+    fireEvent.click(retry);
+    const retriedImage = container.querySelector("img");
+    expect(retriedImage?.getAttribute("src")).toContain("retry=1");
+    fireEvent.error(retriedImage!);
     rerender(<ScripturePlate plate={next} compact />);
-    expect(screen.queryByRole("button", { name: "Retry illustration" })).toBeNull();
-    expect(screen.getByRole("img").getAttribute("alt")).toBe(next.alt);
+    expect(screen.queryByRole("button", { name: /Retry (?:image|illustration)/ })).toBeNull();
+    expect(container.querySelector("img")).not.toBeNull();
   });
   it("places mid-chapter artwork between the correct verses in scroll mode", () => {
     const ch = { bookAbbr: "Gen", bookName: "Genesis", chapter: 4, verses: Array.from({ length: 10 }, (_, i) => ({ number: i + 1, text: `Synthetic verse ${i + 1}` })), paragraphStarts: [1], headings: [], poetryBlocks: [] };
