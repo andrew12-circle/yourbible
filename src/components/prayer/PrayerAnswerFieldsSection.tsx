@@ -6,9 +6,11 @@ type Props = {
   answeredAt: string;
   amountProvided: string;
   answerText: string;
+  provisionSource?: string;
   onAnsweredAtChange: (value: string) => void;
   onAmountProvidedChange: (value: string) => void;
   onAnswerTextChange: (value: string) => void;
+  onProvisionSourceChange?: (value: string) => void;
   disabled?: boolean;
   storyRequired?: boolean;
 };
@@ -17,9 +19,11 @@ export default function PrayerAnswerFieldsSection({
   answeredAt,
   amountProvided,
   answerText,
+  provisionSource = "",
   onAnsweredAtChange,
   onAmountProvidedChange,
   onAnswerTextChange,
+  onProvisionSourceChange,
   disabled = false,
   storyRequired = false,
 }: Props) {
@@ -48,6 +52,22 @@ export default function PrayerAnswerFieldsSection({
         />
         <p className="text-xs text-muted-foreground">Shows in the ledger Received column.</p>
       </div>
+
+      {onProvisionSourceChange ? (
+        <div className="space-y-2">
+          <Label htmlFor="provision-source-received">Provision source</Label>
+          <Input
+            id="provision-source-received"
+            value={provisionSource}
+            onChange={(e) => onProvisionSourceChange(e.target.value)}
+            placeholder="Commission from the Smith closing"
+            disabled={disabled}
+          />
+          <p className="text-xs text-muted-foreground">
+            Record where the provision actually came from. An expected source can be noted before it arrives.
+          </p>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         <Label htmlFor="provision-story">

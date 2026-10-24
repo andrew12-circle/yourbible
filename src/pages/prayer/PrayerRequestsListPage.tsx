@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { usePrayerRequests } from "@/hooks/usePrayerRequests";
 import { listScriptureTimelineRefsByRequestIds } from "@/lib/prayer/api";
 import { PRAYER_STATUSES } from "@/lib/prayer/statuses";
+import { formatLedgerAmount } from "@/lib/prayer/money";
+import { provisionSpecificityMissing, remainingProvisionAmount } from "@/lib/prayer/provisionLedger";
 import type { PrayerCategory, PrayerRequestRow, PrayerRequestStatus } from "@/lib/prayer/types";
 
 function monthKey(iso: string): string {
@@ -55,6 +57,17 @@ export default function PrayerRequestsListPage() {
     return list;
   }, [rows, monthFilter]);
 
+  const accounting = useMemo(() => {
+    const active = sorted.filter((r) => !["answered", "different_answer", "closed"].includes(r.status));
+    const knownRemaining = active.reduce((sum, r) => sum + (remainingProvisionAmount(r) ?? 0), 0);
+    const criticalRemaining = active
+      .filter((r) => r.priority === "critical")
+      .reduce((sum, r) => sum + (remainingProvisionAmount(r) ?? 0), 0);
+    const needsDetail = active.filter((r) => provisionSpecificityMissing(r).length > 0).length;
+    const inMotion = active.filter((r) => r.status === "in_motion").length;
+    return { open: active.length, knownRemaining, criticalRemaining, needsDetail, inMotion };
+  }, [sorted]);
+
   const [timelineScriptureByRequestId, setTimelineScriptureByRequestId] = useState<
     Map<string, string[]>
   >(new Map());
@@ -80,9 +93,32 @@ export default function PrayerRequestsListPage() {
   return (
     <PrayerShell title="Provision ledger" wide>
       <p className="mb-3 text-sm text-muted-foreground leading-relaxed">
-        Your Müller-style log: item, amount, deadline, purpose, status — then mark answered with what God
-        actually provided and the story behind it.
+        A specific record of what you asked for, when it is needed, what remains, how provision came,
+        and the praise report after it is answered.
       </p>
+
+      <div className="mb-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="rounded-xl border border-border/60 bg-card p-3">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Open requests</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">{accounting.open}</p>
+        </div>
+        <div className="rounded-xl border border-border/60 bg-card p-3">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Known remaining</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">{formatLedgerAmount(accounting.knownRemaining || null)}</p>
+        </div>
+        <div className="rounded-xl border border-red-200/70 bg-red-50/30 p-3 dark:bg-red-950/10">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Critical remaining</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">{formatLedgerAmount(accounting.criticalRemaining || null)}</p>
+        </div>
+        <div className="rounded-xl border border-sky-200/70 bg-sky-50/30 p-3 dark:bg-sky-950/10">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Provision in motion</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">{accounting.inMotion}</p>
+        </div>
+        <div className="rounded-xl border border-amber-200/70 bg-amber-50/30 p-3 dark:bg-amber-950/10">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Need more detail</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">{accounting.needsDetail}</p>
+        </div>
+      </div>
 
       <PrayerLedgerToolbar
         view={view}
