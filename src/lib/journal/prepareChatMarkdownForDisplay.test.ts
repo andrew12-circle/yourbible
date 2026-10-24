@@ -80,4 +80,12 @@ describe("prepareChatMarkdownForDisplay", () => {
     const out = prepareChatMarkdownForDisplay(raw);
     expect(out).toBe("- Water.\n- Bathroom.\n- Brush teeth.");
   });
+
+  it("joins ordered list markers split from their item text", () => {
+    const raw = "Start with this:\n\n1.\nOnly the first clean, silent instruction.\n\n2.\nThen the next small step.";
+    const out = prepareChatMarkdownForDisplay(raw);
+    expect(out).toContain("1. Only the first clean, silent instruction.");
+    expect(out).toContain("2. Then the next small step.");
+    expect(out).not.toContain("1.\nOnly");
+  });
 });

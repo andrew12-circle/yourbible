@@ -23,7 +23,11 @@ function buildMarkdownComponents(comfortable: boolean): Components {
     ol: ({ children }) => (
       <ol className={cn(body, BLOCK_GAP, "list-decimal space-y-3 pl-5")}>{children}</ol>
     ),
-    li: ({ children }) => <li className="pl-0.5">{children}</li>,
+    li: ({ children }) => (
+      <li className="pl-1 marker:font-normal [&>p:first-child]:mt-0 [&>p:first-child]:inline [&>p+p]:mt-3">
+        {children}
+      </li>
+    ),
     blockquote: ({ children }) => (
       <ChatPrayerBiblePage
         text={extractMarkdownText(children)}
@@ -112,7 +116,7 @@ export default function ChatAssistantMarkdown({
     <div
       className={cn(
         CHAT_ASSISTANT_MARKDOWN_CLASS,
-        "min-w-0 overflow-x-hidden break-words [overflow-wrap:anywhere]",
+        "min-w-0 overflow-x-hidden break-words [overflow-wrap:break-word]",
         className,
       )}
     >
