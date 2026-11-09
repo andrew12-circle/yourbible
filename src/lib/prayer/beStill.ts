@@ -65,7 +65,7 @@ export function createBeStillSession(entryPoint: BeStillEntryPoint): BeStillSess
     completedAt: null, stage: "prepare", place: "", hour: "", handsEmpty: false,
     interruptionsCleared: false, dayPutAway: false,
     question: "", pictureKind: "situation", picture: "", reflection: "",
-    thoughtOrigin: "none", qualities: emptyQualities(), scripture: "", nextStep: "",
+    thoughtOrigin: "uncertain", qualities: emptyQualities(), scripture: "", nextStep: "",
     reviewDate: "", outcome: "open", verification: "pending", verificationNotes: "", verifiedAt: null,
   };
 }
