@@ -6,26 +6,29 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { QuietPrayerTimer } from "@/components/prayer/QuietPrayerTimer";
 import { BeStillReflection } from "@/components/prayer/BeStillReflection";
+import { BeStillPreparation } from "@/components/prayer/BeStillPreparation";
+import { BeStillVisualization } from "@/components/prayer/BeStillVisualization";
 import { useBeStillSession } from "@/hooks/useBeStillSession";
-import { BE_STILL_STAGES, type BeStillEntryPoint, type BeStillStage } from "@/lib/prayer/beStill";
+import { BE_STILL_STAGES, readyForStillness, type BeStillEntryPoint, type BeStillStage } from "@/lib/prayer/beStill";
 import { MORNING_FORMULA_CONVERSATION_RETURN } from "@/lib/bible/readerNavigation";
 import { cn } from "@/lib/utils";
 
 type Props = { userId: string; entryPoint: BeStillEntryPoint; resumeId?: string };
-const STAGE_ORDER: BeStillStage[] = ["stillness", "question", "picture", "listen", "reflect"];
+const STAGE_ORDER: BeStillStage[] = ["prepare", "stillness", "question", "picture", "listen", "reflect"];
 const STAGE_COPY = {
-  stillness: { title: "Be here for a moment.", body: "Settle into a quiet place. Let the day rest. You do not have to solve anything right now." },
-  question: { title: "Bring one question.", body: "What would you like to bring before God? Let the many concerns become one simple question." },
-  picture: { title: "Hold it gently in mind.", body: "Bring the person, situation, or choice to mind. Notice what matters without deciding the outcome." },
-  listen: { title: "You can set it down now.", body: "You have brought your question. Stay present and listen without forcing an answer." },
-  reflect: { title: "Make a little room to reflect.", body: "Capture what you noticed while it is fresh. There is nothing you need to prove or produce." },
+  prepare: { title: "Prepare to receive.", body: "Before sitting, make your one question clear and prepare the same place and hour." },
+  stillness: { title: "Become still.", body: "Put the day away. Sit quietly with nothing in your hands and nothing waiting to interrupt." },
+  question: { title: "One question.", body: "Hold the single sentence you wrote before sitting. Do not add another question." },
+  picture: { title: "See the question.", body: "Make the person, the two roads, or the situation a clear picture in your mind." },
+  listen: { title: "Release it.", body: "Stop asking. Do not argue with the question or try to guess the answer. Wait without forcing." },
+  reflect: { title: "Record what came.", body: "The ledger distinguishes thoughts built by reasoning from those that seemed to arrive whole, then lets you review what proved true." },
 } as const;
 
 function BeStillAbout() {
   return <details className="mx-auto mt-10 max-w-xl text-sm text-muted-foreground">
     <summary className="min-h-11 cursor-pointer py-3 text-center text-xs">About this practice</summary>
     <div className="space-y-3 rounded-2xl bg-muted/40 p-5 leading-relaxed">
-      <p>This practice follows four movements: stillness, one question, a clear picture, and release. Reflection comes afterward.</p>
+      <p>The account instructs: be still, ask one question, see it clearly, then let it go. Prepare the written question before sitting. Observe any thought that arrives whole, and later compare it with ordinary reasoning in the ledger.</p>
       <p>The source video attributes the method to Nikola Tesla. That historical attribution has not been verified.</p>
       <p>A sudden or peaceful thought is something to reflect on. Its timing or feeling alone does not establish its source. Bring your impressions back to Scripture, prayer, and trusted counsel.</p>
     </div>
@@ -77,7 +80,7 @@ export function BeStillExperience({ userId, entryPoint, resumeId }: Props) {
       <StillnessMark />
       <p className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-primary">A moment with God</p>
       <h2 className="font-serif text-4xl leading-tight tracking-tight sm:text-5xl">Let the day become quiet.</h2>
-      <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-muted-foreground">Bring one question. Hold it gently. Let go of the effort and make room to listen.</p>
+      <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-muted-foreground">Write one question before sitting. Be still, see it clearly, then release it and wait without forcing.</p>
       <Button type="button" onClick={() => void flow.start()} disabled={flow.busy || Boolean(flow.error)} size="lg" className="mt-8 min-h-12 rounded-full px-8">
         {flow.busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="mr-2 h-4 w-4" aria-hidden />}
         Begin a quiet session
@@ -101,6 +104,7 @@ export function BeStillExperience({ userId, entryPoint, resumeId }: Props) {
     <p className="mt-5 leading-relaxed text-muted-foreground">Your question and reflection are together in your journal. Return whenever you are ready to add what you understand later.</p>
     <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
       <Button asChild className="min-h-12 rounded-full px-6"><Link to={`/journal/${session.id}`}><BookOpen className="mr-2 h-4 w-4" aria-hidden />Open in Journal</Link></Button>
+      <Button asChild variant="outline" className="min-h-12 rounded-full px-6"><Link to="/prayer/be-still/ledger">Open receiving ledger</Link></Button>
       <Button asChild variant="outline" className="min-h-12 rounded-full px-6"><Link to={returnTo}>{returnLabel}</Link></Button>
     </div>
     <Button type="button" variant="ghost" onClick={() => void flow.start()} disabled={flow.busy} className="mt-4 min-h-11">Begin another session</Button>
@@ -109,60 +113,48 @@ export function BeStillExperience({ userId, entryPoint, resumeId }: Props) {
 
   const stageIndex = STAGE_ORDER.indexOf(session.stage);
   const copy = STAGE_COPY[session.stage];
-  const nextLabel = session.stage === "stillness" ? "Bring my question" : session.stage === "question" ? "See it clearly" : session.stage === "picture" ? "Release and listen" : "Reflect when ready";
+  const nextLabel = session.stage === "prepare" ? "Begin stillness" : session.stage === "stillness" ? "Bring my question" : session.stage === "question" ? "See it clearly" : session.stage === "picture" ? "Release and listen" : "Reflect when ready";
 
   return <div className="mx-auto max-w-xl pb-5 pt-2 sm:pt-5">
-    <nav aria-label="Listening prayer stages" className="mb-9">
+    {session.stage !== "prepare" && session.stage !== "listen" ? <nav aria-label="Listening prayer stages" className="mb-9">
       <ol className="grid grid-cols-4 gap-2">
         {BE_STILL_STAGES.map((step, index) => <li key={step.id}>
-          <button type="button" disabled={flow.busy} onClick={() => flow.update({ stage: step.id })} aria-current={session.stage === step.id ? "step" : undefined}
+          <button type="button" disabled={flow.busy || index >= stageIndex} onClick={() => flow.update({ stage: step.id })} aria-current={session.stage === step.id ? "step" : undefined}
             className={cn("flex min-h-14 w-full flex-col items-center gap-2 rounded-xl px-1 py-2 text-center text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-xs", session.stage === step.id ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted/50")}>
-            <span aria-hidden className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-[10px]", index < stageIndex ? "border-primary/30 bg-primary/10 text-primary" : "border-border")}>{index < stageIndex ? <Check className="h-3 w-3" /> : index + 1}</span>
+            <span aria-hidden className={cn("flex h-6 w-6 items-center justify-center rounded-full border text-[10px]", index < stageIndex - 1 ? "border-primary/30 bg-primary/10 text-primary" : "border-border")}>{index < stageIndex - 1 ? <Check className="h-3 w-3" /> : index + 1}</span>
             {step.label}
           </button>
         </li>)}
       </ol>
-    </nav>
+    </nav> : null}
     {error}
     <div className="mb-7 text-center">
-      <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary">{session.stage === "reflect" ? "After the quiet" : `Step ${stageIndex + 1} of 4`}</p>
+      <p className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-primary">{session.stage === "prepare" ? "Before sitting" : session.stage === "reflect" ? "After the quiet" : `Step ${stageIndex} of 4`}</p>
       <h2 ref={heading} tabIndex={-1} className="font-serif text-3xl leading-tight outline-none sm:text-4xl">{copy.title}</h2>
       <p className="mx-auto mt-4 max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">{copy.body}</p>
     </div>
-    {session.stage === "stillness" ? <div>
-      <p className="mb-6 text-center font-serif text-lg italic leading-relaxed text-foreground/80">Father, I am here. Help me become attentive to You.</p>
-      <QuietPrayerTimer key="stillness" initialMinutes={2} title="A little stillness" />
-    </div> : null}
-    {session.stage === "question" ? <div className="space-y-3">
-      <Label htmlFor="be-still-question" className="text-base">My question</Label>
-      <Textarea id="be-still-question" value={session.question} onChange={(event) => flow.update({ question: event.target.value })}
-        placeholder="Father, what is the next faithful step I can take?" rows={3} maxLength={500} disabled={flow.busy}
-        aria-describedby="be-still-question-help" className="rounded-2xl p-5 text-base leading-relaxed" />
-      <p id="be-still-question-help" className="text-sm leading-relaxed text-muted-foreground">One clear sentence is enough. You can also continue with an unspoken question.</p>
-    </div> : null}
-    {session.stage === "picture" ? <div className="space-y-5">
-      {session.question ? <blockquote className="rounded-2xl bg-primary/5 p-5 font-serif text-xl leading-relaxed">{session.question}</blockquote> : null}
-      <p className="text-sm leading-relaxed text-muted-foreground">If it is about a person, bring them to mind. If it is a choice, consider the paths. Words or a simple awareness work too.</p>
-      <div className="space-y-3"><Label htmlFor="be-still-picture">What I am bringing into prayer <span className="font-normal text-muted-foreground">(optional)</span></Label>
-        <Textarea id="be-still-picture" value={session.picture} onChange={(event) => flow.update({ picture: event.target.value })} placeholder="A person, a situation, or a choice…"
-          rows={4} maxLength={6000} disabled={flow.busy} className="rounded-2xl p-4 text-base" />
-      </div>
-    </div> : null}
-    {session.stage === "listen" ? <div className="space-y-5">
-      {session.question ? <details className="text-center"><summary className="min-h-11 cursor-pointer py-3 text-xs text-muted-foreground">Show my question</summary><p className="mx-auto max-w-md pb-3 font-serif text-lg">{session.question}</p></details> : null}
-      <QuietPrayerTimer key="listen" initialMinutes={5} title="Release and listen" onReflect={() => flow.update({ stage: "reflect" })} />
-      <p className="text-center text-sm text-muted-foreground">There is nothing you need to produce.</p>
-    </div> : null}
+    {session.stage === "prepare" ? <BeStillPreparation session={session} onChange={flow.update} disabled={flow.busy} /> : null}
+    {session.stage === "stillness" ? <QuietPrayerTimer key="stillness" initialMinutes={2} title="Put the day away" /> : null}
+    {session.stage === "question" ? <section className="space-y-4">
+      <p className="text-sm text-muted-foreground">The transcript instructs you to write the sentence before sitting. Here is the one you prepared:</p>
+      <blockquote className="rounded-2xl bg-primary/5 p-6 font-serif text-2xl leading-relaxed">{session.question || "One question, clearly stated."}</blockquote>
+      <p className="text-xs text-muted-foreground">If you need to revise the question, return to preparation rather than composing another one here.</p>
+    </section> : null}
+    {session.stage === "picture" ? <BeStillVisualization session={session} onChange={flow.update} disabled={flow.busy} /> : null}
+    {session.stage === "listen" ? <section className="space-y-5">
+      <QuietPrayerTimer key="listen" initialMinutes={5} title="Wait without forcing" onReflect={() => flow.update({ stage: "reflect" })} />
+      <p className="text-center font-serif text-lg italic text-muted-foreground">Wait beside the still pond without throwing stones.</p>
+    </section> : null}
     {session.stage === "reflect" ? <BeStillReflection session={session} onChange={flow.update} disabled={flow.busy} /> : null}
     <div className="mt-8 flex flex-col-reverse gap-3 border-t border-border/60 pt-6 sm:flex-row sm:items-center sm:justify-between">
-      <Button type="button" variant="ghost" disabled={flow.busy || stageIndex === 0} onClick={() => flow.update({ stage: STAGE_ORDER[stageIndex - 1] })} className="min-h-12 rounded-full"><ArrowLeft className="mr-2 h-4 w-4" aria-hidden />Back</Button>
+      <Button type="button" variant="ghost" disabled={flow.busy || stageIndex === 0 || session.stage === "listen"} onClick={() => flow.update({ stage: STAGE_ORDER[stageIndex - 1] })} className="min-h-12 rounded-full"><ArrowLeft className="mr-2 h-4 w-4" aria-hidden />Back</Button>
       {session.stage === "reflect" ? <Button type="button" disabled={flow.busy} onClick={() => void flow.complete()} className="min-h-12 rounded-full px-7">
         {flow.busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Check className="mr-2 h-4 w-4" aria-hidden />}Save my reflection
-      </Button> : <Button type="button" disabled={flow.busy} onClick={() => flow.update({ stage: STAGE_ORDER[stageIndex + 1] })} className="min-h-12 rounded-full px-7">{nextLabel}<ArrowRight className="ml-2 h-4 w-4" aria-hidden /></Button>}
+      </Button> : <Button type="button" disabled={flow.busy || (session.stage === "prepare" && !readyForStillness(session))} onClick={() => flow.update({ stage: STAGE_ORDER[stageIndex + 1] })} className="min-h-12 rounded-full px-7">{nextLabel}<ArrowRight className="ml-2 h-4 w-4" aria-hidden /></Button>}
     </div>
     <div className="mt-5 flex flex-col items-center gap-3 text-xs text-muted-foreground">
       <p role="status">{flow.draftStatus === "saving" ? "Keeping your draft…" : flow.draftStatus === "error" ? "Your draft needs attention." : "Draft kept on this device. Save when you finish."}</p>
-      <Link to={returnTo} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">{returnLabel}</Link>
+      <div className="flex flex-wrap justify-center gap-5"><Link to="/prayer/be-still/ledger" className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">Receiving ledger</Link><Link to={returnTo} className="inline-flex min-h-11 items-center underline-offset-4 hover:underline">{returnLabel}</Link></div>
     </div>
   </div>;
 }

@@ -17,7 +17,7 @@ import { useJournalVaultStore } from "@/stores/journalVaultStore";
 
 const DRAFT_TAG = "be-still-draft";
 const SAVED_TAGS = ["be-still", "listening-prayer"];
-const editableFields = ["stage", "question", "picture", "reflection", "scripture", "nextStep", "reviewDate", "outcome"] as const;
+const editableFields = ["stage", "place", "hour", "handsEmpty", "interruptionsCleared", "dayPutAway", "question", "pictureKind", "picture", "reflection", "thoughtOrigin", "qualities", "scripture", "nextStep", "reviewDate", "outcome"] as const;
 const pointerKey = (userId: string) => `yb_be_still_active_v1:${userId}`;
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 const message = (cause: unknown) => cause instanceof Error ? cause.message : "Your session could not be saved. Please try again.";

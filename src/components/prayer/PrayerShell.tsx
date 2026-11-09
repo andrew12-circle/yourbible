@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft, Waves } from "lucide-react";
+import { ArrowLeft, Waves, BookMarked } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hubShellPageRoot } from "@/lib/shell/hubShellClasses";
 import { getPrayerSection, isPrayerLanding, PRAYER_TABS } from "@/lib/prayer/navigation";
@@ -87,6 +87,7 @@ export default function PrayerShell({
               Be Still
             </Link>
           ) : null}
+          {!hideTabs && pathname !== "/prayer/be-still/ledger" ? <Link to="/prayer/be-still/ledger" className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Receiving ledger"><BookMarked className="h-4 w-4" aria-hidden /><span className="hidden sm:inline">Ledger</span></Link> : null}
         </div>
         {!hideTabs ? (
           <div className={cn("mx-auto w-full pb-2", contentWidth, contentPad)}>
