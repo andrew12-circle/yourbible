@@ -83,4 +83,17 @@ describe("PrayerShell", () => {
     expect(screen.getByRole("link", { name: "Overview" })).not.toHaveAttribute("aria-current");
     expect(screen.getByLabelText("Back home")).toBeInTheDocument();
   });
+
+  it("describes a custom return destination and hides extra actions during a quiet session", () => {
+    render(
+      <MemoryRouter initialEntries={["/prayer/be-still?from=morning"]}>
+        <PrayerShell title="Be Still" back="/living-hope/review?step=conversation" backLabel="Return to Morning Formula" hideTabs>
+          Quiet session
+        </PrayerShell>
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("link", { name: "Return to Morning Formula" })).toHaveAttribute("href", "/living-hope/review?step=conversation");
+    expect(screen.queryByRole("navigation", { name: "Prayer sections" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Be Still" })).not.toBeInTheDocument();
+  });
 });

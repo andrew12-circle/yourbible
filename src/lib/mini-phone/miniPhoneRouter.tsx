@@ -67,6 +67,8 @@ const FutureLetterPage = lazy(() => import("@/pages/living-hope/FutureLetterPage
 const MorningReviewPage = lazy(() => import("@/pages/living-hope/MorningReviewPage"));
 const WorkbookSectionPage = lazy(() => import("@/pages/living-hope/WorkbookSectionPage"));
 const PrayerHubPage = lazy(() => import("@/pages/prayer/PrayerHubPage"));
+const BeStillPage = lazy(() => import("@/pages/prayer/BeStillPage"));
+const BeStillLedgerPage = lazy(() => import("@/pages/prayer/BeStillLedgerPage"));
 const PrayerRequestsListPage = lazy(() => import("@/pages/prayer/PrayerRequestsListPage"));
 const PrayerRequestNewPage = lazy(() => import("@/pages/prayer/PrayerRequestNewPage"));
 const PrayerRequestDetailPage = lazy(() => import("@/pages/prayer/PrayerRequestDetailPage"));
@@ -110,6 +112,8 @@ const miniPhoneChildRoutes: RouteObject[] = [
   { path: "/life/vision-board", element: <VisionBoardPage /> },
   { path: "/todos", element: <Navigate to="/life/todos" replace /> },
   { path: "/prayer", element: <PrayerHubPage /> },
+  { path: "/prayer/be-still", element: <BeStillPage /> },
+  { path: "/prayer/be-still/ledger", element: <BeStillLedgerPage /> },
   { path: "/prayer/requests", element: <PrayerRequestsListPage /> },
   { path: "/prayer/requests/new", element: <PrayerRequestNewPage /> },
   { path: "/prayer/requests/:id/celebrate", element: <PrayerAnswerCelebrationPage /> },

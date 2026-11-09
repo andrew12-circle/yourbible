@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Loader2, PenLine, Video } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ArrowRight, Loader2, PenLine, Video, Waves } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { MORNING_FORMULA_CONVERSATION_RETURN } from "@/lib/bible/readerNavigation";
 import { MorningFormulaInlineJournal } from "./MorningFormulaInlineJournal";
@@ -21,6 +22,17 @@ export function MorningConversationPanel({ entryId, busy, error }: Props) {
     <section className="border-t border-border/50 pt-6">
       <h2 className="mb-3 text-xl font-semibold">Then listen</h2>
       <p className="mb-4 font-serif text-xl leading-relaxed">God, what do you want me to know today?</p>
+      <Link
+        to="/prayer/be-still?from=morning"
+        className="mb-3 flex min-h-11 items-center gap-3 rounded-2xl border border-primary/15 bg-primary/5 p-4 text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        <Waves className="h-5 w-5 shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block text-base font-semibold">Be Still</span>
+          <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">Settle, bring one question, and make room to listen.</span>
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+      </Link>
       <details><summary className="min-h-11 cursor-pointer py-3 text-sm text-muted-foreground">Capture a reflection</summary>
         <MorningFormulaInlineJournal entryId={entryId} busy={busy} error={error} section="listening" returnTo={MORNING_FORMULA_CONVERSATION_RETURN} />
       </details>

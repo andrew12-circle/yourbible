@@ -110,6 +110,8 @@ const FutureLetterPage = lazy(() => import("./pages/living-hope/FutureLetterPage
 const MorningReviewPage = lazy(() => import("./pages/living-hope/MorningReviewPage"));
 const WorkbookSectionPage = lazy(() => import("./pages/living-hope/WorkbookSectionPage"));
 const PrayerHubPage = lazy(() => import("./pages/prayer/PrayerHubPage"));
+const BeStillPage = lazy(() => import("./pages/prayer/BeStillPage"));
+const BeStillLedgerPage = lazy(() => import("./pages/prayer/BeStillLedgerPage"));
 const PrayerRequestsListPage = lazy(() => import("./pages/prayer/PrayerRequestsListPage"));
 const PrayerRequestNewPage = lazy(() => import("./pages/prayer/PrayerRequestNewPage"));
 const PrayerRequestDetailPage = lazy(() => import("./pages/prayer/PrayerRequestDetailPage"));
@@ -173,6 +175,8 @@ const App = () => (
                   <Route path="/todos" element={<Navigate to="/life/todos" replace />} />
                   <Route path="/music" element={<MusicPage />} />
                   <Route path="/prayer" element={<PrayerHubPage />} />
+                  <Route path="/prayer/be-still" element={<BeStillPage />} />
+                  <Route path="/prayer/be-still/ledger" element={<BeStillLedgerPage />} />
                   <Route path="/prayer/requests" element={<PrayerRequestsListPage />} />
                   <Route path="/prayer/requests/new" element={<PrayerRequestNewPage />} />
                   <Route path="/prayer/requests/:id/celebrate" element={<PrayerAnswerCelebrationPage />} />
