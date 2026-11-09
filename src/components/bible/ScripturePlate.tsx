@@ -57,8 +57,8 @@ function Plate({ plate, compact = false }: Props) {
       role={quickId !== "geography" ? "button" : undefined}
       tabIndex={quickId !== "geography" ? 0 : undefined}
       aria-label={quickId !== "geography" ? "Open artwork full screen" : undefined}
-      onClick={quickId !== "geography" ? e => { e.stopPropagation(); setExploring(true); } : undefined}
-      onKeyDown={quickId !== "geography" ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setExploring(true); } } : undefined}
+      onClick={quickId !== "geography" ? e => { e.stopPropagation(); if (e.target instanceof Element && e.target.closest("button, a")) return; setExploring(true); } : undefined}
+      onKeyDown={quickId !== "geography" ? e => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); e.stopPropagation(); setExploring(true); } } : undefined}
       style={compact ? { aspectRatio: "4 / 3" } : undefined}
     >
       {quickId === "geography" && geography ? <Suspense fallback={<div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">Opening map…</div>}><GeographyView scene={geography} /></Suspense>

@@ -3,7 +3,7 @@ import { webcrypto } from "node:crypto";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { JournalSafetyDb } from "@/test/journalSafetyDb";
 import { useJournalVaultStore } from "@/stores/journalVaultStore";
-import { createLocalJournalDocument, openJournalDocument, patchJournalDocument, peekJournalDocument, deleteJournalDocument } from "./journalDocuments";
+import { createLocalJournalDocument, openJournalDocument, patchJournalDocument, peekJournalDocument, deleteJournalDocument, retryJournalDocuments } from "./journalDocuments";
 import { listJournalDrafts, journalEntryWasDeleted, loadJournalDraft } from "./journalDraftStorage";
 const h = vi.hoisted(() => ({ db: null as unknown as import("@/test/journalSafetyDb").JournalSafetyDb, read: vi.fn(), insert: vi.fn(), update: vi.fn(), remove: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {
@@ -24,6 +24,24 @@ afterEach(async () => { await useJournalVaultStore.getState().reset(); vi.unstub
 const key = () => crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
 function deferred<T>() { let resolve!: (value: T) => void; const promise = new Promise<T>((yes) => { resolve = yes; }); return { promise, resolve }; }
 describe("journal document lock and deletion lifecycle", () => {
+  it("leaves guided prayer drafts local during background retries until completion removes the draft tag", async () => {
+    h.insert.mockImplementation(async (userId: string, payload: Record<string, unknown>) => ({
+      data: { ...payload, user_id: userId, revision: 1, e2e_encrypted: false }, error: null,
+    }));
+    const prayer = createLocalJournalDocument("owner", id, { body: "Still praying", tags: ["be-still", "be-still-draft"] });
+    const ordinaryId = `${id}-ordinary`;
+    const ordinary = createLocalJournalDocument("owner", ordinaryId, { body: "A regular journal draft", tags: [] });
+    await Promise.all([prayer.persist(), ordinary.persist()]);
+    retryJournalDocuments("owner");
+    await vi.waitFor(() => expect(h.insert).toHaveBeenCalledTimes(1));
+    expect(h.insert.mock.calls[0][1].id).toBe(ordinaryId);
+    expect(prayer.current().revision).toBeNull();
+    prayer.patch({ tags: ["be-still", "listening-prayer"] });
+    retryJournalDocuments("owner");
+    await vi.waitFor(() => expect(h.insert).toHaveBeenCalledTimes(2));
+    expect(h.insert.mock.calls[1][1].id).toBe(id);
+  });
+
   it("protects the latest pending words before clearing decrypted queues and old handles", async () => {
     const dek = await key(); useJournalVaultStore.setState({ dek, e2eEnabled: true });
     const queue = createLocalJournalDocument("owner", id, { body: "Before", title: "Private" }, true);

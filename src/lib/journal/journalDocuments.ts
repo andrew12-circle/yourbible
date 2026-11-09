@@ -197,10 +197,16 @@ export async function refreshJournalDocument(userId: string, entryId: string): P
   assertReadable(queue.current());
   return journalSnapshotRow(queue.current());
 }
+/** Be Still keeps the guided session on this device until the user saves it. */
+export function isLocalOnlyJournalDraft(values: JournalValues): boolean {
+  return Array.isArray(values.tags) && values.tags.includes("be-still-draft");
+}
+
 export function retryJournalDocuments(userId: string): void {
   for (const queue of queues.values()) {
     const state = queue.getState();
-    if (state.snapshot.userId === userId && queue.isDirty() && state.status !== "conflict") void queue.flush();
+    if (state.snapshot.userId === userId && queue.isDirty() && state.status !== "conflict"
+      && !isLocalOnlyJournalDraft(queue.current().values)) void queue.flush();
   }
 }
 

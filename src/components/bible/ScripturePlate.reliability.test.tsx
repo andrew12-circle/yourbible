@@ -11,7 +11,14 @@ describe("stable chapter illustrations", () => {
     const next = inlinePlatesForChapter("Gen", 2)[0];
     const { rerender } = render(<ScripturePlate plate={plate} compact />);
     fireEvent.error(screen.getByRole("img"));
-    fireEvent.click(screen.getByRole("button", { name: "Retry illustration" }));
+    const retry = screen.getByRole("button", { name: "Retry illustration" });
+    // Nested retry controls must not trigger the surrounding artwork opener.
+    for (const key of ["Enter", " "]) {
+      fireEvent.keyDown(retry, { key });
+      expect(retry).toBeVisible();
+    }
+    fireEvent.click(retry);
+    expect(screen.queryByTestId("passage-visual-explorer")).not.toBeInTheDocument();
     expect(screen.getByRole("img").getAttribute("src")).toContain("?retry=1");
     fireEvent.error(screen.getByRole("img"));
     rerender(<ScripturePlate plate={next} compact />);

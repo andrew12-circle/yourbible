@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { hubShellPageRoot } from "@/lib/shell/hubShellClasses";
 import { getPrayerSection, isPrayerLanding, PRAYER_TABS } from "@/lib/prayer/navigation";
@@ -11,6 +11,7 @@ type Props = {
   children: React.ReactNode;
   title?: string;
   back?: string;
+  backLabel?: string;
   hideTabs?: boolean;
   /** Full-width layout for ledger / table views (default is narrow reading width). */
   wide?: boolean;
@@ -20,6 +21,7 @@ export default function PrayerShell({
   children,
   title,
   back = "/prayer",
+  backLabel = "Back to prayer",
   hideTabs = false,
   wide = false,
 }: Props) {
@@ -68,7 +70,7 @@ export default function PrayerShell({
             <Link
               to={back}
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
-              aria-label="Back to prayer"
+              aria-label={backLabel}
             >
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -76,6 +78,15 @@ export default function PrayerShell({
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-sans text-lg font-semibold tracking-tight">{title ?? "Prayer"}</h1>
           </div>
+          {!hideTabs && pathname !== "/prayer/be-still" ? (
+            <Link
+              to="/prayer/be-still"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary/5 px-3 text-sm font-medium text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <Waves className="h-4 w-4" aria-hidden />
+              Be Still
+            </Link>
+          ) : null}
         </div>
         {!hideTabs ? (
           <div className={cn("mx-auto w-full pb-2", contentWidth, contentPad)}>
