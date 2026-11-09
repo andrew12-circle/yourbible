@@ -93,7 +93,7 @@ describe("Be Still guided prayer", () => {
     continueWith("Reflect when ready");
 
     expect(screen.getByRole("textbox", { name: "What came to mind?" })).toHaveValue("");
-    fireEvent.click(screen.getByRole("radio", { name: "Nothing clear today" }));
+    fireEvent.click(screen.getByRole("radio", { name: /Nothing clear today/ }));
     fireEvent.click(screen.getByRole("button", { name: "Save my reflection" }));
 
     expect(await screen.findByRole("heading", { name: "Your time in prayer is saved." })).toHaveFocus();

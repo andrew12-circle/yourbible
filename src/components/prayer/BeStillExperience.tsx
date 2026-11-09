@@ -2,8 +2,6 @@ import { useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, BookOpen, Check, Circle, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { QuietPrayerTimer } from "@/components/prayer/QuietPrayerTimer";
 import { BeStillReflection } from "@/components/prayer/BeStillReflection";
 import { BeStillPreparation } from "@/components/prayer/BeStillPreparation";
@@ -85,7 +83,8 @@ export function BeStillExperience({ userId, entryPoint, resumeId }: Props) {
         {flow.busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="mr-2 h-4 w-4" aria-hidden />}
         Begin a quiet session
       </Button>
-      <p className="mt-3 text-xs text-muted-foreground">Move at your pace. Silence is welcome.</p>
+      <p className="mt-3 text-xs text-muted-foreground">Write your one question before sitting. The steps then follow the method as presented.</p>
+      <Link to="/prayer/be-still/ledger" className="mt-5 inline-flex min-h-11 items-center text-sm text-primary underline-offset-4 hover:underline">Open the receiving ledger</Link>
     </div>
     <ol className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-4">
       {BE_STILL_STAGES.map((step, index) => <li key={step.id} className="rounded-2xl border border-border/60 bg-background/70 p-4">
